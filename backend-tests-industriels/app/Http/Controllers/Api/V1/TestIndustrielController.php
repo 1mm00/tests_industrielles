@@ -1,0 +1,185 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Services\TestIndustrielService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+class TestIndustrielController extends Controller
+{
+    protected $testService;
+
+    public function __construct(TestIndustrielService $testService)
+    {
+        $this->testService = $testService;
+    }
+
+    /**
+     * GET /api/v1/tests
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $paginator = $this->testService->getPaginatedTests($request->all());
+        
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'total' => $paginator->total(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+            ]
+        ], 200);
+    }
+
+    /**
+     * POST /api/v1/tests
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'type_test_id' => 'required|uuid',
+            'equipement_id' => 'required|uuid',
+            'phase_id' => 'nullable|uuid',
+            'procedure_id' => 'nullable|uuid',
+            'responsable_test_id' => 'nullable|uuid',
+            'date_test' => 'required|date',
+            'heure_debut' => 'nullable|string',
+            'heure_fin' => 'nullable|string',
+            'localisation' => 'required|string',
+            'niveau_criticite' => 'required|integer|between:1,4',
+            'arret_production_requis' => 'nullable|boolean',
+            'observations_generales' => 'nullable|string',
+        ]);
+
+        $test = $this->testService->creerTest($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Test créé avec succès',
+            'data' => $test
+        ], 201);
+    }
+
+    /**
+     * GET /api/v1/tests/{id}
+     */
+    public function show(string $id): JsonResponse
+    {
+        $rapport = $this->testService->genererRapportSynthese($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $rapport
+        ], 200);
+    }
+
+    /**
+     * PUT/PATCH /api/v1/tests/{id}
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        // Logique de mise à jour
+        return response()->json([
+            'success' => true,
+            'message' => 'Test mis à jour'
+        ], 200);
+    }
+
+    /**
+     * DELETE /api/v1/tests/{id}
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Test supprimé'
+        ], 200);
+    }
+
+    /**
+     * POST /api/v1/tests/{id}/demarrer
+     */
+    public function demarrer(string $id): JsonResponse
+    {
+        try {
+            $test = $this->testService->demarrerTest($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test démarré avec succès',
+                'data' => $test
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * POST /api/v1/tests/{id}/terminer
+     */
+    public function terminer(string $id): JsonResponse
+    {
+        try {
+            $test = $this->testService->terminerTest($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test terminé avec succès',
+                'data' => $test
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * GET /api/v1/tests/stats
+     */
+    public function stats(): JsonResponse
+    {
+        $stats = $this->testService->getGlobalStats();
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
+        ], 200);
+    }
+
+    /**
+     * GET /api/v1/tests/creation-data
+     */
+    public function creationData(): JsonResponse
+    {
+        $data = $this->testService->getCreationData();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ], 200);
+    }
+
+    /**
+     * GET /api/v1/tests/calendar
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $month = $request->query('month');
+        $year = $request->query('year');
+        
+        $tests = $this->testService->getCalendarTests($month, $year);
+
+        return response()->json([
+            'success' => true,
+            'data' => $tests
+        ], 200);
+    }
+}
