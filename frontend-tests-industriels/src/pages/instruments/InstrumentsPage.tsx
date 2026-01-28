@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Thermometer,
     Search,
@@ -12,13 +12,22 @@ import {
     CheckCircle2,
     Clock,
     Scale,
-    FileCheck
+    FileCheck,
+    Trash2,
+    Settings
 } from 'lucide-react';
 import { instrumentsService, InstrumentFilters } from '@/services/instrumentsService';
 import { formatDate, cn } from '@/utils/helpers';
 import { exportToPDF } from '@/utils/pdfExport';
+import { useModalStore } from '@/store/modalStore';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
+import toast from 'react-hot-toast';
 
 export default function InstrumentsPage() {
+    const { user } = useAuthStore();
+    const queryClient = useQueryClient();
+    const { openInstrumentCreateModal, openInstrumentDetailsModal } = useModalStore();
     const [filters, setFilters] = useState<InstrumentFilters>({
         page: 1,
         per_page: 10,
@@ -36,6 +45,61 @@ export default function InstrumentsPage() {
         queryKey: ['instrument-stats'],
         queryFn: () => instrumentsService.getInstrumentStats(),
     });
+
+    // Mutation pour la suppression
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => instrumentsService.deleteInstrument(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['instruments'] });
+            queryClient.invalidateQueries({ queryKey: ['instrument-stats'] });
+        },
+    });
+
+    const handleDelete = (id: string, code: string) => {
+        toast((t) => (
+            <div className="flex flex-col gap-3 p-1">
+                <div className="flex items-center gap-2 text-rose-600">
+                    <Trash2 className="h-5 w-5" />
+                    <span className="font-black uppercase text-xs tracking-widest">Confirmation</span>
+                </div>
+                <p className="text-sm text-gray-600 font-medium">
+                    Voulez-vous vraiment supprimer l'instrument <span className="font-black text-gray-900">{code}</span> ?
+                </p>
+                <div className="flex justify-end gap-2 mt-2">
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                            const promise = deleteMutation.mutateAsync(id);
+                            toast.promise(promise, {
+                                loading: 'Suppression...',
+                                success: 'Instrument supprimé !',
+                                error: 'Erreur lors de la suppression',
+                            });
+                        }}
+                        className="px-4 py-2 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all"
+                    >
+                        Supprimer instrument
+                    </button>
+                </div>
+            </div>
+        ), {
+            duration: 6000,
+            style: {
+                borderRadius: '1.5rem',
+                background: '#fff',
+                color: '#333',
+                border: '1px solid #fecaca',
+                padding: '1rem',
+                minWidth: '350px'
+            },
+        });
+    };
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }));
@@ -87,10 +151,15 @@ export default function InstrumentsPage() {
                         <Download className="h-4 w-4" />
                         Exporter PDF
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300">
-                        <Plus className="h-4 w-4" />
-                        Nouvel Instrument
-                    </button>
+                    {hasPermission(user, 'instruments', 'create') && (
+                        <button
+                            onClick={openInstrumentCreateModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Nouvel Instrument
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -245,12 +314,32 @@ export default function InstrumentsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Détails techniques">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button className="p-2 hover:bg-white hover:text-blue-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Certificat">
-                                                    <FileCheck className="h-4 w-4" />
-                                                </button>
+                                                {hasPermission(user, 'instruments', 'read') && (
+                                                    <button
+                                                        onClick={() => openInstrumentDetailsModal(inst.id_instrument)}
+                                                        className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Détails techniques"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'instruments', 'update') && (
+                                                    <button
+                                                        className="p-2 hover:bg-white hover:text-orange-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Paramètres / Calibration"
+                                                    >
+                                                        <Settings className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'instruments', 'delete') && (
+                                                    <button
+                                                        onClick={() => handleDelete(inst.id_instrument, inst.code_instrument)}
+                                                        className="p-2 hover:bg-white hover:text-rose-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Supprimer"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

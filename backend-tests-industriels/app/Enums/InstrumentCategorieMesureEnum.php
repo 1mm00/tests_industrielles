@@ -4,11 +4,12 @@ namespace App\Enums;
 
 enum InstrumentCategorieMesureEnum: string
 {
-    case ELECTRIQUE = 'Électrique';
-    case MECANIQUE = 'Mécanique';
-    case THERMIQUE = 'Thermique';
-    case ACOUSTIQUE = 'Acoustique';
-    case VIBRATION = 'Vibration';
+    case ELECTRIQUE = 'ELECTRIQUE';
+    case MECANIQUE = 'MECANIQUE';
+    case THERMIQUE = 'THERMIQUE';
+    case PRESSION = 'PRESSION';
+    case DIMENSIONNEL = 'DIMENSIONNEL';
+    case VIBRATION = 'VIBRATION';
     case CND = 'CND';
-    case AUTRE = 'Autre';
+    case AUTRE = 'AUTRE';
 }

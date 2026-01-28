@@ -11,11 +11,27 @@ class NonConformiteService
     /**
      * Obtenir toutes les non-conformités avec pagination et filtres
      */
-    public function getPaginatedNc(array $filters = []): LengthAwarePaginator
+    public function getPaginatedNc(array $filters = [], $user = null): LengthAwarePaginator
     {
         $query = NonConformite::query()
             ->with(['test', 'equipement', 'criticite'])
             ->orderBy('created_at', 'desc');
+
+        // Filtrage par Rôle (Sécurité de données)
+        if ($user && $user->personnel && $user->personnel->role) {
+            $role = $user->personnel->role->nom_role;
+            $personnelId = $user->id_personnel;
+
+            if (in_array($role, ['Technicien', 'Lecteur'])) {
+                $query->where(function($q) use ($personnelId) {
+                    $q->where('detectee_par_id', $personnelId)
+                      ->orWhereHas('test', function($qt) use ($personnelId) {
+                          $qt->where('responsable_test_id', $personnelId)
+                            ->orWhereJsonContains('equipe_test', $personnelId);
+                      });
+                });
+            }
+        }
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
@@ -31,6 +47,10 @@ class NonConformiteService
 
         if (!empty($filters['criticite_id'])) {
             $query->where('criticite_id', $filters['criticite_id']);
+        }
+
+        if (!empty($filters['equipement_id'])) {
+            $query->where('equipement_id', $filters['equipement_id']);
         }
 
         return $query->paginate($filters['per_page'] ?? 10);
@@ -90,6 +110,25 @@ class NonConformiteService
         $data['date_detection'] = $data['date_detection'] ?? now();
 
         return NonConformite::create($data);
+    }
+
+    /**
+     * Mettre à jour une non-conformité existante
+     */
+    public function updateNc(string $id, array $data): NonConformite
+    {
+        $nc = NonConformite::findOrFail($id);
+        $nc->update($data);
+        return $nc->fresh(['test', 'equipement', 'criticite']);
+    }
+
+    /**
+     * Supprimer une non-conformité
+     */
+    public function deleteNc(string $id): bool
+    {
+        $nc = NonConformite::findOrFail($id);
+        return $nc->delete();
     }
 
     /**

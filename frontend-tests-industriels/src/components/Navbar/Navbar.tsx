@@ -100,10 +100,10 @@ export default function Navbar({ }: NavbarProps) {
 
                 {/* Section Centrale - Navigation Menu Rapide */}
                 <nav className="hidden xl:flex items-center gap-8 bg-gray-100/50 px-6 py-2 rounded-full border border-gray-200/50">
-                    <button onClick={() => navigate('/')} className="text-xs font-bold text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Dashboard</button>
-                    <button onClick={() => navigate('/tests')} className="text-xs font-bold text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
-                    <button onClick={() => navigate('/non-conformites')} className="text-xs font-bold text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
-                    <button onClick={() => navigate('/planning-calendar')} className="text-xs font-bold text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Planning</button>
+                    <button onClick={() => navigate('/')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Dashboard</button>
+                    <button onClick={() => navigate('/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
+                    <button onClick={() => navigate('/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
+                    <button onClick={() => navigate('/planning-calendar')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Planning</button>
                 </nav>
 
                 {/* Section Droite - Actions & Profil */}
@@ -284,7 +284,7 @@ export default function Navbar({ }: NavbarProps) {
                         >
                             <div className="hidden text-right sm:block">
                                 <p className="text-[11px] font-black text-gray-900 leading-none">{user?.prenom} {user?.nom}</p>
-                                <p className="text-[9px] font-bold text-primary-600 uppercase tracking-widest mt-0.5 leading-none">{user?.fonction || 'Technicien'}</p>
+                                <p className="text-[9px] font-black text-primary-600 uppercase tracking-widest mt-1 leading-none">{user?.personnel?.role?.nom_role || 'ADMINISTRATEUR'}</p>
                             </div>
                             <div className="h-9 w-9 bg-primary-100 rounded-xl flex items-center justify-center text-primary-700 font-black text-sm border-2 border-white shadow-sm overflow-hidden ring-1 ring-gray-100">
                                 {user?.prenom?.[0]}{user?.nom?.[0]}

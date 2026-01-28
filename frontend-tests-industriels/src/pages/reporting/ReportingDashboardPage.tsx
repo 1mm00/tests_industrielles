@@ -15,12 +15,41 @@ import {
 import { reportingService } from '@/services/reportingService';
 import IndustrialChart from '@/components/dashboard/IndustrialChart';
 import NcDistributionChart from '@/components/dashboard/NcDistributionChart';
+import { exportToPDF } from '@/utils/pdfExport';
+import { formatDate } from '@/utils/helpers';
 
 export default function ReportingDashboardPage() {
     const { data: stats, isLoading } = useQuery({
         queryKey: ['reporting-performance'],
         queryFn: () => reportingService.getPerformanceStats(),
     });
+
+    const handleExportPDF = () => {
+        if (!stats) return;
+
+        const headers = ["Indicateur", "Valeur", "Contexte"];
+        const body = [
+            ["Taux de Conformité", `${stats.summary.conformity_rate}%`, "Performance Globale"],
+            ["Résolution Moyenne", `${stats.summary.avg_resolution_days} jours`, "Rapidité de résolution"],
+            ["Non-Conformités Actives", stats.summary.total_nc_active.toString(), "En cours"],
+            ["Non-Conformités Critiques", stats.summary.critical_nc_count.toString(), "Ressource prioritaire"],
+        ];
+
+        // Ajouter une section vide de séparation
+        body.push(["---", "---", "---"]);
+        body.push(["TOP 5 ÉQUIPEMENTS À PROBLÈMES", "", ""]);
+
+        stats.top_issues.forEach((issue: any, index: number) => {
+            body.push([`${index + 1}. ${issue.label}`, `${issue.value} NC`, "Équipement"]);
+        });
+
+        exportToPDF({
+            title: "Rapport de Performance Industrielle & Qualité",
+            filename: `rapport_performance_${formatDate(new Date(), 'date')}`,
+            headers: headers,
+            body: body,
+        });
+    };
 
     if (isLoading) {
         return (
@@ -43,7 +72,10 @@ export default function ReportingDashboardPage() {
                         <Filter className="h-4 w-4" />
                         Filtrer la période
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300">
+                    <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                    >
                         <Download className="h-4 w-4" />
                         Exporter Rapport PDF
                     </button>

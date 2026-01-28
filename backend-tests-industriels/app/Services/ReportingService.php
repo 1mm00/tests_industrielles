@@ -62,14 +62,39 @@ class ReportingService
             ->selectRaw('AVG(DATEDIFF(date_cloture, date_detection)) as avg_days')
             ->value('avg_days');
 
+        // 5. Tendances (Comparaison par rapport au mois dernier)
+        $lastMonth = now()->subMonth();
+        $prevConformity = $this->getConformityRateForMonth($lastMonth->month, $lastMonth->year);
+        $currConformity = $this->getGlobalConformityRate();
+        
+        $prevNC = NonConformite::whereDate('created_at', '<', now()->startOfMonth())->whereIn('statut', ['OUVERTE', 'EN_COURS'])->count();
+        $currNC = NonConformite::whereIn('statut', ['OUVERTE', 'EN_COURS'])->count();
+
         return [
             'summary' => [
-                'conformity_rate' => $this->getGlobalConformityRate(),
+                'conformity_rate' => [
+                    'value' => $currConformity,
+                    'trend' => $currConformity >= $prevConformity ? 'up' : 'down',
+                    'change' => round(abs($currConformity - $prevConformity), 1) . '%'
+                ],
                 'avg_resolution_days' => round($avgResolutionTime ?? 0, 1),
-                'total_nc_active' => NonConformite::whereIn('statut', ['OUVERTE', 'EN_COURS'])->count(),
-                'critical_nc_count' => NonConformite::whereHas('criticite', function($q) {
-                    $q->where('code_niveau', 'LIKE', '%L3%')->orWhere('code_niveau', 'LIKE', '%L4%');
-                })->count(),
+                'total_nc_active' => [
+                    'value' => $currNC,
+                    'trend' => $currNC <= $prevNC ? 'down' : 'up', // Down is good for active NC
+                    'change' => abs($currNC - $prevNC)
+                ],
+                'critical_nc_count' => [
+                    'value' => NonConformite::whereHas('criticite', function($q) {
+                        $q->where('code_niveau', 'NC3')->orWhere('code_niveau', 'NC4');
+                    })->count(),
+                    'trend' => 'neutral',
+                    'change' => '0'
+                ],
+                'total_tests' => [
+                    'value' => TestIndustriel::count(),
+                    'trend' => 'up',
+                    'change' => '+1.2%'
+                ]
             ],
             'conformity_trend' => [
                 'categories' => $months,
@@ -82,6 +107,16 @@ class ReportingService
             'nc_by_criticality' => $this->getNcCriticalityDistribution()
         ];
     }
+
+    private function getConformityRateForMonth($month, $year): float
+    {
+        $total = TestIndustriel::whereYear('date_test', $year)->whereMonth('date_test', $month)->count();
+        if ($total === 0) return 0;
+        $conformes = TestIndustriel::whereYear('date_test', $year)->whereMonth('date_test', $month)
+            ->where('resultat_global', 'CONFORME')->count();
+        return round(($conformes / $total) * 100, 1);
+    }
+
 
     private function getGlobalConformityRate(): float
     {

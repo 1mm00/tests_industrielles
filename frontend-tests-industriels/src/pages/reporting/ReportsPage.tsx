@@ -15,8 +15,14 @@ import {
 import { reportingService, type Rapport } from '@/services/reportingService';
 import { formatDate, cn } from '@/utils/helpers';
 import { exportToPDF } from '@/utils/pdfExport';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
+import { useModalStore } from '@/store/modalStore';
 
 export default function ReportsPage() {
+    const { user } = useAuthStore();
+    const { openReportModal } = useModalStore();
+
     const { data: reports, isLoading } = useQuery({
         queryKey: ['generated-reports'],
         queryFn: () => reportingService.getReports(),
@@ -80,17 +86,24 @@ export default function ReportsPage() {
                             className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none w-64 shadow-sm"
                         />
                     </div>
-                    <button
-                        onClick={handleExportPDF}
-                        className="p-2 bg-black border border-black rounded-xl hover:bg-gray-900 text-white shadow-sm transition-all"
-                        title="Exporter la liste en PDF"
-                    >
-                        <Download className="h-5 w-5" />
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300">
-                        <Activity className="h-4 w-4" />
-                        Générer Rapport Global
-                    </button>
+                    {hasPermission(user, 'rapports', 'export') && (
+                        <button
+                            onClick={handleExportPDF}
+                            className="p-2 bg-black border border-black rounded-xl hover:bg-gray-900 text-white shadow-sm transition-all"
+                            title="Exporter la liste en PDF"
+                        >
+                            <Download className="h-5 w-5" />
+                        </button>
+                    )}
+                    {hasPermission(user, 'rapports', 'create') && (
+                        <button
+                            onClick={openReportModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                        >
+                            <Activity className="h-4 w-4" />
+                            Générer Rapport Global
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -199,15 +212,21 @@ export default function ReportsPage() {
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center justify-center gap-2">
-                                                <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-primary-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-green-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
-                                                    <Download className="h-4 w-4" />
-                                                </button>
-                                                <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-gray-600 transition-all">
-                                                    <MoreVertical className="h-4 w-4" />
-                                                </button>
+                                                {hasPermission(user, 'rapports', 'read') && (
+                                                    <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-primary-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'rapports', 'export') && (
+                                                    <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-green-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                                                        <Download className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'rapports', 'delete') && (
+                                                    <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-gray-600 transition-all">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

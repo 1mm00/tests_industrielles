@@ -76,4 +76,46 @@ class InstrumentController extends Controller
             'data' => $instrument
         ], 200);
     }
+
+    /**
+     * POST /api/v1/instruments
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code_instrument' => 'required|string|max:50|unique:instruments_mesure,code_instrument',
+            'designation' => 'required|string|max:200',
+            'type_instrument' => 'required|string|max:100',
+            'categorie_mesure' => 'required|string',
+            'unite_mesure' => 'required|string|max:50',
+            'periodicite_calibration_mois' => 'required|integer|min:1',
+            'statut' => 'required|string',
+        ]);
+
+        $instrument = $this->instrumentService->createInstrument($request->all());
+
+        return response()->json([
+            'success' => true,
+            'data' => $instrument
+        ], 201);
+    }
+
+    /**
+     * DELETE /api/v1/instruments/{id}
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        $instrument = \App\Models\InstrumentMesure::find($id);
+        
+        if (!$instrument) {
+            return response()->json(['message' => 'Instrument non trouvé'], 404);
+        }
+        
+        $instrument->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Instrument supprimé avec succès'
+        ], 200);
+    }
 }

@@ -4,107 +4,74 @@ namespace App\Services;
 
 use App\Models\Mesure;
 use App\Models\TestIndustriel;
+use App\Models\SessionTest;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class MesureService
 {
-    /**
-     * Créer une nouvelle mesure
-     * Note: Les calculs (écart, conformité) sont automatiques via MesureObserver
-     */
-    public function creerMesure(array $data): Mesure
+    public function getMesuresParTest(string $testId): Collection
     {
-        return Mesure::create($data);
-    }
-
-    /**
-     * Créer plusieurs mesures en batch
-     */
-    public function creerMesuresBatch(array $mesuresData): Collection
-    {
-        $mesures = collect();
-        
-        foreach ($mesuresData as $data) {
-            $mesures->push($this->creerMesure($data));
-        }
-        
-        return $mesures;
-    }
-
-    /**
-     * Obtenir les mesures non conformes d'un test
-     */
-    public function getMesuresNonConformes(string $testId): Collection
-    {
-        return Mesure::parTest($testId)
-            ->nonConformes()
+        return Mesure::where('test_id', $testId)
             ->with(['instrument', 'operateur'])
             ->get();
     }
 
-    /**
-     * Calculer statistiques mesures pour un test
-     */
-    public function statistiquesMesures(string $testId): array
+    public function ajouterMesure(array $data): Mesure
     {
-        $mesures = Mesure::parTest($testId)->get();
-        
-        $total = $mesures->count();
-        $conformes = $mesures->where('conforme', true)->count();
-        $nonConformes = $mesures->where('conforme', false)->count();
-        
-        // Calcul écarts moyens
-        $ecartAbsoluMoyen = $mesures->avg('ecart_absolu');
-        $ecartPctMoyen = $mesures->avg('ecart_pct');
-        
-        return [
-            'total_mesures' => $total,
-            'mesures_conformes' => $conformes,
-            'mesures_non_conformes' => $nonConformes,
-            'taux_conformite' => $total > 0 ? round(($conformes / $total) * 100, 2) : 0,
-            'ecart_absolu_moyen' => round($ecartAbsoluMoyen ?? 0, 4),
-            'ecart_pct_moyen' => round($ecartPctMoyen ?? 0, 2),
-        ];
-    }
+        // Calculer la conformité si possible
+        if (isset($data['valeur_mesuree']) && isset($data['valeur_reference'])) {
+            $val = (float) $data['valeur_mesuree'];
+            $ref = (float) $data['valeur_reference'];
+            $tolMin = (float) ($data['tolerance_min'] ?? 0);
+            $tolMax = (float) ($data['tolerance_max'] ?? 0);
 
-    /**
-     * Obtenir la répartition des mesures par type
-     */
-    public function repartitionParType(string $testId): Collection
-    {
-        return Mesure::parTest($testId)
-            ->select('type_mesure')
-            ->selectRaw('COUNT(*) as count')
-            ->selectRaw('SUM(CASE WHEN conforme = true THEN 1 ELSE 0 END) as conformes')
-            ->groupBy('type_mesure')
-            ->get();
-    }
-
-    /**
-     * Valider toutes les mesures d'un test
-     */
-    public function validerMesuresTest(string $testId): array
-    {
-        $mesures = Mesure::parTest($testId)->get();
-        
-        $validation = [
-            'valide' => true,
-            'erreurs' => [],
-        ];
-        
-        foreach ($mesures as $mesure) {
-            // Vérifier que les champs obligatoires sont remplis
-            if (is_null($mesure->valeur_mesuree)) {
-                $validation['valide'] = false;
-                $validation['erreurs'][] = "Mesure {$mesure->id_mesure}: valeur_mesuree manquante";
-            }
+            $data['ecart_absolu'] = $val - $ref;
+            $data['ecart_pct'] = $ref != 0 ? ($data['ecart_absolu'] / $ref) * 100 : 0;
             
-            if (is_null($mesure->instrument_id)) {
-                $validation['valide'] = false;
-                $validation['erreurs'][] = "Mesure {$mesure->id_mesure}: instrument non spécifié";
+            // Logique de conformité simple
+            if ($tolMin != 0 || $tolMax != 0) {
+                $data['conforme'] = ($val >= ($ref - $tolMin)) && ($val <= ($ref + $tolMax));
+            } else {
+                $data['conforme'] = abs($data['ecart_absolu']) < 0.0001; // Égalité approximative
             }
         }
+
+        if (empty($data['id_mesure'])) {
+            $data['id_mesure'] = Str::uuid()->toString();
+        }
+
+        return Mesure::create($data);
+    }
+
+    public function updateMesure(string $id, array $data): Mesure
+    {
+        $mesure = Mesure::findOrFail($id);
         
-        return $validation;
+        // Recalculer si les valeurs changent
+        if (isset($data['valeur_mesuree']) || isset($data['valeur_reference'])) {
+            $val = (float) ($data['valeur_mesuree'] ?? $mesure->valeur_mesuree);
+            $ref = (float) ($data['valeur_reference'] ?? $mesure->valeur_reference);
+            $tolMin = (float) ($data['tolerance_min'] ?? $mesure->tolerance_min);
+            $tolMax = (float) ($data['tolerance_max'] ?? $mesure->tolerance_max);
+
+            $data['ecart_absolu'] = $val - $ref;
+            $data['ecart_pct'] = $ref != 0 ? ($data['ecart_absolu'] / $ref) * 100 : 0;
+            
+            if ($tolMin != 0 || $tolMax != 0) {
+                $data['conforme'] = ($val >= ($ref - $tolMin)) && ($val <= ($ref + $tolMax));
+            } else {
+                $data['conforme'] = abs($data['ecart_absolu']) < 0.0001;
+            }
+        }
+
+        $mesure->update($data);
+        return $mesure->fresh();
+    }
+
+    public function supprimerMesure(string $id): bool
+    {
+        $mesure = Mesure::findOrFail($id);
+        return $mesure->delete();
     }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Search,
     Filter,
@@ -7,6 +7,7 @@ import {
     Plus,
     Eye,
     Settings,
+    Trash2,
     ShieldCheck,
     AlertCircle,
     MapPin,
@@ -15,8 +16,15 @@ import {
 import { equipementsService, EquipementFilters } from '@/services/equipementsService';
 import { cn } from '@/utils/helpers';
 import { exportToPDF } from '@/utils/pdfExport';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
+import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function EquipementsPage() {
+    const { user } = useAuthStore();
+    const queryClient = useQueryClient();
+    const { openEquipementEditModal, openEquipementCreateModal, openEquipementDetailsModal } = useModalStore();
     const [filters, setFilters] = useState<EquipementFilters>({
         page: 1,
         per_page: 10,
@@ -34,6 +42,59 @@ export default function EquipementsPage() {
         queryKey: ['equipement-stats'],
         queryFn: () => equipementsService.getEquipementStats(),
     });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => equipementsService.deleteEquipement(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['equipements'] });
+            queryClient.invalidateQueries({ queryKey: ['equipement-stats'] });
+        },
+    });
+
+    const handleDelete = (equipement: any) => {
+        toast((t) => (
+            <div className="flex flex-col gap-3">
+                <div>
+                    <p className="font-black text-gray-900 text-sm">Supprimer l'équipement ?</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                        <span className="font-bold">{equipement.code_equipement}</span> - {equipement.designation}
+                    </p>
+                    <p className="text-[10px] text-red-600 font-bold mt-2">
+                        ⚠️ Cette action est irréversible et supprimera tous les tests associés.
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                            toast.promise(
+                                deleteMutation.mutateAsync(equipement.id_equipement),
+                                {
+                                    loading: 'Suppression...',
+                                    success: `Équipement "${equipement.designation}" supprimé`,
+                                    error: 'Erreur lors de la suppression',
+                                }
+                            );
+                        }}
+                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors"
+                    >
+                        Confirmer
+                    </button>
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-xs hover:bg-gray-300 transition-colors"
+                    >
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        ), {
+            duration: 8000,
+            style: {
+                minWidth: '350px',
+            },
+        });
+    };
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }));
@@ -74,17 +135,24 @@ export default function EquipementsPage() {
                     <p className="text-sm text-gray-500 font-medium italic">Inventaire technique et suivi opérationnel des actifs</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
-                    >
-                        <Download className="h-4 w-4" />
-                        Exporter PDF
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300">
-                        <Plus className="h-4 w-4" />
-                        Ajouter un Équipement
-                    </button>
+                    {hasPermission(user, 'rapports', 'export') && (
+                        <button
+                            onClick={handleExportPDF}
+                            className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
+                        >
+                            <Download className="h-4 w-4" />
+                            Exporter PDF
+                        </button>
+                    )}
+                    {hasPermission(user, 'equipements', 'create') && (
+                        <button
+                            onClick={openEquipementCreateModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Ajouter un Équipement
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -233,12 +301,33 @@ export default function EquipementsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Voir détails">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button className="p-2 hover:bg-white hover:text-orange-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Maintenance">
-                                                    <Settings className="h-4 w-4" />
-                                                </button>
+                                                {hasPermission(user, 'equipements', 'read') && (
+                                                    <button
+                                                        onClick={() => openEquipementDetailsModal(eq.id_equipement)}
+                                                        className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Voir détails"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'equipements', 'update') && (
+                                                    <button
+                                                        onClick={() => openEquipementEditModal(eq.id_equipement)}
+                                                        className="p-2 hover:bg-white hover:text-orange-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Modifier"
+                                                    >
+                                                        <Settings className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {hasPermission(user, 'equipements', 'delete') && (
+                                                    <button
+                                                        onClick={() => handleDelete(eq)}
+                                                        className="p-2 hover:bg-white hover:text-red-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Supprimer"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

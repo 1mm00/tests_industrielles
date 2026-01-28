@@ -117,6 +117,15 @@ export const testsService = {
     },
 
     /**
+     * Récupérer les statistiques spécifiques pour le dashboard technicien
+     */
+    async getTechnicianStats(): Promise<any> {
+        const response = await api.get<ApiResponse<any>>('/tests/technician-stats');
+        return response.data.data;
+    },
+
+
+    /**
      * Récupérer les tests pour le calendrier (mois/année)
      */
     async getCalendarTests(month?: number, year?: number): Promise<TestIndustriel[]> {
@@ -143,5 +152,36 @@ export const testsService = {
             responseType: 'blob',
         });
         return response.data;
+    },
+
+    /**
+     * Récupérer les mesures d'un test
+     */
+    async getTestMesures(testId: string): Promise<any[]> {
+        const response = await api.get<ApiResponse<any[]>>(`/tests/${testId}/mesures`);
+        return response.data.data;
+    },
+
+    /**
+     * Ajouter une mesure à un test
+     */
+    async addTestMesure(testId: string, data: any): Promise<any> {
+        const response = await api.post<ApiResponse<any>>(`/tests/${testId}/mesures`, data);
+        return response.data.data;
+    },
+
+    /**
+     * Mettre à jour une mesure
+     */
+    async updateMesure(id: string, data: any): Promise<any> {
+        const response = await api.put<ApiResponse<any>>(`/mesures/${id}`, data);
+        return response.data.data;
+    },
+
+    /**
+     * Supprimer une mesure
+     */
+    async deleteMesure(id: string): Promise<void> {
+        await api.delete(`/mesures/${id}`);
     },
 };

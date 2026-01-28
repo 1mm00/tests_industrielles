@@ -62,9 +62,6 @@ class InstrumentService
         ];
     }
 
-    /**
-     * Obtenir les alertes de calibration détaillées
-     */
     public function getCalibrationAlertsDetailed(): array
     {
         return [
@@ -77,5 +74,19 @@ class InstrumentService
                 ->orderBy('date_prochaine_calibration', 'asc')
                 ->get(),
         ];
+    }
+
+    /**
+     * Créer un nouvel instrument
+     */
+    public function createInstrument(array $data): InstrumentMesure
+    {
+        // Calculer la prochaine calibration si non fournie
+        if (empty($data['date_prochaine_calibration']) && !empty($data['date_derniere_calibration']) && !empty($data['periodicite_calibration_mois'])) {
+            $data['date_prochaine_calibration'] = \Carbon\Carbon::parse($data['date_derniere_calibration'])
+                ->addMonths((int)$data['periodicite_calibration_mois']);
+        }
+        
+        return InstrumentMesure::create($data);
     }
 }

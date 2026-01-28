@@ -199,8 +199,9 @@ export default function DashboardPage() {
                                     </div>
                                     <span className={cn(
                                         "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider",
-                                        nc.criticite?.code_niveau?.includes('L3') || nc.criticite?.code_niveau?.includes('L4') ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"
+                                        nc.criticite?.code_niveau === 'NC3' || nc.criticite?.code_niveau === 'NC4' ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"
                                     )}>
+
                                         {nc.criticite?.code_niveau || 'NC'}
                                     </span>
                                 </div>

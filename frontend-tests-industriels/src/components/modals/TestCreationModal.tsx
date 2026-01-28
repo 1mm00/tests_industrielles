@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     FlaskConical,
@@ -16,11 +16,13 @@ import {
 import { testsService, CreateTestData } from '@/services/testsService';
 import { useAuthStore } from '@/store/authStore';
 import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function TestCreationModal() {
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    const { isTestModalOpen, closeTestModal } = useModalStore();
+    const { isTestModalOpen, closeTestModal, selectedTestId } = useModalStore();
+    const isEdit = typeof selectedTestId === 'string';
 
     const [form, setForm] = useState<CreateTestData>({
         type_test_id: '',
@@ -33,41 +35,64 @@ export default function TestCreationModal() {
         localisation: '',
         niveau_criticite: 1,
         responsable_test_id: '',
+        equipe_test: [],
         observations_generales: '',
         arret_production_requis: false,
     });
 
-    // Fetch data for creation
+    // Fetch data for creation (lists)
     const { data: creationData } = useQuery({
         queryKey: ['test-creation-data'],
         queryFn: () => testsService.getCreationData(),
         enabled: isTestModalOpen,
     });
 
-    const createMutation = useMutation({
-        mutationFn: (data: CreateTestData) => testsService.createTest(data),
+    // Fetch existing test data for edit
+    const { data: existingTest } = useQuery({
+        queryKey: ['test', selectedTestId],
+        queryFn: () => testsService.getTest(selectedTestId!),
+        enabled: isTestModalOpen && isEdit,
+    });
+
+    // Populate form when existing test is loaded
+    useEffect(() => {
+        if (existingTest && isEdit) {
+            // Parsing robuste des heures (Y-m-d H:i:s ou H:i)
+            const parseTime = (timeStr: string | null | undefined) => {
+                if (!timeStr) return '08:00';
+                if (typeof timeStr !== 'string') return '08:00';
+                if (timeStr.includes(' ')) return timeStr.split(' ')[1].substring(0, 5);
+                return timeStr.substring(0, 5);
+            };
+
+            setForm({
+                type_test_id: existingTest.type_test_id,
+                equipement_id: existingTest.equipement_id,
+                phase_id: existingTest.phase_id || '',
+                procedure_id: existingTest.procedure_id || '',
+                date_test: existingTest.date_test ? existingTest.date_test.split('T')[0] : '',
+                heure_debut: parseTime(existingTest.heure_debut),
+                heure_fin: parseTime(existingTest.heure_fin),
+                localisation: existingTest.localisation,
+                niveau_criticite: existingTest.niveau_criticite,
+                responsable_test_id: existingTest.responsable_test_id,
+                equipe_test: existingTest.equipe_test || [],
+                observations_generales: existingTest.observations_generales || '',
+                arret_production_requis: existingTest.arret_production_requis,
+            });
+        }
+    }, [existingTest, isEdit]);
+
+    const mutation = useMutation({
+        mutationFn: (data: CreateTestData) =>
+            isEdit ? testsService.updateTest(selectedTestId!, data) : testsService.createTest(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tests'] });
             closeTestModal();
-            alert('Test planifié avec succès !');
-            setForm({
-                type_test_id: '',
-                equipement_id: '',
-                phase_id: '',
-                procedure_id: '',
-                date_test: new Date().toISOString().split('T')[0],
-                heure_debut: '08:00',
-                heure_fin: '10:00',
-                localisation: '',
-                niveau_criticite: 1,
-                responsable_test_id: '',
-                observations_generales: '',
-                arret_production_requis: false,
-            });
+            toast.success(isEdit ? 'Test mis à jour !' : 'Test planifié avec succès !');
         },
         onError: (error: any) => {
-            console.error('Erreur lors de la création du test:', error.response?.data);
-            alert(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue lors de la planification du test.'}`);
+            toast.error(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue.'}`);
         }
     });
 
@@ -82,7 +107,7 @@ export default function TestCreationModal() {
 
         // Validation basique
         if (!form.equipement_id || !form.type_test_id || !form.localisation) {
-            alert('Veuillez remplir tous les champs obligatoires');
+            toast.error('Veuillez remplir tous les champs obligatoires');
             return;
         }
 
@@ -98,7 +123,7 @@ export default function TestCreationModal() {
             heure_fin: form.heure_fin || null,
         };
 
-        createMutation.mutate(sanitizedData as any);
+        mutation.mutate(sanitizedData as any);
     };
 
     if (!isTestModalOpen) return null;
@@ -111,9 +136,11 @@ export default function TestCreationModal() {
                     <div>
                         <h2 className="text-xl font-black text-gray-900 uppercase flex items-center gap-2">
                             <FlaskConical className="h-6 w-6 text-primary-600" />
-                            Nouveau Test Industriel
+                            {isEdit ? 'Modifier le Test' : 'Nouveau Test Industriel'}
                         </h2>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Planification d'un nouveau contrôle</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                            {isEdit ? `Édition du test ${existingTest?.numero_test}` : "Planification d'un nouveau contrôle"}
+                        </p>
                     </div>
                     <button
                         onClick={closeTestModal}
@@ -140,12 +167,32 @@ export default function TestCreationModal() {
                                 onChange={handleInputChange}
                             >
                                 <option value="">Sélectionner un équipement</option>
-                                {creationData?.equipements.map((eq: any) => (
-                                    <option key={eq.id_equipement} value={eq.id_equipement}>
-                                        [{eq.code_equipement}] {eq.designation}
-                                    </option>
-                                ))}
+                                {(() => {
+                                    const selectedType = creationData?.types_tests?.find((t: any) => t.id_type_test === form.type_test_id);
+                                    const eligibleIds = selectedType?.equipements_eligibles || [];
+                                    const equipmentsToShow = eligibleIds.length > 0
+                                        ? creationData?.equipements?.filter((eq: any) => eligibleIds.includes(eq.id_equipement))
+                                        : creationData?.equipements;
+
+                                    return equipmentsToShow?.map((eq: any) => (
+                                        <option key={eq.id_equipement} value={eq.id_equipement}>
+                                            [{eq.code_equipement}] {eq.designation}
+                                        </option>
+                                    ));
+                                })()}
                             </select>
+                            {(() => {
+                                const selectedType = creationData?.types_tests?.find((t: any) => t.id_type_test === form.type_test_id);
+                                const eligibleIds = selectedType?.equipements_eligibles || [];
+                                if (form.type_test_id && eligibleIds.length > 0) {
+                                    return (
+                                        <p className="text-[9px] text-primary-600 font-bold italic mt-1">
+                                            ✓ Filtré : {eligibleIds.length} équipement(s) compatible(s) pour ce test
+                                        </p>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </div>
 
                         {/* Type Test */}
@@ -287,26 +334,67 @@ export default function TestCreationModal() {
                         />
                     </div>
 
-                    {/* Responsable */}
-                    <div className="space-y-2">
+                    {/* Responsables & Équipe */}
+                    <div className="space-y-4">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                             <UserIcon className="h-3 w-3" />
-                            Responsable du Test
+                            Équipe & Responsables du Test
                         </label>
+
+                        {/* Selected Members Tags */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-900 text-white rounded-full text-[10px] font-black uppercase">
+                                <span className="opacity-50">Principale :</span>
+                                {user?.nom} {user?.prenom}
+                            </div>
+                            {(form.equipe_test || []).map(memberId => {
+                                const p = creationData?.personnels.find((pers: any) => pers.id_personnel === memberId);
+                                if (!p) return null;
+                                return (
+                                    <div key={memberId} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-black uppercase border border-gray-200">
+                                        {p.nom} {p.prenom}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setForm(prev => ({
+                                                    ...prev,
+                                                    equipe_test: prev.equipe_test?.filter(id => id !== memberId)
+                                                }));
+                                            }}
+                                            className="hover:text-red-500 transition-colors"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Personnels Selection */}
                         <select
-                            name="responsable_test_id"
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                            value={form.responsable_test_id || ''}
-                            onChange={handleInputChange}
+                            onChange={(e) => {
+                                const selectedId = e.target.value;
+                                if (selectedId && !form.equipe_test?.includes(selectedId)) {
+                                    setForm(prev => ({
+                                        ...prev,
+                                        equipe_test: [...(prev.equipe_test || []), selectedId]
+                                    }));
+                                }
+                                e.target.value = ""; // Reset select
+                            }}
                         >
-                            <option value="">Utilisateur actuel ({user?.nom} {user?.prenom})</option>
-                            {creationData?.personnels.map((p: any) => (
-                                <option key={p.id_personnel} value={p.id_personnel}>
-                                    {p.nom} {p.prenom}
-                                </option>
-                            ))}
+                            <option value="">Ajouter des co-responsables ou membres d'équipe...</option>
+                            {creationData?.personnels
+                                .filter((p: any) => p.id_personnel !== (user?.id_personnel || user?.id))
+                                .map((p: any) => (
+                                    <option key={p.id_personnel} value={p.id_personnel} disabled={form.equipe_test?.includes(p.id_personnel)}>
+                                        {p.nom} {p.prenom}
+                                    </option>
+                                ))}
                         </select>
                     </div>
+
                 </form>
 
                 {/* Footer Modal */}
@@ -320,18 +408,18 @@ export default function TestCreationModal() {
                     </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={createMutation.isPending}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-black text-sm shadow-xl shadow-primary-100 disabled:opacity-50 disabled:grayscale"
+                        disabled={mutation.isPending}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-sky-500 text-white rounded-xl hover:bg-sky-600 transition-all font-black text-sm shadow-xl shadow-sky-100 disabled:opacity-50 disabled:grayscale"
                     >
-                        {createMutation.isPending ? (
+                        {mutation.isPending ? (
                             <>
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Planification...
+                                {isEdit ? 'Mise à jour...' : 'Planification...'}
                             </>
                         ) : (
                             <>
                                 <Save className="h-4 w-4" />
-                                Planifier le Test
+                                {isEdit ? 'Enregistrer les modifications' : 'Planifier le Test'}
                             </>
                         )}
                     </button>

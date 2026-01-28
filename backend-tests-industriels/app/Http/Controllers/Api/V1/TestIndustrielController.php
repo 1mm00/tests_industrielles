@@ -21,7 +21,7 @@ class TestIndustrielController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $paginator = $this->testService->getPaginatedTests($request->all());
+        $paginator = $this->testService->getPaginatedTests($request->all(), $request->user());
         
         return response()->json([
             'data' => $paginator->items(),
@@ -52,9 +52,12 @@ class TestIndustrielController extends Controller
             'niveau_criticite' => 'required|integer|between:1,4',
             'arret_production_requis' => 'nullable|boolean',
             'observations_generales' => 'nullable|string',
+            'equipe_test' => 'nullable|array',
+            'equipe_test.*' => 'uuid',
         ]);
 
         $test = $this->testService->creerTest($validated);
+
 
         return response()->json([
             'success' => true,
@@ -68,12 +71,34 @@ class TestIndustrielController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $rapport = $this->testService->genererRapportSynthese($id);
-
-        return response()->json([
-            'success' => true,
-            'data' => $rapport
-        ], 200);
+        try {
+            // Version ultra-simplifiée pour diagnostic
+            $test = TestIndustriel::findOrFail($id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id_test' => $test->id_test,
+                    'numero_test' => $test->numero_test,
+                    'statut_test' => $test->statut_test->value ?? 'INCONNU',
+                    'date_test' => $test->date_test,
+                    'localisation' => $test->localisation,
+                    'niveau_criticite' => $test->niveau_criticite,
+                ]
+            ], 200);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error fetching test: ' . $e->getMessage(), [
+                'test_id' => $id,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -93,10 +118,23 @@ class TestIndustrielController extends Controller
      */
     public function destroy(string $id): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'message' => 'Test supprimé'
-        ], 200);
+        try {
+            $this->testService->deleteTest($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Test supprimé avec succès de la base de données'
+            ], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Test non trouvé'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -147,6 +185,24 @@ class TestIndustrielController extends Controller
     public function stats(): JsonResponse
     {
         $stats = $this->testService->getGlobalStats();
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
+        ], 200);
+    }
+
+    /**
+     * GET /api/v1/tests/technician-stats
+     */
+    public function technicianStats(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user->id_personnel) {
+            return response()->json(['success' => false, 'message' => 'Utilisateur sans personnel associé'], 400);
+        }
+
+        $stats = $this->testService->getTechnicianStats($user->id_personnel);
 
         return response()->json([
             'success' => true,

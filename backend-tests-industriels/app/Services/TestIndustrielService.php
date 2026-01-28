@@ -67,13 +67,49 @@ class TestIndustrielService
     }
 
     /**
+     * Supprimer un test et ses données liées
+     */
+    public function deleteTest(string $testId): bool
+    {
+        $test = TestIndustriel::findOrFail($testId);
+        
+        // Nettoyage des données liées (HasMany)
+        // Ces tables existent et sont liées par test_id
+        $test->mesures()->delete();
+        $test->resultats()->delete();
+        $test->observations()->delete();
+        $test->sessions()->delete();
+        $test->rapports()->delete();
+        $test->nonConformites()->delete();
+        
+        // Les relations pivot (belongsToMany) comme 'instruments' ou 'normes'
+        // sont ignorées car leurs tables de liaison n'existent pas encore en base.
+        
+        return $test->delete();
+    }
+
+    /**
      * Obtenir tous les tests avec pagination et filtres
      */
-    public function getPaginatedTests(array $filters = []): \Illuminate\Pagination\LengthAwarePaginator
+    public function getPaginatedTests(array $filters = [], $user = null): \Illuminate\Pagination\LengthAwarePaginator
     {
         $query = TestIndustriel::query()
             ->with(['equipement', 'typeTest', 'responsable'])
             ->orderBy('created_at', 'desc');
+
+        // Filtrage par Rôle (Sécurité de données)
+        if ($user && $user->personnel && $user->personnel->role) {
+            $role = $user->personnel->role->nom_role;
+            $personnelId = $user->id_personnel;
+
+            if (in_array($role, ['Technicien', 'Lecteur'])) {
+                $query->where(function($q) use ($personnelId) {
+                    $q->where('responsable_test_id', $personnelId)
+                      ->orWhere('created_by', $personnelId)
+                      ->orWhereJsonContains('equipe_test', $personnelId);
+                });
+            }
+        }
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
@@ -88,6 +124,18 @@ class TestIndustrielService
 
         if (!empty($filters['statut'])) {
             $query->where('statut_test', $filters['statut']);
+        }
+
+        if (!empty($filters['equipement_id'])) {
+            $query->where('equipement_id', $filters['equipement_id']);
+        }
+
+        if (!empty($filters['type_test_id'])) {
+            $query->where('type_test_id', $filters['type_test_id']);
+        }
+
+        if (!empty($filters['date_debut']) && !empty($filters['date_fin'])) {
+            $query->whereBetween('date_test', [$filters['date_debut'], $filters['date_fin']]);
         }
 
         return $query->paginate($filters['per_page'] ?? 10);
@@ -161,18 +209,18 @@ class TestIndustrielService
     {
         // 1. Statistiques de base
         $totalTests = TestIndustriel::count();
-        $testsEnCours = TestIndustriel::where('statut', 'EN_COURS')->count();
+        $testsEnCours = TestIndustriel::where('statut_test', TestStatutEnum::EN_COURS)->count();
         $ncOuvertes = \App\Models\NonConformite::where('statut', 'OUVERTE')->count();
         $ncCritiques = \App\Models\NonConformite::whereHas('criticite', function($q) {
-            $q->where('code_niveau', 'LIKE', '%L3%')->orWhere('code_niveau', 'LIKE', '%L4%');
+            $q->where('code_niveau', 'NC3')->orWhere('code_niveau', 'NC4');
         })->count();
 
         // 2. Évolution industrielle (6 derniers mois)
         $evolutionData = [];
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $monthName = $date->format('M');
+            $date = Carbon::now()->subMonths($i);
+            $monthName = $date->translatedFormat('M'); // Pour avoir "janv.", "févr.", etc.
             $months[] = $monthName;
             
             $evolutionData['tests'][] = TestIndustriel::whereYear('created_at', $date->year)
@@ -180,7 +228,7 @@ class TestIndustrielService
             
             $evolutionData['conformes'][] = TestIndustriel::whereYear('created_at', $date->year)
                 ->whereMonth('created_at', $date->month)
-                ->where('resultat_global', 'CONFORME')->count();
+                ->where('resultat_global', TestResultatEnum::CONFORME)->count();
 
             $evolutionData['nc'][] = \App\Models\NonConformite::whereYear('created_at', $date->year)
                 ->whereMonth('created_at', $date->month)->count();
@@ -208,7 +256,7 @@ class TestIndustrielService
             'testsEnCours' => $testsEnCours,
             'ncOuvertes' => $ncOuvertes,
             'ncCritiques' => $ncCritiques,
-            'tauxConformite' => $totalTests > 0 ? (float) round((TestIndustriel::where('resultat_global', 'CONFORME')->count() / $totalTests) * 100, 1) : 0,
+            'tauxConformite' => $totalTests > 0 ? (float) round((TestIndustriel::where('resultat_global', TestResultatEnum::CONFORME)->count() / $totalTests) * 100, 1) : 0,
             'industrial_evolution' => [
                 'series' => [
                     ['name' => 'Tests Réalisés', 'type' => 'column', 'data' => $evolutionData['tests']],
@@ -225,6 +273,45 @@ class TestIndustrielService
             'recent_nc' => $recentNc
         ];
     }
+    /**
+     * Obtenir les statistiques spécifiques pour un technicien
+     */
+    public function getTechnicianStats(string $personnelId): array
+    {
+        $assignedTests = TestIndustriel::where('responsable_test_id', $personnelId)
+            ->where('statut_test', TestStatutEnum::PLANIFIE)
+            ->count();
+            
+        $inProgressTests = TestIndustriel::where('responsable_test_id', $personnelId)
+            ->where('statut_test', TestStatutEnum::EN_COURS)
+            ->count();
+            
+        $completedTests = TestIndustriel::where('responsable_test_id', $personnelId)
+            ->where('statut_test', TestStatutEnum::TERMINE)
+            ->count();
+
+        $recentTests = TestIndustriel::with(['equipement', 'typeTest'])
+            ->where('responsable_test_id', $personnelId)
+            ->orderBy('updated_at', 'desc')
+            ->take(5)
+            ->get();
+
+        $assignedTestsList = TestIndustriel::with(['equipement', 'typeTest'])
+            ->where('responsable_test_id', $personnelId)
+            ->whereIn('statut_test', [TestStatutEnum::PLANIFIE, TestStatutEnum::EN_COURS])
+            ->orderBy('date_test', 'asc')
+            ->get();
+
+        return [
+            'assignedCount' => $assignedTests,
+            'inProgressCount' => $inProgressTests,
+            'completedCount' => $completedTests,
+            'recent_tests' => $recentTests,
+            'assignedTests' => $assignedTestsList,
+        ];
+
+    }
+
     /**
      * Obtenir les données nécessaires pour la création d'un test
      */
@@ -245,7 +332,8 @@ class TestIndustrielService
 
         return [
             'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement')->get(),
-            'types_tests' => \App\Models\TypeTest::select('id_type_test', 'libelle', 'code_type')->orderBy('libelle')->get(),
+            'types_tests' => \App\Models\TypeTest::select('id_type_test', 'libelle', 'code_type', 'description', 'frequence_recommandee', 'niveau_criticite_defaut', 'equipements_eligibles', 'actif')->orderBy('libelle')->get(),
+
             'phases' => \App\Models\PhaseTest::select('id_phase', 'nom_phase')->orderBy('ordre_execution')->get(),
             'personnels' => $personnels,
         ];

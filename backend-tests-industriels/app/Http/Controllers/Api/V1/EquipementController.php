@@ -52,7 +52,7 @@ class EquipementController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $equipement = \App\Models\Equipement::with(['responsable', 'proprietaire', 'composants', 'normes'])->find($id);
+        $equipement = \App\Models\Equipement::find($id);
 
         if (!$equipement) {
             return response()->json(['message' => 'Équipement non trouvé'], 404);
@@ -61,6 +61,38 @@ class EquipementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $equipement
+        ], 200);
+    }
+
+    /**
+     * POST /api/v1/equipements
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $equipement = $this->equipementService->createEquipement($request->all());
+
+        return response()->json([
+            'success' => true,
+            'data' => $equipement
+        ], 201);
+    }
+
+    /**
+     * DELETE /api/v1/equipements/{id}
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        $equipement = \App\Models\Equipement::find($id);
+        
+        if (!$equipement) {
+            return response()->json(['message' => 'Équipement non trouvé'], 404);
+        }
+        
+        $equipement->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Équipement supprimé avec succès'
         ], 200);
     }
 }

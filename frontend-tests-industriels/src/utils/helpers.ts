@@ -53,41 +53,54 @@ export function getCriticalityColor(level: number): string {
  */
 export function getStatusColor(status: string): string {
     const statusMap: Record<string, string> = {
-        // Tests
+        // Tests (Legacy & New)
         'Planifié': 'bg-blue-100 text-blue-800',
+        'PLANIFIE': 'bg-blue-100 text-blue-800',
         'En cours': 'bg-yellow-100 text-yellow-800',
+        'EN_COURS': 'bg-yellow-100 text-yellow-800',
         'Terminé': 'bg-green-100 text-green-800',
+        'TERMINE': 'bg-green-100 text-green-800',
         'Suspendu': 'bg-orange-100 text-orange-800',
+        'SUSPENDU': 'bg-orange-100 text-orange-800',
         'Annulé': 'bg-gray-100 text-gray-800',
+        'ANNULE': 'bg-gray-100 text-gray-800',
 
-        // Résultats
+        // Résultats (Legacy & New)
         'Conforme': 'bg-green-100 text-green-800',
+        'CONFORME': 'bg-green-100 text-green-800',
         'Non conforme': 'bg-red-100 text-red-800',
+        'NON_CONFORME': 'bg-red-100 text-red-800',
         'Partiel': 'bg-yellow-100 text-yellow-800',
+        'PARTIEL': 'bg-yellow-100 text-yellow-800',
         'Non applicable': 'bg-gray-100 text-gray-800',
+        'NON_APPLICABLE': 'bg-gray-100 text-gray-800',
 
         // NC
         'Ouvert': 'bg-red-100 text-red-800',
+        'OUVERTE': 'bg-red-100 text-red-800',
         'En analyse': 'bg-blue-100 text-blue-800',
+        'EN_ANALYSE': 'bg-blue-100 text-blue-800',
         'En traitement': 'bg-yellow-100 text-yellow-800',
+        'EN_TRAITEMENT': 'bg-yellow-100 text-yellow-800',
         'Résolu': 'bg-green-100 text-green-800',
+        'RESOLU': 'bg-green-100 text-green-800',
         'Clôturé': 'bg-gray-100 text-gray-800',
+        'CLOTUREE': 'bg-gray-100 text-gray-800',
 
         // Équipements
         'En service': 'bg-green-100 text-green-800',
+        'EN_SERVICE': 'bg-green-100 text-green-800',
         'Arrêté': 'bg-orange-100 text-orange-800',
+        'ARRETE': 'bg-orange-100 text-orange-800',
         'Maintenance': 'bg-yellow-100 text-yellow-800',
+        'MAINTENANCE': 'bg-yellow-100 text-yellow-800',
         'Hors service': 'bg-red-100 text-red-800',
-
-        // Personnel
-        'Actif': 'bg-green-100 text-green-800',
-        'Inactif': 'bg-gray-100 text-gray-800',
-        'Externe': 'bg-blue-100 text-blue-800',
-        'Retraité': 'bg-gray-100 text-gray-800',
+        'HORS_SERVICE': 'bg-red-100 text-red-800',
     };
 
     return statusMap[status] || 'bg-gray-100 text-gray-800';
 }
+
 
 /**
  * Calculer le nombre de jours entre deux dates

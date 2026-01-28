@@ -12,18 +12,18 @@ import {
     Calendar,
     Shield,
     Hash,
-    AlertCircle,
     Edit3
 } from 'lucide-react';
 import { usersService } from '@/services/usersService';
 import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function UserCreationModal() {
     const queryClient = useQueryClient();
     const { isUserModalOpen, closeUserModal, selectedUser } = useModalStore();
 
     const [form, setForm] = useState({
-        matricule: '',
+        cin: '',
         nom: '',
         prenom: '',
         email: '',
@@ -38,7 +38,7 @@ export default function UserCreationModal() {
     useEffect(() => {
         if (selectedUser) {
             setForm({
-                matricule: selectedUser.matricule || '',
+                cin: selectedUser.cin || '',
                 nom: selectedUser.nom || '',
                 prenom: selectedUser.prenom || '',
                 email: selectedUser.email || '',
@@ -51,7 +51,7 @@ export default function UserCreationModal() {
             });
         } else {
             setForm({
-                matricule: '',
+                cin: '',
                 nom: '',
                 prenom: '',
                 email: '',
@@ -72,55 +72,68 @@ export default function UserCreationModal() {
         enabled: isUserModalOpen,
     });
 
-    // Fetch postes for selection
+    // Fetch postes for selection (filtered by role)
     const { data: postesData } = useQuery({
-        queryKey: ['postes-list'],
-        queryFn: () => usersService.getPostes(),
+        queryKey: ['postes-list', form.role_id],
+        queryFn: () => usersService.getPostes(form.role_id || undefined),
         enabled: isUserModalOpen,
     });
 
-    // Fetch départements for selection
+    // Fetch départements for selection (filtered by role and poste)
     const { data: departementsData } = useQuery({
-        queryKey: ['departements-list'],
-        queryFn: () => usersService.getDepartements(),
+        queryKey: ['departements-list', form.role_id, form.poste],
+        queryFn: () => usersService.getDepartements(form.role_id || undefined, form.poste || undefined),
         enabled: isUserModalOpen,
     });
 
     const createMutation = useMutation({
-        mutationFn: (data: any) => selectedUser
-            ? usersService.updateUser(selectedUser.id_personnel, data)
-            : usersService.createUser(data),
+        mutationFn: (data: any) => {
+            const userId = selectedUser?.id_personnel || selectedUser?.id;
+            if (isEditing && !userId) {
+                throw new Error("ID de l'utilisateur manquant");
+            }
+            return isEditing
+                ? usersService.updateUser(userId, data)
+                : usersService.createUser(data);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users-list'] });
             queryClient.invalidateQueries({ queryKey: ['users-stats'] });
             closeUserModal();
-            alert(selectedUser ? 'Utilisateur mis à jour avec succès !' : 'Utilisateur créé avec succès !');
+            toast.success(selectedUser ? 'Utilisateur mis à jour avec succès !' : 'Utilisateur créé avec succès !');
         },
         onError: (error: any) => {
-            console.error('Erreur:', error.response?.data);
-            alert(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue.'}`);
+            console.error('Erreur mutation:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Une erreur est survenue.';
+            toast.error(`Erreur: ${errorMsg}`);
         }
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target as any;
         const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-        setForm(prev => ({ ...prev, [name]: val }));
+
+        if (name === 'cin') {
+            const newEmail = value.toLowerCase() + '@testindustrielle.com';
+            setForm(prev => ({ ...prev, cin: val, email: newEmail }));
+        }
+        else if (name === 'role_id') {
+            const cin = form.cin;
+            const newEmail = cin ? cin.toLowerCase() + '@testindustrielle.com' : '';
+            setForm(prev => ({ ...prev, [name]: val, poste: '', departement: '', email: newEmail }));
+        } else if (name === 'poste') {
+            setForm(prev => ({ ...prev, [name]: val, departement: '' }));
+        } else {
+            setForm(prev => ({ ...prev, [name]: val }));
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validation basique
-        if (!form.nom || !form.prenom || !form.email || !form.matricule) {
-            alert('Veuillez remplir tous les champs obligatoires');
-            return;
-        }
-
-        // Validation email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(form.email)) {
-            alert('Veuillez entrer une adresse email valide');
+        if (!form.cin || !form.nom || !form.prenom || !form.poste) {
+            toast.error('Veuillez remplir tous les champs obligatoires (CIN, Nom, Prénom, Poste)');
             return;
         }
 
@@ -156,21 +169,26 @@ export default function UserCreationModal() {
                 {/* Form Body */}
                 <form id="user-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Matricule */}
+                        {/* CIN */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                 <Hash className="h-3 w-3" />
-                                Matricule *
+                                CIN (Carte d'Identité Nationale) *
                             </label>
                             <input
                                 type="text"
-                                name="matricule"
+                                name="cin"
                                 required
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                placeholder="Ex: EMP-001"
-                                value={form.matricule}
+                                placeholder="Ex: Z1234"
+                                value={form.cin}
                                 onChange={handleInputChange}
                             />
+                            {isEditing && selectedUser?.matricule ? (
+                                <p className="text-[9px] text-green-600 font-bold">✓ Matricule attribué : {selectedUser.matricule}</p>
+                            ) : (
+                                <p className="text-[9px] text-gray-400 italic">L'email sera généré automatiquement : {form.cin.toLowerCase() || '___'}@testindustrielle.com</p>
+                            )}
                         </div>
 
                         {/* Rôle */}
@@ -228,21 +246,15 @@ export default function UserCreationModal() {
                             />
                         </div>
 
-                        {/* Email */}
+                        {/* Email (Auto-généré) */}
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                 <Mail className="h-3 w-3" />
-                                Email *
+                                Email (Généré automatiquement)
                             </label>
-                            <input
-                                type="email"
-                                name="email"
-                                required
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                placeholder="email@entreprise.com"
-                                value={form.email}
-                                onChange={handleInputChange}
-                            />
+                            <div className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-600">
+                                {form.email || 'Saisissez un CIN pour générer l\'email'}
+                            </div>
                         </div>
 
                         {/* Téléphone */}
@@ -335,16 +347,7 @@ export default function UserCreationModal() {
                         </div>
                     </div>
 
-                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                        <div>
-                            <p className="text-xs font-black text-amber-900 uppercase">Information</p>
-                            <p className="text-[10px] text-amber-700 font-medium italic mt-1">
-                                Un compte utilisateur et un dossier personnel seront créés automatiquement.
-                                Le mot de passe par défaut sera envoyé par email.
-                            </p>
-                        </div>
-                    </div>
+
                 </form>
 
                 {/* Footer Modal */}
@@ -360,7 +363,8 @@ export default function UserCreationModal() {
                         form="user-form"
                         type="submit"
                         disabled={createMutation.isPending}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-black text-sm shadow-xl shadow-primary-100 disabled:opacity-50 disabled:grayscale"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all font-black text-sm shadow-xl shadow-blue-100 disabled:opacity-50 disabled:grayscale"
+
                     >
                         {createMutation.isPending ? (
                             <>

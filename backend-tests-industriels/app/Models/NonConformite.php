@@ -23,14 +23,24 @@ class NonConformite extends Model
         'criticite_id',
         'type_nc',
         'description',
+        'conclusions',
+        'actions_correctives',
         'impact_potentiel',
         'date_detection',
         'detecteur_id',
+        'co_detecteurs',
         'statut',
         'date_cloture',
         'valideur_cloture_id',
         'commentaires_cloture',
     ];
+
+    protected $casts = [
+        'co_detecteurs' => 'array',
+        'date_detection' => 'date',
+        'date_cloture' => 'datetime',
+    ];
+
 
     /**
      * Relations

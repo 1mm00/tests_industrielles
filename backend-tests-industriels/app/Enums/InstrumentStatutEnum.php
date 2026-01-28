@@ -4,8 +4,8 @@ namespace App\Enums;
 
 enum InstrumentStatutEnum: string
 {
-    case OPERATIONNEL = 'Opérationnel';
-    case EN_CALIBRATION = 'En calibration';
-    case HORS_SERVICE = 'Hors service';
-    case REFORME = 'Réforme';
+    case OPERATIONNEL = 'OPERATIONNEL';
+    case EN_CALIBRATION = 'CALIBRATION';
+    case HORS_SERVICE = 'HORS_SERVICE';
+    case REFORME = 'REFORME';
 }

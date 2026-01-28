@@ -43,9 +43,6 @@ class EquipementService
         return $query->paginate($filters['per_page'] ?? 10);
     }
 
-    /**
-     * Obtenir les statistiques des équipements
-     */
     public function getEquipementStats(): array
     {
         return [
@@ -55,5 +52,14 @@ class EquipementService
             'hors_service' => Equipement::where('statut_operationnel', EquipementStatutEnum::HORS_SERVICE)->count(),
             'critiques' => Equipement::where('niveau_criticite', '>=', 3)->count(),
         ];
+    }
+
+    /**
+     * Créer un nouvel équipement
+     */
+    public function createEquipement(array $data): Equipement
+    {
+        $data['id_equipement'] = (string) \Illuminate\Support\Str::uuid();
+        return Equipement::create($data);
     }
 }

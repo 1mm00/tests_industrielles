@@ -1,26 +1,33 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
     FlaskConical,
     Search,
     Filter,
     Plus,
     Download,
-    MoreVertical,
     Eye,
     Play,
-    CheckCircle,
+    CheckCircle2,
     Calendar,
     MapPin,
     AlertCircle,
+    Pencil,
+    Trash2,
+    FileDown,
 } from 'lucide-react';
 import { testsService, TestFilters } from '@/services/testsService';
 import { formatDate, getStatusColor, getCriticalityColor } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
-import { exportToPDF } from '@/utils/pdfExport';
+import { exportToPDF, exportTestReportPDF } from '@/utils/pdfExport';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
 
 export default function TestsPage() {
-    const { openTestModal } = useModalStore();
+    const { user } = useAuthStore();
+    const { openTestModal, openExecutionModal } = useModalStore();
+    const queryClient = useQueryClient();
     const [filters, setFilters] = useState<TestFilters>({
         page: 1,
         per_page: 10,
@@ -45,7 +52,7 @@ export default function TestsPage() {
         const headers = ["ID Test", "Type de Test", "Équipement", "Date Prévue", "Criticité", "Statut"];
         const body = data.data.map(test => [
             test.numero_test,
-            test.type_test?.libelle_type || 'N/A',
+            test.type_test?.libelle || 'N/A',
             `${test.equipement?.designation} (${test.equipement?.code_equipement})`,
             formatDate(test.date_test),
             `Niveau ${test.niveau_criticite || 1}`,
@@ -54,11 +61,84 @@ export default function TestsPage() {
 
         exportToPDF({
             title: "Rapport d'Exportation des Tests Industriels",
-            filename: "liste_tests",
+            filename: "liste_tests_complet",
             headers: headers,
             body: body,
             orientation: 'l'
         });
+    };
+
+    const handleExportSinglePDF = (test: any) => {
+        // Le test ici contient les relations chargées par l'API
+        // On s'assure d'avoir toutes les données requises par exportTestReportPDF
+        exportTestReportPDF(test);
+    };
+
+    const handleDeleteClick = (id: string, numero: string) => {
+        toast((t) => (
+            <div className="flex flex-col gap-4 p-1 min-w-[280px]">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                        <Trash2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-black text-gray-900 uppercase">Supprimer le test ?</p>
+                        <p className="text-[10px] text-gray-500 font-bold">{numero}</p>
+                    </div>
+                </div>
+
+                <p className="text-xs text-gray-500 leading-relaxed font-medium bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    Cette action supprimera toutes les mesures et données associées. Les NC et rapports resteront archivés.
+                </p>
+
+                <div className="flex gap-2 justify-end pt-2">
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        onClick={async () => {
+                            toast.dismiss(t.id);
+                            await executeDelete(id, numero);
+                        }}
+                        className="px-5 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 transition-all active:scale-95"
+                    >
+                        Confirmer
+                    </button>
+                </div>
+            </div>
+        ), {
+            duration: 6000,
+            position: 'top-center',
+            style: {
+                borderRadius: '24px',
+                background: '#fff',
+                padding: '20px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid #fee2e2'
+            },
+        });
+    };
+
+    const executeDelete = async (id: string, numero: string) => {
+        const loadingToast = toast.loading(`Destruction de ${numero} en cours...`);
+        try {
+            await testsService.deleteTest(id);
+            queryClient.invalidateQueries({ queryKey: ['tests'] });
+            toast.success(`Le test ${numero} a été supprimé définitivement.`, {
+                id: loadingToast,
+                icon: '✅',
+                className: 'font-bold text-xs'
+            });
+        } catch (error: any) {
+            console.error(error);
+            toast.error(
+                error.response?.data?.message || "Suppression impossible : des dépendances (NC ou Rapports) bloquent l'opération par sécurité.",
+                { id: loadingToast, duration: 5000 }
+            );
+        }
     };
 
     return (
@@ -70,32 +150,36 @@ export default function TestsPage() {
                     <p className="text-sm text-gray-500 font-medium italic">Suivi et exécution des contrôles industriels</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
-                    >
-                        <Download className="h-4 w-4" />
-                        Exporter PDF
-                    </button>
-                    <button
-                        onClick={openTestModal}
-                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Nouveau Test
-                    </button>
+                    {hasPermission(user, 'rapports', 'export') && (
+                        <button
+                            onClick={handleExportPDF}
+                            className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
+                        >
+                            <Download className="h-4 w-4" />
+                            Exporter PDF
+                        </button>
+                    )}
+                    {hasPermission(user, 'tests', 'create') && (
+                        <button
+                            onClick={() => openTestModal()}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Nouveau Test
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Top Stats Row (Visual highlight) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="card bg-primary-600 text-white p-4 flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <div className="card p-4 flex items-center gap-4 border-l-4 border-l-primary-600 bg-white shadow-sm">
+                    <div className="h-12 w-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600">
                         <FlaskConical className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-sm font-semibold opacity-80 uppercase tracking-wider">Total Tests</p>
-                        <h3 className="text-2xl font-bold">{data?.meta.total || 0}</h3>
+                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Tests</p>
+                        <h3 className="text-2xl font-bold text-gray-900">{data?.meta.total || 0}</h3>
                     </div>
                 </div>
                 <div className="card p-4 flex items-center gap-4 border-l-4 border-l-yellow-500 bg-white shadow-sm">
@@ -105,7 +189,7 @@ export default function TestsPage() {
                     <div>
                         <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">En Cours</p>
                         <h3 className="text-2xl font-bold text-gray-900">
-                            {data?.data.filter(t => t.statut_test === 'En cours').length || 0}
+                            {data?.data.filter(t => t.statut_test === 'EN_COURS').length || 0}
                         </h3>
                     </div>
                 </div>
@@ -142,10 +226,10 @@ export default function TestsPage() {
                                 onChange={handleStatusFilter}
                             >
                                 <option value="">Tous les statuts</option>
-                                <option value="Planifié">Planifié</option>
-                                <option value="En cours">En cours</option>
-                                <option value="Terminé">Terminé</option>
-                                <option value="Suspendu">Suspendu</option>
+                                <option value="PLANIFIE">Planifié</option>
+                                <option value="EN_COURS">En cours</option>
+                                <option value="TERMINE">Terminé</option>
+                                <option value="SUSPENDU">Suspendu</option>
                             </select>
                         </div>
                     </div>
@@ -190,7 +274,7 @@ export default function TestsPage() {
                                                     {test.numero_test}
                                                 </span>
                                                 <span className="text-xs text-gray-500 font-medium truncate max-w-[200px]">
-                                                    {test.type_test?.libelle_type || 'Type inconnu'}
+                                                    {test.type_test?.libelle || 'Type inconnu'}
                                                 </span>
                                             </div>
                                         </td>
@@ -227,24 +311,67 @@ export default function TestsPage() {
                                                 {test.statut_test}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button className="p-2 hover:bg-primary-50 rounded-lg text-gray-400 hover:text-primary-600 transition-all" title="Voir les détails">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                {test.statut_test === 'Planifié' && (
-                                                    <button className="p-2 hover:bg-green-50 rounded-lg text-gray-400 hover:text-green-600 transition-all" title="Démarrer le test">
-                                                        <Play className="h-4 w-4" />
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-end gap-2 group/actions">
+                                                {/* Edit - Planifié only */}
+                                                {test.statut_test === 'PLANIFIE' && hasPermission(user, 'tests', 'update') && (
+                                                    <button
+                                                        onClick={() => openTestModal(test.id_test)}
+                                                        className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                                        title="Modifier le test"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                {test.statut_test === 'En cours' && (
-                                                    <button className="p-2 hover:bg-blue-50 rounded-lg text-gray-400 hover:text-blue-600 transition-all" title="Finaliser le test">
-                                                        <CheckCircle className="h-4 w-4" />
+
+                                                {/* Export PDF */}
+                                                <button
+                                                    onClick={() => handleExportSinglePDF(test)}
+                                                    className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
+                                                    title="Exporter PDF"
+                                                >
+                                                    <FileDown className="h-4 w-4" />
+                                                </button>
+
+                                                {/* Delete */}
+                                                {hasPermission(user, 'tests', 'delete') && (
+                                                    <button
+                                                        onClick={() => handleDeleteClick(test.id_test, test.numero_test)}
+                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                        title="Supprimer"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 )}
-                                                <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-all">
-                                                    <MoreVertical className="h-4 w-4" />
-                                                </button>
+
+                                                {/* Spacer/Separator */}
+                                                <div className="w-px h-8 bg-gray-100 mx-1" />
+
+                                                {/* Primary Contextual Action */}
+                                                {test.statut_test === 'PLANIFIE' ? (
+                                                    <button
+                                                        onClick={() => openExecutionModal(test.id_test)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95"
+                                                    >
+                                                        <Play className="h-3 w-3 fill-current" />
+                                                        Démarrer
+                                                    </button>
+                                                ) : test.statut_test === 'EN_COURS' ? (
+                                                    <button
+                                                        onClick={() => openExecutionModal(test.id_test)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
+                                                    >
+                                                        <CheckCircle2 className="h-3 w-3" />
+                                                        Finaliser
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-gray-200"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        Détails
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

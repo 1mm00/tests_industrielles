@@ -13,15 +13,33 @@ import {
     Users,
     ChevronDown,
     ChevronRight,
-    Menu
+    Menu,
+    Microscope,
+    Activity,
+    Layers,
+    ShieldCheck,
+    Zap,
+    ClipboardList,
+    ShieldAlert,
+    FileBarChart
 } from 'lucide-react';
+
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/helpers';
-import Navbar from './Navbar';
+import Navbar from '../Navbar/Navbar';
 import TestCreationModal from '../modals/TestCreationModal';
 import NcCreationModal from '../modals/NcCreationModal';
 import ReportCreationModal from '../modals/ReportCreationModal';
 import UserCreationModal from '../modals/UserCreationModal';
+import TestExecutionModal from '../modals/TestExecutionModal';
+import NcEditModal from '../modals/NcEditModal';
+import EquipementEditModal from '../modals/EquipementEditModal';
+import EquipementCreationModal from '../modals/EquipementCreationModal';
+import EquipementDetailsModal from '../modals/EquipementDetailsModal';
+import InstrumentCreationModal from '../modals/InstrumentCreationModal';
+import InstrumentDetailsModal from '../modals/InstrumentDetailsModal';
+
+import TypeTestModal from '../modals/TypeTestModal';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -34,9 +52,13 @@ interface NavItem {
     children?: { name: string; href: string }[];
 }
 
+import { hasModuleAccess } from '@/utils/permissions';
+
 interface NavGroup {
     title: string;
     items: NavItem[];
+    resource?: string; // Ressource associée pour le contrôle d'accès
+    roles?: string[]; // Fallback ou complément
 }
 
 const navGroups: NavGroup[] = [
@@ -47,7 +69,8 @@ const navGroups: NavGroup[] = [
         ]
     },
     {
-        title: 'Opérations Industrielles',
+        title: 'Exécution & Qualité',
+        resource: 'tests',
         items: [
             {
                 name: 'Tests Industriels',
@@ -58,54 +81,86 @@ const navGroups: NavGroup[] = [
                 name: 'Non-Conformités',
                 icon: AlertTriangle,
                 children: [
-                    { name: 'Liste des NC', href: '/non-conformites' },
-                    { name: 'Statistiques NC', href: '/nc-stats' },
+                    { name: 'Journal des NC', href: '/non-conformites' },
+                    { name: 'Statistiques Qualité', href: '/nc-stats' },
                 ]
             },
             {
-                name: 'Équipements & Instruments',
+                name: 'Gestion Référentiels',
+                icon: Layers,
+                children: [
+                    { name: 'Types de Tests', href: '/type-tests' },
+                ]
+            },
+            {
+                name: 'Parc Équipements',
                 icon: Wrench,
                 children: [
                     { name: 'Liste équipements', href: '/equipements' },
-                    { name: 'Liste instruments', href: '/instruments' },
-                    { name: 'Alertes calibration', href: '/calibration-alerts' },
+                    { name: 'Instrumentation', href: '/instruments' },
+                    { name: 'Alertes Métrologie', href: '/calibration-alerts' },
                 ]
             },
         ]
     },
     {
-        title: 'Planification & Analyse',
+        title: 'Pilotage & Archivage',
+        resource: 'rapports',
         items: [
             {
                 name: 'Planning & Calendrier',
                 icon: Calendar,
                 children: [
-                    { name: 'Planning mensuel', href: '/planning-calendar' },
+                    { name: 'Vue Calendrier', href: '/planning-calendar' },
                 ]
             },
             {
                 name: 'Reporting & KPIs',
                 icon: BarChart3,
                 children: [
-                    { name: 'Dashboard performance', href: '/reporting-dashboard' },
-                    { name: 'Liste des rapports', href: '/reports' },
+                    { name: 'Tableau Bord Performance', href: '/reporting-dashboard' },
+                    { name: 'Registre des Rapports', href: '/reports' },
                 ]
             },
         ]
     },
     {
-        title: 'Administration',
+        title: 'Ingénierie & Expertise',
+        roles: ['Ingénieur'], // Strictement pour Ingénieurs et Admin (via bypass)
         items: [
-            { name: 'Gestion utilisateurs', href: '/users', icon: Users },
+            { name: 'Dashboard Industriel', href: '/engineer/dashboard', icon: Activity },
+            { name: 'Analyses Équipements', href: '/engineer/analyses', icon: Microscope },
+            { name: 'Orchestration Tests', href: '/engineer/projets', icon: Layers },
+            { name: 'Gestion des Protocoles', href: '/engineer/protocoles', icon: FlaskConical },
         ]
     },
     {
-        title: 'Extras',
+        title: 'Missions Technicien',
+        roles: ['Technicien'],
         items: [
-            { name: 'Profil', href: '/profile', icon: User },
+            { name: 'Dashboard Opérationnel', href: '/technician/dashboard', icon: Zap },
+            { name: 'Exécution des Tests', href: '/technician/tests', icon: ClipboardList },
+            { name: 'Signalement NC', href: '/technician/non-conformites', icon: ShieldAlert },
+            { name: 'Consultation Parc', href: '/technician/equipements', icon: Microscope },
+            { name: 'Consultation Rapports', href: '/technician/rapports', icon: FileBarChart },
+        ]
+    },
+    {
+        title: 'Administration Système',
+        roles: ['Admin'],
+        items: [
+            { name: 'Gestion des Utilisateurs', href: '/users', icon: Users },
+            { name: 'Matrice des Permissions', href: '/roles-permissions', icon: ShieldCheck },
+        ]
+    },
+    {
+        title: 'Session Utilisateur',
+        items: [
+            { name: 'Mon Profil Industriel', href: '/profile', icon: User },
         ]
     }
 ];
+
 
 export default function MainLayout({ children }: MainLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -113,6 +168,30 @@ export default function MainLayout({ children }: MainLayoutProps) {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
+
+    const role = user?.personnel?.role?.nom_role;
+
+    // Filtre les groupes de navigation selon les permissions et le rôle
+    const filteredNavGroups = navGroups.filter(group => {
+        // BYPASS COMPLET POUR L'ADMIN - Il voit tout
+        if (role === 'Admin') return true;
+
+        // Si aucune restriction, tout le monde voit
+        if (!group.resource && !group.roles) return true;
+
+        // Si restriction par ressource (RBAC)
+        if (group.resource && hasModuleAccess(user, group.resource)) {
+            return true;
+        }
+
+        // Si restriction par rôle (Fallback/Spécifique)
+        if (group.roles && group.roles.includes(role || '')) {
+            return true;
+        }
+
+        return false;
+    });
+
 
     const toggleMenu = (name: string) => {
         setOpenMenus(prev =>
@@ -221,8 +300,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                             <X className="h-6 w-6" />
                         </button>
                     </div>
-                    <nav className="px-4 py-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
-                        {navGroups.map((group) => (
+                    <nav className="px-4 py-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] scrollbar-hide">
+                        {filteredNavGroups.map((group) => (
                             <div key={group.title} className="space-y-2">
                                 <h3 className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                     {group.title}
@@ -244,14 +323,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
                         <User className="h-8 w-8 xl:h-10 xl:w-10 text-primary-600" />
                     </div>
                     <div>
-                        <h2 className="text-sm xl:text-base font-bold text-gray-700">{user?.prenom} {user?.nom}</h2>
-                        <p className="text-[11px] font-medium text-primary-600 uppercase tracking-wider mt-1">{user?.fonction || 'Administrateur'}</p>
+                        <h2 className="text-sm xl:text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors">
+                            {user?.personnel ? `${user.personnel.prenom} ${user.personnel.nom}` : user?.name}
+                        </h2>
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mt-1.5">
+                            {user?.personnel?.role?.nom_role || 'ADMINISTRATEUR'}
+                        </p>
                     </div>
                 </div>
 
                 {/* Navigation */}
                 <nav className="flex-1 space-y-5 xl:space-y-7 px-4 xl:px-6 py-4 overflow-y-auto scrollbar-hide">
-                    {navGroups.map((group) => (
+                    {filteredNavGroups.map((group) => (
                         <div key={group.title} className="space-y-3">
                             <h3 className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
                                 {group.title}
@@ -303,6 +386,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <NcCreationModal />
                 <ReportCreationModal />
                 <UserCreationModal />
+                <TestExecutionModal />
+                <NcEditModal />
+                <EquipementEditModal />
+                <EquipementCreationModal />
+                <EquipementDetailsModal />
+                <InstrumentCreationModal />
+                <InstrumentDetailsModal />
+                <TypeTestModal />
             </div>
         </div>
     );

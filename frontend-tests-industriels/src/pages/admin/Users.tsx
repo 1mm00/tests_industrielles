@@ -19,6 +19,7 @@ import {
 import { usersService, type UserPersonnel } from '@/services/usersService';
 import { cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function UsersPage() {
     const queryClient = useQueryClient();
@@ -29,14 +30,18 @@ export default function UsersPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users-list'] });
             queryClient.invalidateQueries({ queryKey: ['users-stats'] });
-            alert('Utilisateur supprimé avec succès');
+            toast.success('Utilisateur supprimé avec succès');
         },
         onError: (error: any) => {
-            alert('Erreur lors de la suppression: ' + (error.response?.data?.message || 'Erreur inconnue'));
+            toast.error('Erreur lors de la suppression: ' + (error.response?.data?.message || 'Erreur inconnue'));
         }
     });
 
-    const handleDelete = (id: string, name: string) => {
+    const handleDelete = (id: string | undefined, name: string) => {
+        if (!id) {
+            toast.error("Impossible de supprimer : ID manquant");
+            return;
+        }
         if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${name} ?`)) {
             deleteMutation.mutate(id);
         }
@@ -76,7 +81,7 @@ export default function UsersPage() {
                         />
                     </div>
                     <button
-                        onClick={openUserModal}
+                        onClick={() => openUserModal()}
                         className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
                     >
                         <UserPlus className="h-4 w-4" />
@@ -218,7 +223,7 @@ export default function UsersPage() {
                                                     <Edit2 className="h-4 w-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(user.id_personnel, `${user.prenom} ${user.nom}`)}
+                                                    onClick={() => handleDelete(user.id_personnel || (user as any).id, `${user.prenom} ${user.nom}`)}
                                                     className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-red-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>

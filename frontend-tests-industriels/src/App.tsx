@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 
 // Pages
 import LoginPage from '@/pages/auth/LoginPage';
-import DashboardPage from '@/pages/dashboard/DashboardPage';
+import DashboardPage from '@/pages/admin/Dashboard';
 import TestsPage from '@/pages/tests/TestsPage';
 import NonConformitesPage from '@/pages/non-conformites/NonConformitesPage';
 import NonConformitesStatsPage from '@/pages/non-conformites/NonConformitesStatsPage';
@@ -17,257 +17,437 @@ import CalibrationAlertsPage from '@/pages/instruments/CalibrationAlertsPage';
 import PlanningCalendarPage from '@/pages/planning/PlanningCalendarPage';
 import ReportingDashboardPage from '@/pages/reporting/ReportingDashboardPage';
 import ReportsPage from '@/pages/reporting/ReportsPage';
-import UsersPage from '@/pages/users/UsersPage';
+import UsersPage from '@/pages/admin/Users';
+import PermissionsManagerPage from '@/pages/admin/PermissionsManagerPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
+
+import Dashboard_Engineer from '@/pages/ingenieur/Dashboard_Engineer';
+import Analyses_Engineer from '@/pages/ingenieur/Analyses_Engineer';
+import Projets_Engineer from '@/pages/ingenieur/Projets_Engineer';
+import ProtocolManagementPage from '@/pages/ingenieur/ProtocolManagementPage';
+import Dashboard_Technician from '@/pages/technicien/Dashboard_Technician';
+import Tests_Technician from '@/pages/technicien/Tests_Technician';
+import NonConformites_Technician from '@/pages/technicien/NonConformites_Technician';
+import Equipements_Technician from '@/pages/technicien/Equipements_Technician';
+import Rapports_Technician from '@/pages/technicien/Rapports_Technician';
+import Dashboard_Reader from '@/pages/lecteur/Dashboard_Reader';
+import { Toaster } from 'react-hot-toast';
 
 // Créer le Query Client pour React Query
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+    defaultOptions: {
+        queries: {
+            refetchOnWindowFocus: false,
+            retry: 1,
+            staleTime: 5 * 60 * 1000, // 5 minutes
+        },
     },
-  },
 });
 
 // Composant pour protéger les routes authentifiées
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
 
-  return <>{children}</>;
+    return <>{children}</>;
 }
 
 // Composant pour rediriger si déjà authentifié
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
 
-  return <>{children}</>;
+    return <>{children}</>;
 }
 
+import { hasPermission } from '@/utils/permissions';
+
+/**
+ * Composant pour protéger les routes par permission granulaire
+ */
+interface PermissionRouteProps {
+    children: React.ReactNode;
+    resource: string;
+    action: string;
+}
+
+function PermissionRoute({ children, resource, action }: PermissionRouteProps) {
+    const { user, isAuthenticated } = useAuthStore();
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (!hasPermission(user, resource, action)) {
+        return <Navigate to="/" replace />;
+    }
+
+    return <>{children}</>;
+}
+
+import TypeTestsPage from '@/pages/tests/TypeTestsPage';
+
 function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Routes publiques */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
-          />
+    const { user } = useAuthStore();
 
-          {/* Routes protégées */}
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <DashboardPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+    const renderRoleDashboard = () => {
+        const role = user?.personnel?.role?.nom_role;
+        switch (role) {
+            case 'Admin':
+                return <DashboardPage />;
+            case 'Ingénieur':
+                return <Dashboard_Engineer />;
+            case 'Technicien':
+                return <Dashboard_Technician />;
+            case 'Lecteur':
+                return <Dashboard_Reader />;
+            default:
+                return <DashboardPage />;
+        }
+    };
 
-          <Route
-            path="/tests"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <TestsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+    return (
+        <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+                <Toaster position="top-right" reverseOrder={false} />
+                <Routes>
+                    {/* Routes publiques */}
+                    <Route
+                        path="/login"
+                        element={
+                            <PublicRoute>
+                                <LoginPage />
+                            </PublicRoute>
+                        }
+                    />
+
+                    {/* Routes protégées */}
+                    <Route
+                        path="/"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    {renderRoleDashboard()}
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+
+                    {/* Routes Ingénieur Spécifiques */}
+                    <Route
+                        path="/engineer/dashboard"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <Dashboard_Engineer />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/engineer/analyses"
+                        element={
+                            <PermissionRoute resource="equipements" action="read">
+                                <MainLayout>
+                                    <Analyses_Engineer />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/engineer/projets"
+                        element={
+                            <PermissionRoute resource="tests" action="read">
+                                <MainLayout>
+                                    <Projets_Engineer />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/engineer/protocoles"
+                        element={
+                            <PermissionRoute resource="tests" action="read">
+                                <MainLayout>
+                                    <ProtocolManagementPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    {/* Routes Technicien Spécifiques */}
+                    <Route
+                        path="/technician/dashboard"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <Dashboard_Technician />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route
+                        path="/technician/tests"
+                        element={
+                            <PermissionRoute resource="tests" action="read">
+                                <MainLayout>
+                                    <Tests_Technician />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/technician/non-conformites"
+                        element={
+                            <PermissionRoute resource="non_conformites" action="read">
+                                <MainLayout>
+                                    <NonConformites_Technician />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/technician/equipements"
+                        element={
+                            <PermissionRoute resource="equipements" action="read">
+                                <MainLayout>
+                                    <Equipements_Technician />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+                    <Route
+                        path="/technician/rapports"
+                        element={
+                            <PermissionRoute resource="rapports" action="read">
+                                <MainLayout>
+                                    <Rapports_Technician />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
 
-          <Route
-            path="/equipements"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <EquipementsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/tests"
+                        element={
+                            <PermissionRoute resource="tests" action="read">
+                                <MainLayout>
+                                    <TestsPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          <Route
-            path="/non-conformites"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <NonConformitesPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/type-tests"
+                        element={
+                            <PermissionRoute resource="tests" action="read">
+                                <MainLayout>
+                                    <TypeTestsPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          <Route
-            path="/nc-stats"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <NonConformitesStatsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
 
-          <Route
-            path="/instruments"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <InstrumentsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/equipements"
+                        element={
+                            <PermissionRoute resource="equipements" action="read">
+                                <MainLayout>
+                                    <EquipementsPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          <Route
-            path="/calibration-alerts"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <CalibrationAlertsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/non-conformites"
+                        element={
+                            <PermissionRoute resource="non_conformites" action="read">
+                                <MainLayout>
+                                    <NonConformitesPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          <Route
-            path="/rapports"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <div className="text-center py-12">
-                    <h1 className="text-2xl font-bold text-gray-900">Page Rapports</h1>
-                    <p className="text-gray-600 mt-2">À venir...</p>
-                  </div>
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/nc-stats"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <NonConformitesStatsPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/planning"
-            element={<Navigate to="/planning-calendar" replace />}
-          />
+                    <Route
+                        path="/instruments"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <InstrumentsPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/planning-calendar"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <PlanningCalendarPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/calibration-alerts"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <CalibrationAlertsPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/reporting-dashboard"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <ReportingDashboardPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/rapports"
+                        element={
+                            <PermissionRoute resource="rapports" action="read">
+                                <MainLayout>
+                                    <div className="text-center py-12">
+                                        <h1 className="text-2xl font-bold text-gray-900">Page Rapports</h1>
+                                        <p className="text-gray-600 mt-2">À venir...</p>
+                                    </div>
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          <Route
-            path="/reports"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <ReportsPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/planning"
+                        element={<Navigate to="/planning-calendar" replace />}
+                    />
 
-          <Route
-            path="/users"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <UsersPage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/planning-calendar"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <PlanningCalendarPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <ProfilePage />
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/reporting-dashboard"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <ReportingDashboardPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/kpis"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <div className="text-center py-12">
-                    <h1 className="text-2xl font-bold text-gray-900">Page KPIs</h1>
-                    <p className="text-gray-600 mt-2">À venir...</p>
-                  </div>
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/reports"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <ReportsPage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
 
-          <Route
-            path="/settings"
-            element={
-              <PrivateRoute>
-                <MainLayout>
-                  <div className="text-center py-12">
-                    <h1 className="text-2xl font-bold text-gray-900">Page Paramètres</h1>
-                    <p className="text-gray-600 mt-2">À venir...</p>
-                  </div>
-                </MainLayout>
-              </PrivateRoute>
-            }
-          />
+                    <Route
+                        path="/users"
+                        element={
+                            <PermissionRoute resource="personnel" action="read">
+                                <MainLayout>
+                                    <UsersPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
 
-          {/* Route 404 */}
-          <Route
-            path="*"
-            element={
-              <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <h1 className="text-6xl font-bold text-gray-900">404</h1>
-                  <p className="text-xl text-gray-600 mt-4">Page non trouvée</p>
-                  <a href="/" className="btn-primary mt-6 inline-flex">
-                    Retour à l'accueil
-                  </a>
-                </div>
-              </div>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
-  );
+                    <Route
+                        path="/profile"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <ProfilePage />
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/roles-permissions"
+                        element={
+                            <PermissionRoute resource="users" action="read">
+                                <MainLayout>
+                                    <PermissionsManagerPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+
+                    <Route
+                        path="/kpis"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <div className="text-center py-12">
+                                        <h1 className="text-2xl font-bold text-gray-900">Page KPIs</h1>
+                                        <p className="text-gray-600 mt-2">À venir...</p>
+                                    </div>
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/settings"
+                        element={
+                            <PrivateRoute>
+                                <MainLayout>
+                                    <div className="text-center py-12">
+                                        <h1 className="text-2xl font-bold text-gray-900">Page Paramètres</h1>
+                                        <p className="text-gray-600 mt-2">À venir...</p>
+                                    </div>
+                                </MainLayout>
+                            </PrivateRoute>
+                        }
+                    />
+
+                    {/* Route 404 */}
+                    <Route
+                        path="*"
+                        element={
+                            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                                <div className="text-center">
+                                    <h1 className="text-6xl font-bold text-gray-900">404</h1>
+                                    <p className="text-xl text-gray-600 mt-4">Page non trouvée</p>
+                                    <a href="/" className="btn-primary mt-6 inline-flex">
+                                        Retour à l'accueil
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    />
+                </Routes>
+            </BrowserRouter>
+        </QueryClientProvider>
+    );
 }
 
 export default App;

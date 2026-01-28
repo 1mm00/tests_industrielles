@@ -15,6 +15,7 @@ import { reportingService } from '@/services/reportingService';
 import { testsService } from '@/services/testsService';
 import { useAuthStore } from '@/store/authStore';
 import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function ReportCreationModal() {
     const queryClient = useQueryClient();
@@ -48,7 +49,7 @@ export default function ReportCreationModal() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reporting-reports'] });
             closeReportModal();
-            alert('Rapport généré avec succès !');
+            toast.success('Rapport généré avec succès !');
             setForm({
                 test_id: '',
                 type_rapport: 'TECHNIQUE',
@@ -59,7 +60,7 @@ export default function ReportCreationModal() {
         },
         onError: (error: any) => {
             console.error('Erreur lors de la génération du rapport:', error.response?.data);
-            alert(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue lors de la génération du rapport.'}`);
+            toast.error(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue lors de la génération du rapport.'}`);
         }
     });
 
@@ -75,7 +76,7 @@ export default function ReportCreationModal() {
         const isLikelyUUID = (uuid: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
 
         if (!form.test_id || !isLikelyUUID(form.test_id)) {
-            alert('Veuillez sélectionner un test valide');
+            toast.error('Veuillez sélectionner un test valide');
             return;
         }
 
@@ -89,7 +90,7 @@ export default function ReportCreationModal() {
         }
 
         if (!redacteurId) {
-            alert('Impossible de déterminer le rédacteur du rapport. Veuillez en sélectionner un.');
+            toast.error('Impossible de déterminer le rédacteur du rapport. Veuillez en sélectionner un.');
             return;
         }
 
@@ -261,7 +262,8 @@ export default function ReportCreationModal() {
                         form="report-form"
                         type="submit"
                         disabled={createMutation.isPending}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-black text-sm shadow-xl shadow-indigo-100 disabled:opacity-50 disabled:grayscale"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-all font-black text-sm shadow-xl shadow-indigo-100 disabled:opacity-50 disabled:grayscale"
+
                     >
                         {createMutation.isPending ? (
                             <>

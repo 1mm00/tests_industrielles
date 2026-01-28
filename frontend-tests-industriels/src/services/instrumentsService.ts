@@ -69,4 +69,18 @@ export const instrumentsService = {
         const response = await api.get<ApiResponse<Instrument>>(`/instruments/${id}`);
         return response.data.data;
     },
+
+    /**
+     * Créer un nouvel instrument
+     */
+    async createInstrument(data: any): Promise<Instrument> {
+        const response = await api.post<ApiResponse<Instrument>>('/instruments', data);
+        return response.data.data;
+    },
+    /**
+     * Supprimer un instrument
+     */
+    async deleteInstrument(id: string): Promise<void> {
+        await api.delete(`/instruments/${id}`);
+    },
 };

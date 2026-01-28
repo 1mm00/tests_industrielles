@@ -20,6 +20,7 @@ class InstrumentMesure extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'id_instrument',
         'code_instrument',
         'designation',
         'type_instrument',
@@ -40,6 +41,7 @@ class InstrumentMesure extends Model
         'localisation',
         'certificat_calibration_url',
     ];
+
 
     protected $casts = [
         'plage_mesure_min' => 'decimal:4',

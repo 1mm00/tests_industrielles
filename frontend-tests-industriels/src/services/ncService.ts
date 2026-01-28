@@ -51,4 +51,9 @@ export const ncService = {
         const response = await api.get<ApiResponse<any>>('/non-conformites/creation-data');
         return response.data.data;
     },
+
+    async updateNc(id: string, data: any): Promise<NonConformite> {
+        const response = await api.put<ApiResponse<NonConformite>>(`/non-conformites/${id}`, data);
+        return response.data.data;
+    },
 };

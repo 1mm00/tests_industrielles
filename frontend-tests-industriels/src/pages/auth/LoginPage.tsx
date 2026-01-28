@@ -24,7 +24,18 @@ export default function LoginPage() {
         try {
             const { user, token } = await authService.login(formData);
             login(user, token);
-            navigate('/');
+
+            // Redirection selon le rôle
+            const role = user.personnel?.role?.nom_role;
+            if (role === 'Admin') {
+                navigate('/');
+            } else if (role === 'Ingénieur') {
+                navigate('/engineer/dashboard');
+            } else if (role === 'Technicien') {
+                navigate('/'); // À adapter si une page spécifique existe
+            } else {
+                navigate('/');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Erreur lors de la connexion');
         } finally {
@@ -150,12 +161,9 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    {/* Register Link */}
-                    <p className="mt-6 text-center text-sm text-gray-600">
-                        Vous n'avez pas de compte ?{' '}
-                        <Link to="/register" className="font-medium text-primary-600 hover:text-primary-700">
-                            S'inscrire
-                        </Link>
+                    {/* Message informatif */}
+                    <p className="mt-6 text-center text-sm text-gray-500 italic">
+                        Seul un administrateur peut créer de nouveaux comptes. Contactez votre responsable si vous n'avez pas d'accès.
                     </p>
                 </div>
 

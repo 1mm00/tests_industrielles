@@ -22,6 +22,7 @@ class TypeTest extends Model
         'categorie_principale',
         'sous_categorie',
         'description',
+        'equipements_eligibles',
         'niveau_criticite_defaut',
         'duree_estimee_jours',
         'frequence_recommandee',
@@ -32,6 +33,7 @@ class TypeTest extends Model
         'actif' => 'boolean',
         'duree_estimee_jours' => 'decimal:2',
         'niveau_criticite_defaut' => 'integer',
+        'equipements_eligibles' => 'array',
     ];
 
     /**

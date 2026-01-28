@@ -15,13 +15,24 @@ import {
 import { ncService } from '@/services/ncService';
 import { useAuthStore } from '@/store/authStore';
 import { useModalStore } from '@/store/modalStore';
+import toast from 'react-hot-toast';
 
 export default function NcCreationModal() {
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
     const { isNcModalOpen, closeNcModal } = useModalStore();
 
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<{
+        test_id: string;
+        equipement_id: string;
+        criticite_id: string;
+        type_nc: string;
+        description: string;
+        impact_potentiel: string;
+        date_detection: string;
+        detecteur_id: string;
+        co_detecteurs: string[];
+    }>({
         test_id: '',
         equipement_id: '',
         criticite_id: '',
@@ -30,7 +41,9 @@ export default function NcCreationModal() {
         impact_potentiel: '',
         date_detection: new Date().toISOString().split('T')[0],
         detecteur_id: '',
+        co_detecteurs: [],
     });
+
 
     // Fetch data for creation
     const { data: creationData } = useQuery({
@@ -45,7 +58,7 @@ export default function NcCreationModal() {
             queryClient.invalidateQueries({ queryKey: ['non-conformites'] });
             queryClient.invalidateQueries({ queryKey: ['nc-stats'] });
             closeNcModal();
-            alert('Non-conformité déclarée avec succès !');
+            toast.success('Non-conformité déclarée avec succès !');
             setForm({
                 test_id: '',
                 equipement_id: '',
@@ -55,11 +68,13 @@ export default function NcCreationModal() {
                 impact_potentiel: '',
                 date_detection: new Date().toISOString().split('T')[0],
                 detecteur_id: '',
+                co_detecteurs: [],
             });
+
         },
         onError: (error: any) => {
             console.error('Erreur lors de la déclaration de la NC:', error.response?.data);
-            alert(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue lors de la déclaration de la NC.'}`);
+            toast.error(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue lors de la déclaration de la NC.'}`);
         }
     });
 
@@ -220,26 +235,67 @@ export default function NcCreationModal() {
                             </select>
                         </div>
 
-                        {/* Détecteur */}
-                        <div className="space-y-2">
+                        {/* Détecteurs (Multi-sélection) */}
+                        <div className="md:col-span-2 space-y-4 pt-4 border-t border-gray-50">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                 <UserIcon className="h-3 w-3" />
-                                Détecté par
+                                Personnel ayant détecté l'écart
                             </label>
+
+                            {/* Selected Detectors Tags */}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase shadow-sm">
+                                    <span className="opacity-50">Déclarant :</span>
+                                    {user?.nom} {user?.prenom}
+                                </div>
+                                {(form.co_detecteurs || []).map((memberId: string) => {
+                                    const p = creationData?.personnels.find((pers: any) => pers.id_personnel === memberId);
+                                    if (!p) return null;
+                                    return (
+                                        <div key={memberId} className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-700 rounded-full text-[10px] font-black uppercase border border-gray-200 shadow-sm animate-in zoom-in-95 duration-200">
+                                            {p.nom} {p.prenom}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setForm(prev => ({
+                                                        ...prev,
+                                                        co_detecteurs: prev.co_detecteurs?.filter((id: string) => id !== memberId)
+                                                    }));
+                                                }}
+                                                className="hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Personnel Selection */}
                             <select
-                                name="detecteur_id"
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                value={form.detecteur_id}
-                                onChange={handleInputChange}
+                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner"
+                                onChange={(e) => {
+                                    const selectedId = e.target.value;
+                                    if (selectedId && !form.co_detecteurs?.includes(selectedId)) {
+                                        setForm(prev => ({
+                                            ...prev,
+                                            co_detecteurs: [...(prev.co_detecteurs || []), selectedId]
+                                        }));
+                                    }
+                                    e.target.value = ""; // Reset focus
+                                }}
                             >
-                                <option value="">Utilisateur actuel ({user?.nom} {user?.prenom})</option>
-                                {creationData?.personnels.map((p: any) => (
-                                    <option key={p.id_personnel} value={p.id_personnel}>
-                                        {p.nom} {p.prenom}
-                                    </option>
-                                ))}
+                                <option value="">Ajouter d'autres personnes ayant constaté l'anomalie...</option>
+                                {creationData?.personnels
+                                    .filter((p: any) => p.id_personnel !== (user?.id_personnel || user?.id))
+                                    .map((p: any) => (
+                                        <option key={p.id_personnel} value={p.id_personnel} disabled={form.co_detecteurs?.includes(p.id_personnel)}>
+                                            {p.nom} {p.prenom}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
+
                     </div>
 
                     {/* Description */}
@@ -289,7 +345,8 @@ export default function NcCreationModal() {
                         form="nc-form"
                         type="submit"
                         disabled={createMutation.isPending}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-black text-sm shadow-xl shadow-red-100 disabled:opacity-50 disabled:grayscale"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all font-black text-sm shadow-xl shadow-rose-100 disabled:opacity-50 disabled:grayscale"
+
                     >
                         {createMutation.isPending ? (
                             <>

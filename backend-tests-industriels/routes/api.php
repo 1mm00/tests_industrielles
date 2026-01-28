@@ -41,6 +41,14 @@ Route::prefix('v1')->group(function () {
     // Tests Industriels - Actions custom
     Route::post('tests/{id}/demarrer', [TestIndustrielController::class, 'demarrer']);
     Route::post('tests/{id}/terminer', [TestIndustrielController::class, 'terminer']);
+    Route::get('tests/technician-stats', [TestIndustrielController::class, 'technicianStats']);
+
+    // Mesures
+    Route::get('tests/{test_id}/mesures', [\App\Http\Controllers\Api\V1\MesureController::class, 'index']);
+    Route::post('tests/{test_id}/mesures', [\App\Http\Controllers\Api\V1\MesureController::class, 'store']);
+    Route::put('mesures/{id}', [\App\Http\Controllers\Api\V1\MesureController::class, 'update']);
+    Route::delete('mesures/{id}', [\App\Http\Controllers\Api\V1\MesureController::class, 'destroy']);
+
     // Non-Conformités
     Route::get('non-conformites/stats', [\App\Http\Controllers\Api\V1\NonConformiteController::class, 'stats']);
     Route::get('non-conformites/creation-data', [\App\Http\Controllers\Api\V1\NonConformiteController::class, 'creationData']);
@@ -67,6 +75,10 @@ Route::prefix('v1')->group(function () {
     // Personnel / Users
     Route::get('users/stats', [\App\Http\Controllers\Api\V1\UserController::class, 'stats']);
     Route::apiResource('users', \App\Http\Controllers\Api\V1\UserController::class);
+
+    // Types de Tests
+    Route::get('type-tests/creation-data', [\App\Http\Controllers\Api\V1\TypeTestController::class, 'creationData']);
+    Route::apiResource('type-tests', \App\Http\Controllers\Api\V1\TypeTestController::class);
 });
 
 // Compatibilité Frontend (sans v1 pour l'instant)
@@ -76,6 +88,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tests/creation-data', [TestIndustrielController::class, 'creationData']);
     Route::apiResource('tests', TestIndustrielController::class);
     Route::get('/tests/en-cours', [TestIndustrielController::class, 'index']);
+    Route::get('/tests/technician-stats', [TestIndustrielController::class, 'technicianStats']);
+
+    // Mesures
+    Route::get('/tests/{test_id}/mesures', [\App\Http\Controllers\Api\V1\MesureController::class, 'index']);
+    Route::post('/tests/{test_id}/mesures', [\App\Http\Controllers\Api\V1\MesureController::class, 'store']);
+    Route::put('/mesures/{id}', [\App\Http\Controllers\Api\V1\MesureController::class, 'update']);
+    Route::delete('/mesures/{id}', [\App\Http\Controllers\Api\V1\MesureController::class, 'destroy']);
+
 
     // Non-Conformités
     Route::get('/non-conformites/stats', [\App\Http\Controllers\Api\V1\NonConformiteController::class, 'stats']);
@@ -111,9 +131,15 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Roles
     Route::get('/roles', [\App\Http\Controllers\Api\V1\RoleController::class, 'index']);
+    Route::put('/roles/{id}/permissions', [\App\Http\Controllers\Api\V1\RoleController::class, 'updatePermissions']);
+
     
     // Postes et Départements
     Route::get('/postes', [\App\Http\Controllers\Api\V1\PosteController::class, 'index']);
     Route::get('/departements', [\App\Http\Controllers\Api\V1\DepartementController::class, 'index']);
+    
+    // Types de Tests
+    Route::get('type-tests/creation-data', [\App\Http\Controllers\Api\V1\TypeTestController::class, 'creationData']);
+    Route::apiResource('type-tests', \App\Http\Controllers\Api\V1\TypeTestController::class);
 });
 

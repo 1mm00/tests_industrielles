@@ -17,10 +17,9 @@ class PersonnelController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'matricule' => 'required|string|unique:personnels,matricule',
+            'cin' => 'required|string|max:20|unique:personnels,cin',
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:personnels,email|unique:users,email',
             'telephone' => 'nullable|string|max:50',
             'poste' => 'required|string|max:255',
             'departement' => 'nullable|string|max:255',
@@ -29,16 +28,32 @@ class PersonnelController extends Controller
             'actif' => 'boolean',
         ]);
 
+        // Générer l'email automatiquement à partir du CIN
+        $email = strtolower($validated['cin']) . '@testindustrielle.com';
+
+        // Vérifier que l'email généré n'existe pas déjà
+        if (Personnel::where('email', $email)->exists() || User::where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => "L'email généré ($email) existe déjà. Le CIN doit être unique."
+            ], 422);
+        }
+
+        // Générer le matricule automatiquement
+        $matricule = $this->generateMatricule($validated['role_id']);
+
         // Créer le dossier Personnel
         $personnel = Personnel::create(array_merge($validated, [
             'id_personnel' => Str::uuid()->toString(),
+            'matricule' => $matricule,
+            'email' => $email,
             'actif' => $validated['actif'] ?? true,
         ]));
 
         // Créer le compte User correspondant
         $user = User::create([
             'name' => trim($validated['prenom'] . ' ' . $validated['nom']),
-            'email' => $validated['email'],
+            'email' => $email,
             'password' => Hash::make('password'), // Mot de passe par défaut
             'id_personnel' => $personnel->id_personnel,
         ]);
@@ -51,17 +66,56 @@ class PersonnelController extends Controller
     }
 
     /**
-     * Update the specified personnel and associated user
+     * Générer un matricule unique selon le rôle
      */
+    private function generateMatricule(?string $roleId): string
+    {
+        $prefix = 'EMP';
+        
+        if ($roleId) {
+            $role = \App\Models\Role::find($roleId);
+            if ($role) {
+                switch (strtolower($role->nom_role)) {
+                    case 'admin':
+                        $prefix = 'ADMIN';
+                        break;
+                    case 'ingénieur':
+                        $prefix = 'ING';
+                        break;
+                    case 'technicien':
+                        $prefix = 'TECH';
+                        break;
+                    case 'lecteur':
+                        $prefix = 'LECT';
+                        break;
+                }
+            }
+        }
+
+        // Trouver le dernier numéro utilisé pour ce préfixe
+        $lastPersonnel = Personnel::where('matricule', 'LIKE', $prefix . '-%')
+            ->orderBy('matricule', 'desc')
+            ->first();
+
+        $number = 1;
+        if ($lastPersonnel) {
+            $parts = explode('-', $lastPersonnel->matricule);
+            if (count($parts) === 2 && is_numeric($parts[1])) {
+                $number = intval($parts[1]) + 1;
+            }
+        }
+
+        return $prefix . '-' . str_pad($number, 3, '0', STR_PAD_LEFT);
+    }
+
     public function update(Request $request, $id)
     {
         $personnel = Personnel::findOrFail($id);
         
         $validated = $request->validate([
-            'matricule' => 'required|string|unique:personnels,matricule,'.$id.',id_personnel',
+            'cin' => 'required|string|max:20|unique:personnels,cin,'.$id.',id_personnel',
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:personnels,email,'.$id.',id_personnel',
             'telephone' => 'nullable|string|max:50',
             'poste' => 'required|string|max:255',
             'departement' => 'nullable|string|max:255',
@@ -70,11 +124,26 @@ class PersonnelController extends Controller
             'actif' => 'boolean',
         ]);
 
+        // Si le CIN a changé, régénérer l'email
+        if ($validated['cin'] !== $personnel->cin) {
+            $email = strtolower($validated['cin']) . '@testindustrielle.com';
+            
+            // Vérifier que le nouvel email n'existe pas déjà
+            if (Personnel::where('email', $email)->where('id_personnel', '!=', $id)->exists() ||
+                User::where('email', $email)->where('id_personnel', '!=', $id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "L'email généré ($email) existe déjà. Le CIN doit être unique."
+                ], 422);
+            }
+            $validated['email'] = $email;
+        }
+
         $personnel->update($validated);
 
         // Mettre à jour le compte User correspondant s'il existe
         $user = User::where('id_personnel', $id)->first();
-        if ($user) {
+        if ($user && isset($validated['email'])) {
             $user->update([
                 'name' => trim($validated['prenom'] . ' ' . $validated['nom']),
                 'email' => $validated['email'],

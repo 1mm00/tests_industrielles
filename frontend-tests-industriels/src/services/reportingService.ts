@@ -3,15 +3,17 @@ import type { ApiResponse } from '@/types';
 
 export interface PerformanceStats {
     summary: {
-        conformity_rate: number;
+        conformity_rate: { value: number; trend: string; change: string };
         avg_resolution_days: number;
-        total_nc_active: number;
-        critical_nc_count: number;
+        total_nc_active: { value: number; trend: string; change: string | number };
+        critical_nc_count: { value: number; trend: string; change: string | number };
+        total_tests?: { value: number; trend: string; change: string };
     };
     conformity_trend: {
         categories: string[];
         series: Array<{ name: string; data: number[] }>;
     };
+
     test_types: Array<{ label: string; value: number }>;
     top_issues: Array<{ label: string; value: number }>;
     nc_by_criticality: Array<{ label: string; value: number; color: string }>;

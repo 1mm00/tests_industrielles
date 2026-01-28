@@ -10,9 +10,11 @@ class DepartementController extends Controller
     /**
      * Get all active departements
      */
-    public function index()
+    public function index(\Illuminate\Http\Request $request)
     {
         $departements = Departement::actifs()
+            ->forRole($request->role_id)
+            ->forPoste($request->poste)
             ->orderBy('categorie')
             ->orderBy('libelle')
             ->get();

@@ -16,6 +16,7 @@ class Personnel extends Model
 
     protected $fillable = [
         'matricule',
+        'cin',
         'nom',
         'prenom',
         'email',

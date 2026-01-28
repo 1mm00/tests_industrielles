@@ -20,9 +20,26 @@ export interface User {
     dateEmbauche?: string;
     habilitations?: string[];
     langues?: string;
-    statut: 'Actif' | 'Inactif' | 'Externe' | 'Retraité';
-    createdAt: string;
+    statut?: 'Actif' | 'Inactif' | 'Externe' | 'Retraité';
+    createdAt?: string;
     updatedAt?: string;
+    personnel?: PersonnelData;
+}
+
+export interface PersonnelData {
+    id_personnel: string;
+    matricule: string;
+    cin: string;
+    nom: string;
+    prenom: string;
+    email: string;
+    role?: RoleData;
+}
+
+export interface RoleData {
+    id_role: string;
+    nom_role: string;
+    permissions?: Record<string, string[]>;
 }
 
 export interface AuthState {
@@ -48,8 +65,9 @@ export interface TestIndustriel {
     localisation: string;
     conditions_environnementales?: Record<string, any>;
     niveau_criticite: 1 | 2 | 3 | 4;
-    statut_test: 'Planifié' | 'En cours' | 'Terminé' | 'Suspendu' | 'Annulé';
-    resultat_global?: 'Conforme' | 'Non conforme' | 'Partiel' | 'Non applicable';
+    statut_test: 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'SUSPENDU' | 'ANNULE';
+    resultat_global?: 'CONFORME' | 'NON_CONFORME' | 'PARTIEL' | 'NON_APPLICABLE';
+
     taux_conformite_pct?: number;
     responsable_test_id?: string;
     equipe_test?: string[];
@@ -67,17 +85,18 @@ export interface TestIndustriel {
 }
 
 export interface TypeTest {
-    id: string;
-    codeType: string;
-    libelle_type: string;
-    categoriePrincipale: 'Standard' | 'Obligatoire';
-    sousCategorie?: string;
+    id_type_test: string;
+    code_type: string;
+    libelle: string;
+    categorie_principale: 'Standard' | 'Obligatoire';
+    sous_categorie?: string;
     description?: string;
-    niveauCriticiteDefaut?: number;
-    dureeEstimeeJours?: number;
-    frequenceRecommandee?: string;
+    niveau_criticite_defaut?: number;
+    duree_estimee_jours?: number;
+    frequence_recommandee?: string;
+    equipements_eligibles?: string[];
     actif: boolean;
-    createdAt: string;
+    created_at: string;
 }
 
 // ----------------------------------------------------------------------------
@@ -107,37 +126,34 @@ export interface Equipement {
 // Non-Conformités
 // ----------------------------------------------------------------------------
 export interface NonConformite {
-    id: string;
-    numeroNc: string;
-    testId?: string;
-    equipementId?: string;
-    dateDetection: string;
-    detecteurId?: string;
-    sourceDetection: 'Test' | 'Audit' | 'Observation' | 'Inspection' | 'Maintenance';
-    niveauNc: 'NC1' | 'NC2' | 'NC3' | 'NC4';
-    criticiteId?: number;
-    titre: string;
-    descriptionDetaillee: string;
-    impactSecurite: 'Faible' | 'Modéré' | 'Élevé' | 'Critique';
-    impactProduction: 'Faible' | 'Modéré' | 'Élevé' | 'Critique';
-    impactQualite?: 'Faible' | 'Modéré' | 'Élevé' | 'Critique';
-    impactEnvironnement?: 'Faible' | 'Modéré' | 'Élevé' | 'Critique';
-    ecartNorme?: string;
-    ecartSpecification?: string;
-    delaiTraitementHeures: number;
-    dateLimiteTraitement: string;
-    responsableTraitementId?: string;
-    statutNc: 'Ouvert' | 'En analyse' | 'En traitement' | 'Résolu' | 'Clôturé' | 'Annulé';
-    dateResolution?: string;
-    dateCloture?: string;
-    coutEstime?: number;
-    coutReel?: number;
-    recurrence?: boolean;
-    ncOrigineId?: string;
-    createdAt: string;
-    updatedAt?: string;
-    // Relations
+    id_non_conformite: string;
+    numero_nc: string;
+    test_id?: string;
+    mesure_id?: string;
+    equipement_id?: string;
+    date_detection: string;
+    detecteur_id?: string;
+    criticite_id?: string;
+    description: string;
+    impact_potentiel?: string;
+    statut: 'OUVERTE' | 'EN_COURS' | 'CLOTUREE' | 'ANNULEE';
+    created_at?: string;
+    updated_at?: string;
+
+    // Optional relation data
     equipement?: Equipement;
+    test?: any;
+    criticite?: {
+        id_niveau_criticite: string;
+        code_niveau: string;
+        libelle: string;
+        couleur_indicateur: string;
+    };
+    date_resolution?: string;
+    date_cloture?: string;
+    cout_estime?: number;
+    cout_reel?: number;
+    recurrence?: boolean;
     responsable?: User;
 }
 

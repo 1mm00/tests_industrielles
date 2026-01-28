@@ -81,6 +81,9 @@ class AuthController extends Controller
             ], 401);
         }
         
+        // Charger le personnel et le rôle
+        $user->load('personnel.role');
+        
         $token = $user->createToken('api-token')->plainTextToken;
         
         return response()->json([
@@ -112,17 +115,14 @@ class AuthController extends Controller
     {
         $user = $request->user();
         
-        // Charger la relation personnel si elle existe
-        $user->load('personnel');
-        
-        // Récupérer le personnel via la relation ou par email
-        $personnel = $user->personnel ?? \App\Models\Personnel::where('email', $user->email)->first();
+        // Charger le personnel et le rôle
+        $user->load('personnel.role');
         
         return response()->json([
             'success' => true,
             'data' => [
                 'user' => $user,
-                'personnel' => $personnel
+                'personnel' => $user->personnel
             ]
         ]);
     }

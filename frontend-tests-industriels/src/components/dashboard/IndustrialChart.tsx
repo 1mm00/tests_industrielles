@@ -9,28 +9,14 @@ interface IndustrialChartProps {
 }
 
 const IndustrialChart = ({ data }: IndustrialChartProps) => {
-    const series = data?.series || [
-        {
-            name: "Tests Réalisés",
-            type: "column",
-            data: [23, 11, 22, 27, 13, 22, 37, 21, 44, 22, 30, 45],
-        },
-        {
-            name: "Tests Conformes",
-            type: "area",
-            data: [20, 10, 20, 25, 12, 18, 30, 18, 40, 20, 28, 42],
-        },
-        {
-            name: "Non-Conformités",
-            type: "line",
-            data: [3, 1, 2, 2, 1, 4, 7, 3, 4, 2, 2, 3],
-        },
+    const series = data?.series && data.series.length > 0 ? data.series : [
+        { name: "Tests Réalisés", type: "column", data: [] },
+        { name: "Tests Conformes", type: "area", data: [] },
+        { name: "Non-Conformités", type: "line", data: [] },
     ];
 
-    const categories = data?.categories || [
-        "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
-        "Juil", "Août", "Sep", "Oct", "Nov", "Déc"
-    ];
+    const categories = data?.categories && data.categories.length > 0 ? data.categories : [];
+
 
     const options: ApexOptions = {
         chart: {

@@ -36,4 +36,24 @@ export const equipementsService = {
         const response = await api.get<ApiResponse<Equipement>>(`/equipements/${id}`);
         return response.data.data;
     },
+
+    async updateEquipement(id: string, data: any): Promise<Equipement> {
+        const response = await api.put<ApiResponse<Equipement>>(`/equipements/${id}`, data);
+        return response.data.data;
+    },
+
+    /**
+     * Créer un nouvel équipement
+     */
+    async createEquipement(data: any): Promise<Equipement> {
+        const response = await api.post<ApiResponse<Equipement>>('/equipements', data);
+        return response.data.data;
+    },
+
+    /**
+     * Supprimer un équipement
+     */
+    async deleteEquipement(id: string): Promise<void> {
+        await api.delete(`/equipements/${id}`);
+    },
 };

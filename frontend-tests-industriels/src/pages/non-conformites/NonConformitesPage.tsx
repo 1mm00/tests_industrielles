@@ -15,9 +15,12 @@ import { ncService, NcFilters } from '@/services/ncService';
 import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
 import { exportToPDF } from '@/utils/pdfExport';
+import { useAuthStore } from '@/store/authStore';
+import { hasPermission } from '@/utils/permissions';
 
 export default function NonConformitesPage() {
-    const { openNcModal } = useModalStore();
+    const { user } = useAuthStore();
+    const { openNcModal, openNcEditModal } = useModalStore();
     const [filters, setFilters] = useState<NcFilters>({
         page: 1,
         per_page: 10,
@@ -75,20 +78,24 @@ export default function NonConformitesPage() {
                     <p className="text-sm text-gray-500 font-medium italic">Gestion et suivi des écarts qualité et sécurité</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
-                    >
-                        <Download className="h-4 w-4" />
-                        Exporter PDF
-                    </button>
-                    <button
-                        onClick={openNcModal}
-                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Déclarer une NC
-                    </button>
+                    {hasPermission(user, 'rapports', 'export') && (
+                        <button
+                            onClick={handleExportPDF}
+                            className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
+                        >
+                            <Download className="h-4 w-4" />
+                            Exporter PDF
+                        </button>
+                    )}
+                    {hasPermission(user, 'non_conformites', 'create') && (
+                        <button
+                            onClick={openNcModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Déclarer une NC
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -224,12 +231,24 @@ export default function NonConformitesPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Voir détails">
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                                <button className="p-2 hover:bg-white hover:text-green-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400" title="Traiter">
-                                                    <CheckCircle2 className="h-4 w-4" />
-                                                </button>
+                                                {hasPermission(user, 'non_conformites', 'read') && (
+                                                    <button
+                                                        onClick={() => openNcEditModal(nc.id_non_conformite)}
+                                                        className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Voir détails"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                {nc.statut !== 'CLOTUREE' && (hasPermission(user, 'non_conformites', 'update') || hasPermission(user, 'non_conformites', 'close')) && (
+                                                    <button
+                                                        onClick={() => openNcEditModal(nc.id_non_conformite)}
+                                                        className="p-2 hover:bg-white hover:text-green-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        title="Traiter / Clôturer"
+                                                    >
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
