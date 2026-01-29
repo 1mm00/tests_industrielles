@@ -86,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tests/stats', [TestIndustrielController::class, 'stats']);
     Route::get('/tests/calendar', [TestIndustrielController::class, 'calendar']);
     Route::get('/tests/creation-data', [TestIndustrielController::class, 'creationData']);
+    Route::post('/tests/{id}/start', [TestIndustrielController::class, 'demarrer']);
+    Route::post('/tests/{id}/finish', [TestIndustrielController::class, 'terminer']);
     Route::apiResource('tests', TestIndustrielController::class);
     Route::get('/tests/en-cours', [TestIndustrielController::class, 'index']);
     Route::get('/tests/technician-stats', [TestIndustrielController::class, 'technicianStats']);
@@ -104,6 +106,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Équipements
     Route::get('/equipements/stats', [\App\Http\Controllers\Api\V1\EquipementController::class, 'stats']);
+    
+    // Expertise Équipements (Specific routes must come before generic resource)
+    Route::get('equipements/expertise', [\App\Http\Controllers\Api\V1\EquipementExpertiseController::class, 'getExpertiseData']);
+    Route::get('equipements/export-asset-db', [\App\Http\Controllers\Api\V1\EquipementExpertiseController::class, 'exportAssetDatabase']);
+    Route::post('equipements/sync-realtime', [\App\Http\Controllers\Api\V1\EquipementExpertiseController::class, 'syncRealTime']);
+    
     Route::apiResource('equipements', \App\Http\Controllers\Api\V1\EquipementController::class);
 
     // Instruments
@@ -141,5 +149,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Types de Tests
     Route::get('type-tests/creation-data', [\App\Http\Controllers\Api\V1\TypeTestController::class, 'creationData']);
     Route::apiResource('type-tests', \App\Http\Controllers\Api\V1\TypeTestController::class);
+    
+    // Designer de Méthodes (Checklists)
+    Route::get('designer/checklists/{typeTestId}', [\App\Http\Controllers\Api\V1\ChecklistControleController::class, 'getByTypeTest']);
+    Route::post('designer/checklists/{typeTestId}', [\App\Http\Controllers\Api\V1\ChecklistControleController::class, 'storeOrUpdate']);
+    
+    // Rapports de Tests
+    Route::get('rapports/stats', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'getStats']);
+    Route::get('rapports/{id}/master-data', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'getMasterReportData']);
+    Route::post('rapports/{id}/valider', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'valider']);
+    Route::apiResource('rapports', \App\Http\Controllers\Api\V1\RapportTestController::class);
+    
+    // Dashboards
+    Route::get('dashboard/ingenieur', [\App\Http\Controllers\Api\V1\DashboardController::class, 'getDashboardIngenieur']);
+    Route::get('dashboard/technicien', [\App\Http\Controllers\Api\V1\DashboardController::class, 'getDashboardTechnicien']);
 });
 

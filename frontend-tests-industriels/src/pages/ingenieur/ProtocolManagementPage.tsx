@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     FlaskConical,
     Plus,
@@ -9,17 +10,39 @@ import {
     Trash2,
     Settings
 } from 'lucide-react';
-import { testsService } from '@/services/testsService';
+import { typeTestsService } from '@/services/typeTestsService';
+import { useModalStore } from '@/store/modalStore';
 import { cn } from '@/utils/helpers';
+import toast from 'react-hot-toast';
 
 export default function ProtocolManagementPage() {
-    // In a real app, this would be its own service, but we'll use creation-data to get types
-    const { data: creationData, isLoading } = useQuery({
-        queryKey: ['test-creation-data'],
-        queryFn: () => testsService.getCreationData(),
+    const queryClient = useQueryClient();
+    const { openTypeTestModal, openMethodDesignerModal } = useModalStore();
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Fetch type tests directly using the dedicated service
+    const { data: protocolTypes = [], isLoading } = useQuery({
+        queryKey: ['type-tests', searchTerm],
+        queryFn: () => typeTestsService.getTypeTests({ search: searchTerm }),
     });
 
-    const protocolTypes = creationData?.types_tests || [];
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => typeTestsService.deleteTypeTest(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['type-tests'] });
+            toast.success('Protocole technique supprimé avec succès');
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+        }
+    });
+
+    const handleDelete = (id: string, label: string) => {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer le protocole "${label}" ?`)) {
+            deleteMutation.mutate(id);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
@@ -35,7 +58,10 @@ export default function ProtocolManagementPage() {
                     <p className="text-gray-500 font-medium">Définition des méthodologies, critères d'acceptation et checklists de contrôle</p>
                 </div>
 
-                <button className="flex items-center gap-2 px-8 py-4 bg-gray-900 text-white rounded-2xl hover:bg-black transition-all font-black text-sm shadow-xl">
+                <button
+                    onClick={() => openTypeTestModal()}
+                    className="flex items-center gap-2 px-8 py-4 bg-gray-900 text-white rounded-2xl hover:bg-black transition-all font-black text-sm shadow-xl active:scale-95"
+                >
                     <Plus className="h-5 w-5" />
                     CRÉER UN PROTOCOLE
                 </button>
@@ -49,6 +75,8 @@ export default function ProtocolManagementPage() {
                         type="text"
                         placeholder="Rechercher un protocole technique..."
                         className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-[1.5rem] text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <div className="flex items-center gap-2">
@@ -121,10 +149,17 @@ export default function ProtocolManagementPage() {
                                 </div>
 
                                 <div className="flex items-center gap-2 pt-2">
-                                    <button className="flex-1 px-4 py-3 bg-gray-50 hover:bg-indigo-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                    <button
+                                        onClick={() => openMethodDesignerModal(type.id_type_test)}
+                                        className="flex-1 px-4 py-3 bg-gray-50 hover:bg-indigo-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                                    >
                                         Paramétrage
                                     </button>
-                                    <button className="p-3 bg-gray-50 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all">
+                                    <button
+                                        onClick={() => handleDelete(type.id_type_test, type.libelle)}
+                                        disabled={deleteMutation.isPending}
+                                        className="p-3 bg-gray-50 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all disabled:opacity-50"
+                                    >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
                                 </div>
@@ -148,7 +183,10 @@ export default function ProtocolManagementPage() {
                             Le système calculera automatiquement la conformité lors de la saisie des mesures.
                         </p>
                     </div>
-                    <button className="px-10 py-5 bg-white text-gray-900 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-indigo-50 hover:scale-105 active:scale-95 transition-all shadow-2xl">
+                    <button
+                        onClick={() => protocolTypes.length > 0 && openMethodDesignerModal(protocolTypes[0].id_type_test)}
+                        className="px-10 py-5 bg-white text-gray-900 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-indigo-50 hover:scale-105 active:scale-95 transition-all shadow-2xl"
+                    >
                         Ouvrir le Designer de Méthodes
                     </button>
                 </div>

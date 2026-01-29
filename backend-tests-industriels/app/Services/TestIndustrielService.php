@@ -24,6 +24,15 @@ class TestIndustrielService
     }
 
     /**
+     * Obtenir un test avec ses relations complètes
+     */
+    public function getTestDetails(string $testId): TestIndustriel
+    {
+        return TestIndustriel::with(['equipement', 'typeTest.checklistsControle', 'responsable', 'createur'])
+            ->findOrFail($testId);
+    }
+
+    /**
      * Démarrer un test
      */
     public function demarrerTest(string $testId): TestIndustriel

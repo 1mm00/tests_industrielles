@@ -50,7 +50,7 @@ export default function Tests_Technician() {
                         onClick={() => setFilters(f => ({ ...f, statut: 'PLANIFIE' }))}
                         className={cn(
                             "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'PLANIFIE' ? "bg-primary-600 text-white shadow-md shadow-primary-200" : "text-gray-500 hover:bg-gray-50"
+                            filters.statut === 'PLANIFIE' ? "bg-primary-100 text-primary-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
                         )}
                     >
                         À Faire
@@ -59,7 +59,7 @@ export default function Tests_Technician() {
                         onClick={() => setFilters(f => ({ ...f, statut: 'EN_COURS' }))}
                         className={cn(
                             "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'EN_COURS' ? "bg-yellow-500 text-white shadow-md shadow-yellow-200" : "text-gray-500 hover:bg-gray-50"
+                            filters.statut === 'EN_COURS' ? "bg-amber-100 text-amber-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
                         )}
                     >
                         En Cours
@@ -68,7 +68,7 @@ export default function Tests_Technician() {
                         onClick={() => setFilters(f => ({ ...f, statut: 'TERMINE' }))}
                         className={cn(
                             "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'TERMINE' ? "bg-green-600 text-white shadow-md shadow-green-200" : "text-gray-500 hover:bg-gray-50"
+                            filters.statut === 'TERMINE' ? "bg-emerald-100 text-emerald-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
                         )}
                     >
                         Terminés
@@ -136,7 +136,7 @@ export default function Tests_Technician() {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 lg:border-l lg:pl-6 border-gray-100">
                                     {test.statut_test === 'TERMINE' ? (
-                                        <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-bold text-sm cursor-not-allowed">
+                                        <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-bold text-sm cursor-not-allowed border border-gray-100">
                                             <CheckCircle2 size={18} />
                                             Clôturé
                                         </button>
@@ -144,10 +144,10 @@ export default function Tests_Technician() {
                                         <button
                                             onClick={() => handleExecute(test.id_test)}
                                             className={cn(
-                                                "flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95",
+                                                "flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 border",
                                                 test.statut_test === 'EN_COURS'
-                                                    ? "bg-yellow-500 text-white shadow-lg shadow-yellow-200 hover:bg-yellow-600"
-                                                    : "bg-primary-600 text-white shadow-lg shadow-primary-200 hover:bg-primary-700"
+                                                    ? "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
+                                                    : "bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-100"
                                             )}
                                         >
                                             {test.statut_test === 'EN_COURS' ? 'Reprendre' : 'Démarrer'}

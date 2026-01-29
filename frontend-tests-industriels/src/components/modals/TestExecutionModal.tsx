@@ -15,6 +15,7 @@ import { testsService } from '@/services/testsService';
 import { useModalStore } from '@/store/modalStore';
 import toast from 'react-hot-toast';
 import { cn } from '@/utils/helpers';
+import type { TestIndustriel } from '@/types';
 
 export default function TestExecutionModal() {
     const queryClient = useQueryClient();
@@ -40,7 +41,7 @@ export default function TestExecutionModal() {
 
     // Robust extraction: API returns { success: true, data: test }
     // But testsService.getTest already extracts response.data.data
-    const test = rawData;
+    const test = rawData as TestIndustriel;
 
     // Fetch measures
     const { data: mesures } = useQuery({
@@ -212,6 +213,26 @@ export default function TestExecutionModal() {
 
                     {/* Right Panel: Measures Table & Form */}
                     <div className="flex-1 p-8 overflow-y-auto bg-white space-y-8">
+                        {/* Protocol Display (Checklist) */}
+                        {test?.type_test?.checklists_controle && test.type_test.checklists_controle.length > 0 && (
+                            <div className="p-6 bg-primary-50 rounded-[2rem] border border-primary-100 space-y-4">
+                                <h3 className="text-[10px] font-black text-primary-700 uppercase tracking-widest flex items-center gap-2">
+                                    <Activity className="h-4 w-4" />
+                                    Protocole de Test (Étapes à suivre)
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {test.type_test.checklists_controle.map((step: any) => (
+                                        <div key={step.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-primary-100 shadow-sm">
+                                            <span className="h-5 w-5 rounded-full bg-primary-600 text-white text-[10px] flex items-center justify-center font-black">
+                                                {step.ordre}
+                                            </span>
+                                            <span className="text-xs font-bold text-gray-700">{step.nom_etape}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Summary Stats */}
                         <div className="grid grid-cols-3 gap-4">
                             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
@@ -228,13 +249,20 @@ export default function TestExecutionModal() {
                             </div>
                         </div>
 
-                        {/* Add Measure Form (Only if En cours) */}
-                        {test?.statut_test === 'EN_COURS' && (
+                        {/* Add Measure Form (Visible if En cours or Planifié) */}
+                        {(test?.statut_test === 'EN_COURS' || test?.statut_test === 'PLANIFIE') && (
 
-                            <div className="p-6 bg-gray-900 rounded-[2rem] text-white shadow-2xl space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <Plus className="h-5 w-5 text-primary-400" />
-                                    <h3 className="text-sm font-black uppercase tracking-widest">Enregistrer une nouvelle mesure</h3>
+                            <div className="p-6 bg-gray-900 rounded-[2rem] text-white shadow-2xl space-y-6 animate-in slide-in-from-bottom-5">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Plus className="h-5 w-5 text-primary-400" />
+                                        <h3 className="text-sm font-black uppercase tracking-widest">Enregistrer une nouvelle mesure</h3>
+                                    </div>
+                                    {test?.statut_test === 'PLANIFIE' && (
+                                        <span className="text-[10px] font-black bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full border border-amber-500/30 uppercase tracking-tighter">
+                                            Auto-démarre le test
+                                        </span>
+                                    )}
                                 </div>
                                 <form onSubmit={handleAddMeasure} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="md:col-span-2 space-y-1">

@@ -40,6 +40,7 @@ import InstrumentCreationModal from '../modals/InstrumentCreationModal';
 import InstrumentDetailsModal from '../modals/InstrumentDetailsModal';
 
 import TypeTestModal from '../modals/TypeTestModal';
+import MethodDesignerModal from '../modals/MethodDesignerModal';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -394,6 +395,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <InstrumentCreationModal />
                 <InstrumentDetailsModal />
                 <TypeTestModal />
+                <MethodDesignerModal />
             </div>
         </div>
     );

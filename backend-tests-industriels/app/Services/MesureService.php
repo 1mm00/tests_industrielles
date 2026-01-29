@@ -41,7 +41,15 @@ class MesureService
             $data['id_mesure'] = Str::uuid()->toString();
         }
 
-        return Mesure::create($data);
+        $mesure = Mesure::create($data);
+
+        // Auto-start le test s'il est au statut PLANIFIE
+        $test = TestIndustriel::find($data['test_id']);
+        if ($test && $test->statut_test === \App\Enums\TestStatutEnum::PLANIFIE) {
+            $test->demarrer();
+        }
+
+        return $mesure;
     }
 
     public function updateMesure(string $id, array $data): Mesure

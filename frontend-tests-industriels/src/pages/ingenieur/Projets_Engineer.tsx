@@ -51,7 +51,7 @@ export default function Projets_Engineer() {
                 </div>
 
                 <button
-                    onClick={openTestModal}
+                    onClick={() => openTestModal()}
                     className="flex items-center gap-2 px-8 py-4 bg-gray-900 text-white rounded-2xl hover:bg-black transition-all font-black text-sm shadow-xl hover:scale-105 active:scale-95"
                 >
                     <Plus className="h-5 w-5" />
@@ -130,7 +130,7 @@ export default function Projets_Engineer() {
                                                 {test.numero_test}
                                             </span>
                                             <h3 className="text-xl font-black text-gray-900 group-hover:text-primary-600 transition-colors">
-                                                {test.type_test?.libelle_type || 'Contrôle Technique Standard'}
+                                                {test.type_test?.libelle || 'Contrôle Technique Standard'}
                                             </h3>
                                             <div className={cn(
                                                 "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",

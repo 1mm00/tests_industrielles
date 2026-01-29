@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\TestIndustrielService;
+use App\Models\TestIndustriel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -72,31 +73,27 @@ class TestIndustrielController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            // Version ultra-simplifiée pour diagnostic
-            $test = TestIndustriel::findOrFail($id);
+            $test = $this->testService->getTestDetails($id);
             
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'id_test' => $test->id_test,
-                    'numero_test' => $test->numero_test,
-                    'statut_test' => $test->statut_test->value ?? 'INCONNU',
-                    'date_test' => $test->date_test,
-                    'localisation' => $test->localisation,
-                    'niveau_criticite' => $test->niveau_criticite,
-                ]
+                'data' => $test
             ], 200);
             
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Test non trouvé'
+            ], 404);
         } catch (\Exception $e) {
             \Log::error('Error fetching test: ' . $e->getMessage(), [
                 'test_id' => $id,
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
+                'message' => 'Erreur serveur: ' . $e->getMessage()
             ], 500);
         }
     }

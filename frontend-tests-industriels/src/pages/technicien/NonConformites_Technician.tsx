@@ -26,6 +26,11 @@ export default function NonConformites_Technician() {
         queryFn: () => ncService.getPaginatedNc(filters)
     });
 
+    const { data: stats } = useQuery({
+        queryKey: ['nc-stats-technician'],
+        queryFn: () => ncService.getNcStats(),
+    });
+
     const { openNcModal, openNcEditModal } = useModalStore();
 
     return (
@@ -61,7 +66,7 @@ export default function NonConformites_Technician() {
                     </div>
                     <div>
                         <p className="text-gray-500 text-sm font-bold uppercase tracking-tight">Actives</p>
-                        <h4 className="text-2xl font-black text-gray-900">{ncs?.meta?.total || 0}</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.summary?.ouvertes || 0}</h4>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-4">
@@ -70,7 +75,7 @@ export default function NonConformites_Technician() {
                     </div>
                     <div>
                         <p className="text-gray-500 text-sm font-bold uppercase tracking-tight">Sous Analyse</p>
-                        <h4 className="text-2xl font-black text-gray-900">12</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.summary?.en_cours || 0}</h4>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-4">
@@ -79,7 +84,7 @@ export default function NonConformites_Technician() {
                     </div>
                     <div>
                         <p className="text-gray-500 text-sm font-bold uppercase tracking-tight">Clôturées</p>
-                        <h4 className="text-2xl font-black text-gray-900">45</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.summary?.cloturees || 0}</h4>
                     </div>
                 </div>
             </div>

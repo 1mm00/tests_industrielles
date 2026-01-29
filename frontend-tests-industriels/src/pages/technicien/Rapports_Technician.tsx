@@ -10,21 +10,33 @@ import {
     BarChart3,
     FileText
 } from 'lucide-react';
-import { reportingService, Rapport } from '@/services/reportingService';
+import { rapportsService, RapportTest } from '@/services/rapportsService';
 import { formatDate } from '@/utils/helpers';
+import toast from 'react-hot-toast';
+import { exportMasterReportPDF } from '@/utils/pdfExport';
 
 export default function Rapports_Technician() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
 
-    const { data: reports, isLoading } = useQuery({
-        queryKey: ['reports-technician'],
-        queryFn: () => reportingService.getReports()
+    const { data: rapportsData, isLoading } = useQuery({
+        queryKey: ['reports-technician', searchTerm, page],
+        queryFn: () => rapportsService.getRapports({ search: searchTerm, page, per_page: 10 })
     });
 
-    const filteredReports = reports?.filter((r: Rapport) =>
-        r.numero_rapport.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.type_rapport.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const reports = rapportsData?.data || [];
+
+    const handleDownloadReport = async (id: string, numero: string) => {
+        const loadingToast = toast.loading(`Génération du rapport ${numero}...`);
+        try {
+            const masterData = await rapportsService.getMasterReportData(id);
+            exportMasterReportPDF(masterData);
+            toast.success('Rapport prêt !', { id: loadingToast });
+        } catch (error) {
+            console.error(error);
+            toast.error('Erreur de génération', { id: loadingToast });
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -63,9 +75,9 @@ export default function Rapports_Technician() {
             <div className="grid grid-cols-1 gap-4">
                 {isLoading ? (
                     Array(5).fill(0).map((_, i) => (
-                        <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+                        <div key={i} className="h-24 bg-white rounded-3xl animate-pulse border border-gray-100" />
                     ))
-                ) : filteredReports?.map((report: Rapport) => (
+                ) : reports?.map((report: RapportTest) => (
                     <div
                         key={report.id_rapport}
                         className="group bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-lg transition-all flex flex-col md:flex-row md:items-center gap-6"
@@ -76,7 +88,7 @@ export default function Rapports_Technician() {
 
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-1">
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md text-[10px] font-black uppercase tracking-widest">
+                                <span className="px-2 py-0.5 bg-gray-100 text-indigo-700 rounded-md text-[10px] font-black uppercase tracking-widest border border-indigo-50">
                                     {report.type_rapport}
                                 </span>
                                 <span className="text-xs font-bold text-gray-400 flex items-center gap-1">
@@ -90,18 +102,24 @@ export default function Rapports_Technician() {
                         </div>
 
                         <div className="flex items-center gap-3 md:border-l md:pl-6 border-gray-100">
-                            <button className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-700 rounded-xl font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-all group/btn">
+                            <button
+                                onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-700 rounded-xl font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-all group/btn"
+                            >
                                 <Eye size={18} className="group-hover/btn:scale-110 transition-transform" />
                                 Lire
                             </button>
-                            <button className="p-2.5 text-gray-400 hover:text-indigo-600 transition-colors">
+                            <button
+                                onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
+                                className="p-2.5 text-gray-400 hover:text-indigo-600 transition-colors"
+                            >
                                 <Download size={20} />
                             </button>
                         </div>
                     </div>
                 ))}
 
-                {!isLoading && filteredReports?.length === 0 && (
+                {!isLoading && reports?.length === 0 && (
                     <div className="text-center py-20 bg-white rounded-[2.5rem] border border-gray-100 border-dashed">
                         <FileBarChart size={48} className="text-gray-200 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-gray-900">Aucun rapport disponible</h3>
@@ -109,6 +127,31 @@ export default function Rapports_Technician() {
                     </div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && rapportsData?.last_page > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-white rounded-3xl border border-gray-100">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        Page {rapportsData.current_page} sur {rapportsData.last_page}
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(p => p - 1)}
+                            className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                        >
+                            Précédent
+                        </button>
+                        <button
+                            disabled={page === rapportsData.last_page}
+                            onClick={() => setPage(p => p + 1)}
+                            className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                        >
+                            Suivant
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

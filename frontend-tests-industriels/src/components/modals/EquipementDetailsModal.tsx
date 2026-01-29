@@ -174,16 +174,22 @@ export default function EquipementDetailsModal() {
                                             <p className="text-xs font-bold text-gray-500 mb-1">Puissance Nominale</p>
                                             <p className="text-lg font-black text-gray-900">{equipement.puissance_nominale_kw} kW</p>
                                         </div>
-                                        {equipement.caracteristiques_techniques && Object.keys(equipement.caracteristiques_techniques).length > 0 && (
+                                        {equipement.caracteristiques_techniques && (
                                             <div className="bg-gray-50 rounded-2xl p-4">
                                                 <p className="text-xs font-bold text-gray-500 mb-1">Autres caractéristiques</p>
-                                                <div className="text-xs text-gray-900">
-                                                    {Object.entries(equipement.caracteristiques_techniques).map(([key, value]) => (
-                                                        <div key={key} className="flex justify-between">
-                                                            <span className="font-bold">{key}:</span>
-                                                            <span>{String(value)}</span>
-                                                        </div>
-                                                    ))}
+                                                <div className="text-xs text-gray-900 border-t border-gray-100 mt-2 pt-2 space-y-1">
+                                                    {(() => {
+                                                        const specs = typeof equipement.caracteristiques_techniques === 'string'
+                                                            ? JSON.parse(equipement.caracteristiques_techniques)
+                                                            : equipement.caracteristiques_techniques;
+
+                                                        return Object.entries(specs).map(([key, value]) => (
+                                                            <div key={key} className="flex justify-between border-b border-gray-50 pb-1 last:border-0">
+                                                                <span className="font-bold text-gray-600">{key}:</span>
+                                                                <span className="font-black text-primary-700">{String(value)}</span>
+                                                            </div>
+                                                        ));
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}

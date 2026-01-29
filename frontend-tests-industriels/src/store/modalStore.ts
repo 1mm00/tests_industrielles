@@ -13,6 +13,7 @@ interface ModalState {
     isInstrumentCreateModalOpen: boolean;
     isInstrumentDetailsModalOpen: boolean;
     isTypeTestModalOpen: boolean;
+    isMethodDesignerModalOpen: boolean;
     selectedUser: any | null;
     selectedTestId: string | null;
     selectedNcId: string | null;
@@ -43,6 +44,8 @@ interface ModalState {
     closeInstrumentDetailsModal: () => void; // Added
     openTypeTestModal: (typeTestId?: string) => void;
     closeTypeTestModal: () => void;
+    openMethodDesignerModal: (typeTestId: string) => void;
+    closeMethodDesignerModal: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -58,6 +61,7 @@ export const useModalStore = create<ModalState>((set) => ({
     isInstrumentCreateModalOpen: false,
     isInstrumentDetailsModalOpen: false, // Added
     isTypeTestModalOpen: false,
+    isMethodDesignerModalOpen: false,
     selectedUser: null,
     selectedTestId: null,
     selectedNcId: null,
@@ -88,4 +92,6 @@ export const useModalStore = create<ModalState>((set) => ({
     closeInstrumentDetailsModal: () => set({ isInstrumentDetailsModalOpen: false, selectedInstrumentId: null }),
     openTypeTestModal: (typeTestId?: string) => set({ isTypeTestModalOpen: true, selectedTypeTestId: typeTestId || null }),
     closeTypeTestModal: () => set({ isTypeTestModalOpen: false, selectedTypeTestId: null }),
+    openMethodDesignerModal: (typeTestId: string) => set({ isMethodDesignerModalOpen: true, selectedTypeTestId: typeTestId }),
+    closeMethodDesignerModal: () => set({ isMethodDesignerModalOpen: false, selectedTypeTestId: null }),
 }));

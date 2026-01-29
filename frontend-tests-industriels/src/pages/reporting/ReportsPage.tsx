@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import toast from 'react-hot-toast';
 import {
     FileText,
     Download,
@@ -12,9 +14,9 @@ import {
     MoreVertical,
     Activity
 } from 'lucide-react';
-import { reportingService, type Rapport } from '@/services/reportingService';
+import { rapportsService, type RapportTest } from '@/services/rapportsService';
 import { formatDate, cn } from '@/utils/helpers';
-import { exportToPDF } from '@/utils/pdfExport';
+import { exportToPDF, exportMasterReportPDF } from '@/utils/pdfExport';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { useModalStore } from '@/store/modalStore';
@@ -22,22 +24,30 @@ import { useModalStore } from '@/store/modalStore';
 export default function ReportsPage() {
     const { user } = useAuthStore();
     const { openReportModal } = useModalStore();
+    const [filters] = useState({ page: 1, per_page: 10 });
 
-    const { data: reports, isLoading } = useQuery({
-        queryKey: ['generated-reports'],
-        queryFn: () => reportingService.getReports(),
+    const { data: rapportsData, isLoading } = useQuery({
+        queryKey: ['rapports', filters],
+        queryFn: () => rapportsService.getRapports(filters),
     });
+
+    const { data: stats } = useQuery({
+        queryKey: ['rapports-stats'],
+        queryFn: () => rapportsService.getStats(),
+    });
+
+    const reports = rapportsData?.data || [];
 
     const handleExportPDF = () => {
         if (!reports) return;
 
         const headers = ["ID Rapport", "Type", "Test Associé", "Date Édition", "Rédacteur", "Statut"];
-        const body = reports.map((report: Rapport) => [
+        const body = reports.map((report: RapportTest) => [
             report.numero_rapport,
             report.type_rapport,
             `${report.test?.numero_test || 'N/A'} \n(${report.test?.equipement?.designation || 'N/A'})`,
             formatDate(report.date_edition),
-            report.redacteur ? `${report.redacteur.nom}` : 'N/A',
+            report.redacteur ? `${report.redacteur.nom_complet}` : 'N/A',
             report.statut
         ]);
 
@@ -48,6 +58,24 @@ export default function ReportsPage() {
             body: body,
             orientation: 'l'
         });
+    };
+
+    const handleDownloadMasterReport = async (idRapport: string) => {
+        try {
+            toast.loading('Génération du rapport en cours...', { id: 'master-pdf' });
+
+            const masterData = await rapportsService.getMasterReportData(idRapport);
+            exportMasterReportPDF(masterData);
+
+            toast.success('Rapport Master généré avec succès !', {
+                id: 'master-pdf',
+                icon: '📄',
+                duration: 3000
+            });
+        } catch (error) {
+            console.error('Erreur génération PDF:', error);
+            toast.error('Erreur lors de la génération du rapport', { id: 'master-pdf' });
+        }
     };
 
     const getStatutColor = (statut: string) => {
@@ -115,7 +143,7 @@ export default function ReportsPage() {
                     </div>
                     <div>
                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Validés</p>
-                        <h4 className="text-2xl font-black text-gray-900">{reports?.filter(r => r.statut === 'VALIDÉ').length || 0}</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.valides || 0}</h4>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
@@ -124,7 +152,7 @@ export default function ReportsPage() {
                     </div>
                     <div>
                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">En Révision</p>
-                        <h4 className="text-2xl font-black text-gray-900">{reports?.filter(r => r.statut === 'EN_REVISION').length || 0}</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.en_revision || 0}</h4>
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
@@ -133,7 +161,7 @@ export default function ReportsPage() {
                     </div>
                     <div>
                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Brouillons</p>
-                        <h4 className="text-2xl font-black text-gray-900">{reports?.filter(r => r.statut === 'BROUILLON').length || 0}</h4>
+                        <h4 className="text-2xl font-black text-gray-900">{stats?.brouillons || 0}</h4>
                     </div>
                 </div>
             </div>
@@ -171,7 +199,7 @@ export default function ReportsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                reports?.map((report: Rapport) => (
+                                reports?.map((report: RapportTest) => (
                                     <tr key={report.id_rapport} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
@@ -199,7 +227,7 @@ export default function ReportsPage() {
                                                 <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-[10px] font-black text-primary-700 border border-primary-200">
                                                     <User className="h-4 w-4" />
                                                 </div>
-                                                <span className="text-xs font-bold text-gray-700">{report.redacteur ? `${report.redacteur.nom}` : 'Utilisateur'}</span>
+                                                <span className="text-xs font-bold text-gray-700">{report.redacteur ? `${report.redacteur.nom_complet}` : 'Utilisateur'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
@@ -218,7 +246,11 @@ export default function ReportsPage() {
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'rapports', 'export') && (
-                                                    <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-green-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                                                    <button
+                                                        onClick={() => handleDownloadMasterReport(report.id_rapport)}
+                                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-green-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all"
+                                                        title="Télécharger Rapport Master"
+                                                    >
                                                         <Download className="h-4 w-4" />
                                                     </button>
                                                 )}

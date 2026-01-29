@@ -97,6 +97,31 @@ export interface TypeTest {
     equipements_eligibles?: string[];
     actif: boolean;
     created_at: string;
+    checklists_controle?: ChecklistControle[];
+}
+
+export interface ChecklistControle {
+    id_checklist: string;
+    type_test_id: string;
+    code_checklist: string;
+    titre: string;
+    version: string;
+    statut: string;
+    items?: ItemChecklist[];
+}
+
+export interface ItemChecklist {
+    id_item: string;
+    checklist_id: string;
+    numero_item: number;
+    libelle: string;
+    categorie?: string;
+    type_verif: string;
+    critere_acceptation?: string;
+    valeur_reference?: string;
+    tolerance?: string;
+    obligatoire: boolean;
+    criticite?: number;
 }
 
 // ----------------------------------------------------------------------------

@@ -13,8 +13,12 @@ import { equipementsService } from '@/services/equipementsService';
 import { cn } from '@/utils/helpers';
 import { Equipement } from '@/types';
 
+import { useModalStore } from '@/store/modalStore';
+
 export default function Equipements_Technician() {
     const [searchTerm, setSearchTerm] = useState('');
+
+    const { openEquipementDetailsModal } = useModalStore();
 
     const { data: equipements, isLoading } = useQuery({
         queryKey: ['equipements-technician'],
@@ -89,7 +93,10 @@ export default function Equipements_Technician() {
 
                         <div className="px-6 py-4 bg-gray-50 flex items-center justify-between border-t border-gray-100">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Fiche technique dispo.</span>
-                            <button className="flex items-center gap-2 text-primary-600 font-black text-xs hover:gap-3 transition-all">
+                            <button
+                                onClick={() => openEquipementDetailsModal(eq.id_equipement)}
+                                className="flex items-center gap-2 text-primary-600 font-black text-xs hover:gap-3 transition-all"
+                            >
                                 Consulter
                                 <ArrowRight size={14} />
                             </button>

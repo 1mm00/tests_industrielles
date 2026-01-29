@@ -117,7 +117,7 @@ export default function PlanningCalendarPage() {
                     </button>
 
                     <button
-                        onClick={openTestModal}
+                        onClick={() => openTestModal()}
                         className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all font-black text-[10px] uppercase tracking-widest shadow-xl shadow-gray-200"
                     >
                         <Plus className="h-4 w-4" />
@@ -262,7 +262,7 @@ export default function PlanningCalendarPage() {
                                         </div>
 
                                         <h4 className="text-sm font-black text-gray-900 mb-1 leading-tight group-hover:text-primary-600 transition-colors">
-                                            {test.type_test?.libelle_type || 'Test Industriel'}
+                                            {test.type_test?.libelle || 'Test Industriel'}
                                         </h4>
                                         <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter mb-4 flex items-center gap-2">
                                             <FlaskConical className="h-3 w-3 text-primary-500" />

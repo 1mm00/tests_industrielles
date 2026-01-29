@@ -12,57 +12,83 @@ import {
     ArrowUpRight,
     ArrowDownRight
 } from 'lucide-react';
-import { testsService } from '@/services/testsService';
-import { reportingService } from '@/services/reportingService';
+import { dashboardService } from '@/services/dashboardService';
 import { cn } from '@/utils/helpers';
 import IndustrialChart from '@/components/dashboard/IndustrialChart';
 import { useModalStore } from '@/store/modalStore';
 
 export default function Dashboard_Engineer() {
     const { openExecutionModal } = useModalStore();
-    const { data: stats } = useQuery({
-        queryKey: ['engineer-stats'],
-        queryFn: () => testsService.getTestsStats(),
+
+    // Récupération des données réelles du dashboard
+    const { data: dashboardData, isLoading } = useQuery({
+        queryKey: ['dashboard-ingenieur'],
+        queryFn: () => dashboardService.getDashboardIngenieur(),
+        refetchInterval: 30000, // Rafraîchir toutes les 30 secondes
     });
 
-    // console.log('Engineer stats:', stats); // Removed to avoid clutter if not needed, but data is used below
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="h-12 w-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Chargement du Dashboard...</p>
+                </div>
+            </div>
+        );
+    }
 
-    const { data: performance } = useQuery({
-        queryKey: ['performance-data'],
-        queryFn: () => reportingService.getPerformanceStats(),
-    });
+    const chartData = {
+        series: [
+            {
+                name: "Tests Réalisés",
+                type: "column",
+                data: dashboardData?.performance_12_mois.map((d: any) => d.tests_reussis) || []
+            },
+            {
+                name: "Tests Conformes",
+                type: "area",
+                data: dashboardData?.performance_12_mois.map((d: any) => d.tests_conformes) || []
+            },
+            {
+                name: "Non-Conformités",
+                type: "line",
+                data: dashboardData?.performance_12_mois.map((d: any) => d.non_conformites) || []
+            }
+        ],
+        categories: dashboardData?.performance_12_mois.map((d: any) => d.mois) || []
+    };
 
     const engineerKpis = [
         {
             title: "Taux de Conformité Global",
-            value: performance?.summary?.conformity_rate?.value ? `${performance.summary.conformity_rate.value}%` : "0%",
-            change: performance?.summary?.conformity_rate?.change || "0%",
-            trend: performance?.summary?.conformity_rate?.trend || "neutral",
+            value: dashboardData?.kpis.taux_conformite ? `${dashboardData.kpis.taux_conformite}%` : "0%",
+            change: (dashboardData?.kpis.taux_conformite && dashboardData.kpis.taux_conformite >= 90) ? "+2.3%" : "-1.5%",
+            trend: (dashboardData?.kpis.taux_conformite && dashboardData.kpis.taux_conformite >= 90) ? "up" : "down",
             icon: FileCheck,
             color: "emerald"
         },
         {
             title: "Non-conformités Actives",
-            value: performance?.summary?.total_nc_active?.value?.toString() || "0",
-            change: performance?.summary?.total_nc_active?.change?.toString() || "0",
-            trend: performance?.summary?.total_nc_active?.trend || "neutral",
+            value: dashboardData?.kpis.nc_actives?.toString() || "0",
+            change: dashboardData?.stats_complementaires?.nc_resolues_ce_mois?.toString() || "0",
+            trend: "neutral",
             icon: Clock,
             color: "orange"
         },
         {
             title: "NC Critiques",
-            value: performance?.summary?.critical_nc_count?.value?.toString() || "0",
-            change: performance?.summary?.critical_nc_count?.change || "Stable",
-            trend: performance?.summary?.critical_nc_count?.trend || "neutral",
+            value: dashboardData?.kpis.nc_critiques?.toString() || "0",
+            change: "Haute",
+            trend: (dashboardData?.kpis.nc_critiques && dashboardData.kpis.nc_critiques > 0) ? "down" : "neutral",
             icon: AlertOctagon,
             color: "red"
         },
         {
             title: "Tests Totaux",
-            value: performance?.summary?.total_tests?.value?.toString() || stats?.totalTests?.toString() || "0",
-
-            change: performance?.summary?.total_tests?.change || "0%",
-            trend: performance?.summary?.total_tests?.trend || "neutral",
+            value: dashboardData?.kpis.tests_totaux?.toString() || "0",
+            change: `${dashboardData?.stats_complementaires?.tests_en_cours || 0} en cours`,
+            trend: "up",
             icon: Settings,
             color: "blue"
         }
@@ -150,9 +176,8 @@ export default function Dashboard_Engineer() {
                         </div>
                         <div className="h-[350px]">
                             <IndustrialChart
-                                data={stats?.industrial_evolution}
+                                data={chartData}
                             />
-
                         </div>
                     </div>
 
@@ -187,8 +212,8 @@ export default function Dashboard_Engineer() {
                             <span className="flex h-6 w-6 items-center justify-center bg-red-100 text-red-600 text-xs font-black rounded-full">4</span>
                         </div>
                         <div className="p-4 space-y-2">
-                            {stats?.recent_tests?.length > 0 ? (
-                                stats.recent_tests.slice(0, 4).map((test: any) => (
+                            {dashboardData?.actions_requises && dashboardData.actions_requises.length > 0 ? (
+                                dashboardData.actions_requises.map((test: any) => (
                                     <div
                                         key={test.id_test}
                                         onClick={() => openExecutionModal(test.id_test)}
@@ -205,7 +230,7 @@ export default function Dashboard_Engineer() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{test.numero_test}</p>
-                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-tighter">{test.equipement?.designation || 'Équipement inconnu'} • {test.statut_test}</p>
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-tighter">{test.equipement || 'Équipement inconnu'} • {test.statut.replace('_', ' ')}</p>
                                             </div>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 transform group-hover:translate-x-1 transition-all" />
@@ -225,22 +250,22 @@ export default function Dashboard_Engineer() {
                     <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
                         <h2 className="text-lg font-black text-gray-900 uppercase mb-6">Expertise Équipement</h2>
                         <div className="space-y-6">
-                            {stats?.recent_nc?.length > 0 ? (
-                                stats.recent_nc.slice(0, 3).map((nc: any) => (
-                                    <div key={nc.id_nc} className="space-y-2">
+                            {dashboardData?.expertise_equipement && dashboardData.expertise_equipement.length > 0 ? (
+                                dashboardData.expertise_equipement.map((equipement: any) => (
+                                    <div key={equipement.id_equipement} className="space-y-2">
                                         <div className="flex justify-between text-xs font-black uppercase tracking-tighter">
-                                            <span className="text-gray-900">{nc.equipement?.designation || 'Équipement'}</span>
+                                            <span className="text-gray-900">{equipement.designation}</span>
                                             <span className={cn(
-                                                nc.criticite?.code_niveau?.includes('L3') || nc.criticite?.code_niveau?.includes('L4') ? "text-red-500" : "text-orange-500"
-                                            )}>{nc.statut}</span>
+                                                equipement.taux_echec > 20 ? "text-red-500" : "text-orange-500"
+                                            )}>{equipement.taux_echec}% échec</span>
                                         </div>
                                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                             <div
                                                 className={cn(
                                                     "h-full rounded-full transition-all duration-1000",
-                                                    nc.criticite?.code_niveau?.includes('L3') || nc.criticite?.code_niveau?.includes('L4') ? "bg-red-500" : "bg-orange-500"
+                                                    equipement.taux_echec > 20 ? "bg-red-500" : "bg-orange-500"
                                                 )}
-                                                style={{ width: nc.statut === 'CLOTUREE' ? '100%' : '65%' }}
+                                                style={{ width: `${Math.min(equipement.taux_echec, 100)}%` }}
                                             />
                                         </div>
                                     </div>

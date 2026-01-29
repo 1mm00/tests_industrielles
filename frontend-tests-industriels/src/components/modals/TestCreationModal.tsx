@@ -128,6 +128,20 @@ export default function TestCreationModal() {
 
     if (!isTestModalOpen) return null;
 
+    const isDataLoading = !creationData || (isEdit && !existingTest);
+
+    if (isDataLoading) {
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+                <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+                    <div className="h-12 w-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">
+                        {isEdit ? 'Chargement des données du test...' : 'Chargement de la configuration...'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
@@ -209,7 +223,7 @@ export default function TestCreationModal() {
                                 onChange={handleInputChange}
                             >
                                 <option value="">Sélectionner un type</option>
-                                {creationData?.types_tests.map((type: any) => (
+                                {creationData?.types_tests?.map((type: any) => (
                                     <option key={type.id_type_test} value={type.id_type_test}>
                                         {type.libelle}
                                     </option>
@@ -385,8 +399,7 @@ export default function TestCreationModal() {
                             }}
                         >
                             <option value="">Ajouter des co-responsables ou membres d'équipe...</option>
-                            {creationData?.personnels
-                                .filter((p: any) => p.id_personnel !== (user?.id_personnel || user?.id))
+                            {creationData?.personnels?.filter((p: any) => p.id_personnel !== (user?.id_personnel || user?.id))
                                 .map((p: any) => (
                                     <option key={p.id_personnel} value={p.id_personnel} disabled={form.equipe_test?.includes(p.id_personnel)}>
                                         {p.nom} {p.prenom}
