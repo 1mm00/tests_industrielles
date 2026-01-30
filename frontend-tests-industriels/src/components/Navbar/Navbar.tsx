@@ -22,6 +22,8 @@ import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/helpers';
 import { systemService } from '@/services/systemService';
 import { useModalStore } from '@/store/modalStore';
+import { useThemeStore } from '@/store/themeStore';
+import { Sun } from 'lucide-react';
 
 interface NavbarProps {
     // unused
@@ -30,6 +32,7 @@ interface NavbarProps {
 export default function Navbar({ }: NavbarProps) {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
+    const { isDarkMode, toggleDarkMode } = useThemeStore();
     const [scrolled, setScrolled] = useState(false);
 
     // States for dropdowns
@@ -100,10 +103,26 @@ export default function Navbar({ }: NavbarProps) {
 
                 {/* Section Centrale - Navigation Menu Rapide */}
                 <nav className="hidden xl:flex items-center gap-8 bg-gray-100/50 px-6 py-2 rounded-full border border-gray-200/50">
-                    <button onClick={() => navigate('/')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Dashboard</button>
-                    <button onClick={() => navigate('/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
-                    <button onClick={() => navigate('/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
-                    <button onClick={() => navigate('/planning-calendar')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Planning</button>
+                    <button
+                        onClick={() => navigate(user?.personnel?.role?.nom_role === 'Technicien' ? '/technician/dashboard' : '/')}
+                        className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest"
+                    >
+                        Dashboard
+                    </button>
+                    {user?.personnel?.role?.nom_role !== 'Technicien' && (
+                        <>
+                            <button onClick={() => navigate('/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
+                            <button onClick={() => navigate('/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
+                            <button onClick={() => navigate('/planning-calendar')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Planning</button>
+                        </>
+                    )}
+                    {user?.personnel?.role?.nom_role === 'Technicien' && (
+                        <>
+                            <button onClick={() => navigate('/technician/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Mes Tests</button>
+                            <button onClick={() => navigate('/technician/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Mes NC</button>
+                            <button onClick={() => navigate('/technician/rapports')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Rapports</button>
+                        </>
+                    )}
                 </nav>
 
                 {/* Section Droite - Actions & Profil */}
@@ -239,16 +258,18 @@ export default function Navbar({ }: NavbarProps) {
                         {activeDropdown === 'actions' && (
                             <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 animate-in fade-in slide-in-from-top-2">
                                 <div className="grid grid-cols-1 gap-1">
-                                    <button
-                                        onClick={() => {
-                                            setActiveDropdown(null);
-                                            openTestModal();
-                                        }}
-                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
-                                    >
-                                        <FlaskConical className="h-4 w-4 text-primary-500" />
-                                        Nouveau Test
-                                    </button>
+                                    {(user?.personnel?.role?.nom_role === 'Admin' || user?.personnel?.role?.nom_role === 'Ingénieur') && (
+                                        <button
+                                            onClick={() => {
+                                                setActiveDropdown(null);
+                                                openTestModal();
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
+                                        >
+                                            <FlaskConical className="h-4 w-4 text-primary-500" />
+                                            Nouveau Test
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => {
                                             setActiveDropdown(null);
@@ -259,16 +280,18 @@ export default function Navbar({ }: NavbarProps) {
                                         <AlertTriangle className="h-4 w-4 text-red-500" />
                                         Déclarer une NC
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            setActiveDropdown(null);
-                                            openReportModal();
-                                        }}
-                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
-                                    >
-                                        <FileBarChart className="h-4 w-4 text-blue-500" />
-                                        Générer Rapport
-                                    </button>
+                                    {user?.personnel?.role?.nom_role !== 'Technicien' && (
+                                        <button
+                                            onClick={() => {
+                                                setActiveDropdown(null);
+                                                openReportModal();
+                                            }}
+                                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
+                                        >
+                                            <FileBarChart className="h-4 w-4 text-blue-500" />
+                                            Générer Rapport
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -300,7 +323,7 @@ export default function Navbar({ }: NavbarProps) {
                                         </div>
                                         <div>
                                             <p className="text-sm font-black text-gray-900 leading-none">{user?.prenom} {user?.nom}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">{user?.fonction || 'Ingénieur Quality'}</p>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">{user?.fonction || user?.personnel?.role?.nom_role || 'Agent Industriel'}</p>
                                         </div>
                                     </div>
                                     <div className="mt-4 space-y-2">
@@ -319,9 +342,21 @@ export default function Navbar({ }: NavbarProps) {
                                         <UserIcon className="h-4 w-4 text-primary-500" />
                                         Mon Profil Industriel
                                     </button>
-                                    <button className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all text-left group/mode">
-                                        <Moon className="h-4 w-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
-                                        Mode Sombre
+                                    <button
+                                        onClick={toggleDarkMode}
+                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all text-left group/mode"
+                                    >
+                                        {isDarkMode ? (
+                                            <>
+                                                <Sun className="h-4 w-4 text-yellow-500 group-hover:rotate-12 transition-transform" />
+                                                Mode Clair
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Moon className="h-4 w-4 text-indigo-400 group-hover:rotate-12 transition-transform" />
+                                                Mode Sombre
+                                            </>
+                                        )}
                                     </button>
                                     <div className="h-px bg-gray-50 my-1 mx-2" />
                                     <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-black text-red-500 hover:bg-red-50 transition-all text-left">

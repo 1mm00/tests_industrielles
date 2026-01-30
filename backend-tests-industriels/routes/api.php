@@ -24,6 +24,8 @@ use App\Http\Controllers\AuthController;
 Route::post('/auth/login', [AuthController::class, 'apiLogin']);
 Route::post('/auth/logout', [AuthController::class, 'apiLogout'])->middleware('auth:sanctum');
 Route::get('/auth/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+Route::put('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('auth:sanctum');
+Route::put('/auth/password', [AuthController::class, 'updatePassword'])->middleware('auth:sanctum');
 
 
 /*

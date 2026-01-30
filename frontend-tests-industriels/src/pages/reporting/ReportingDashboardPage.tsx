@@ -45,7 +45,7 @@ export default function ReportingDashboardPage() {
 
         exportToPDF({
             title: "Rapport de Performance Industrielle & Qualité",
-            filename: `rapport_performance_${formatDate(new Date(), 'date')}`,
+            filename: `rapport_performance_${formatDate(new Date(), 'short')}`,
             headers: headers,
             body: body,
         });
@@ -89,7 +89,7 @@ export default function ReportingDashboardPage() {
                         <Target className="h-12 w-12 text-primary-600" />
                     </div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Taux de Conformité</p>
-                    <h3 className="text-3xl font-black text-gray-900">{stats?.summary.conformity_rate}%</h3>
+                    <h3 className="text-3xl font-black text-gray-900">{stats?.summary.conformity_rate.value}%</h3>
                     <div className="flex items-center gap-1 mt-2 text-green-600 font-bold text-xs">
                         <ArrowUpRight className="h-3.5 w-3.5" />
                         <span>+2.4% vs mois dernier</span>
@@ -113,7 +113,7 @@ export default function ReportingDashboardPage() {
                         <LayoutDashboard className="h-12 w-12 text-blue-600" />
                     </div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">NC Actives</p>
-                    <h3 className="text-3xl font-black text-gray-900">{stats?.summary.total_nc_active}</h3>
+                    <h3 className="text-3xl font-black text-gray-900">{stats?.summary.total_nc_active.value}</h3>
                     <div className="flex items-center gap-1 mt-2 text-gray-500 font-bold text-xs">
                         <span>En cours de traitement</span>
                     </div>
@@ -124,7 +124,7 @@ export default function ReportingDashboardPage() {
                         <AlertOctagon className="h-12 w-12 text-red-600" />
                     </div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">NC Critiques</p>
-                    <h3 className="text-3xl font-black text-red-600">{stats?.summary.critical_nc_count}</h3>
+                    <h3 className="text-3xl font-black text-red-600">{stats?.summary.critical_nc_count.value}</h3>
                     <div className="flex items-center gap-1 mt-2 text-red-500 font-bold text-xs">
                         <span>Requiert attention immédiate</span>
                     </div>

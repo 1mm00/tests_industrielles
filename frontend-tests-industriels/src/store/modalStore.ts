@@ -14,6 +14,7 @@ interface ModalState {
     isInstrumentDetailsModalOpen: boolean;
     isTypeTestModalOpen: boolean;
     isMethodDesignerModalOpen: boolean;
+    isProfileEditModalOpen: boolean;
     selectedUser: any | null;
     selectedTestId: string | null;
     selectedNcId: string | null;
@@ -46,6 +47,8 @@ interface ModalState {
     closeTypeTestModal: () => void;
     openMethodDesignerModal: (typeTestId: string) => void;
     closeMethodDesignerModal: () => void;
+    openProfileEditModal: () => void;
+    closeProfileEditModal: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -62,6 +65,7 @@ export const useModalStore = create<ModalState>((set) => ({
     isInstrumentDetailsModalOpen: false, // Added
     isTypeTestModalOpen: false,
     isMethodDesignerModalOpen: false,
+    isProfileEditModalOpen: false,
     selectedUser: null,
     selectedTestId: null,
     selectedNcId: null,
@@ -94,4 +98,6 @@ export const useModalStore = create<ModalState>((set) => ({
     closeTypeTestModal: () => set({ isTypeTestModalOpen: false, selectedTypeTestId: null }),
     openMethodDesignerModal: (typeTestId: string) => set({ isMethodDesignerModalOpen: true, selectedTypeTestId: typeTestId }),
     closeMethodDesignerModal: () => set({ isMethodDesignerModalOpen: false, selectedTypeTestId: null }),
+    openProfileEditModal: () => set({ isProfileEditModalOpen: true }),
+    closeProfileEditModal: () => set({ isProfileEditModalOpen: false }),
 }));

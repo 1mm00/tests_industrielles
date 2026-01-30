@@ -95,4 +95,24 @@ export const authService = {
         );
         return response.data.data;
     },
+
+    /**
+     * Mettre à jour le profil (nom, email, tel)
+     */
+    async updateProfile(data: {
+        name: string;
+        email: string;
+        telephone?: string;
+    }): Promise<MeResponse> {
+        const response = await api.put<ApiResponse<MeResponse>>('/auth/profile', data);
+        return response.data.data;
+    },
+
+    /**
+     * Changer le mot de passe
+     */
+    async updatePassword(data: any): Promise<{ message: string }> {
+        const response = await api.put<ApiResponse<{ message: string }>>('/auth/password', data);
+        return response.data.data;
+    },
 };

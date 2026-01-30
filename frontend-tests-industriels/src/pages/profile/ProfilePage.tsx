@@ -15,8 +15,10 @@ import {
     Clock
 } from 'lucide-react';
 import { authService } from '@/services/authService';
+import { useModalStore } from '@/store/modalStore';
 
 export default function ProfilePage() {
+    const { openProfileEditModal } = useModalStore();
     const { data, isLoading } = useQuery({
         queryKey: ['auth-me'],
         queryFn: () => authService.me(),
@@ -61,11 +63,17 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm shadow-sm bg-white">
+                            <button
+                                onClick={openProfileEditModal}
+                                className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm shadow-sm bg-white"
+                            >
                                 <Edit className="h-4 w-4" />
                                 Modifier Profil
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-bold text-sm shadow-md shadow-primary-200">
+                            <button
+                                onClick={openProfileEditModal}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-bold text-sm shadow-md shadow-primary-200"
+                            >
                                 <Key className="h-4 w-4" />
                                 Sécurité
                             </button>

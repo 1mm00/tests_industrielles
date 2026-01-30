@@ -41,6 +41,7 @@ import InstrumentDetailsModal from '../modals/InstrumentDetailsModal';
 
 import TypeTestModal from '../modals/TypeTestModal';
 import MethodDesignerModal from '../modals/MethodDesignerModal';
+import ProfileEditModal from '../modals/ProfileEditModal';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -72,6 +73,7 @@ const navGroups: NavGroup[] = [
     {
         title: 'Exécution & Qualité',
         resource: 'tests',
+        roles: ['Admin', 'Ingénieur'], // Restreint aux profils gestion/ingénierie
         items: [
             {
                 name: 'Tests Industriels',
@@ -107,6 +109,7 @@ const navGroups: NavGroup[] = [
     {
         title: 'Pilotage & Archivage',
         resource: 'rapports',
+        roles: ['Admin', 'Ingénieur'], // Restreint aux profils gestion/ingénierie
         items: [
             {
                 name: 'Planning & Calendrier',
@@ -177,20 +180,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
         // BYPASS COMPLET POUR L'ADMIN - Il voit tout
         if (role === 'Admin') return true;
 
-        // Si aucune restriction, tout le monde voit
-        if (!group.resource && !group.roles) return true;
-
-        // Si restriction par ressource (RBAC)
-        if (group.resource && hasModuleAccess(user, group.resource)) {
-            return true;
+        // 1. Si restriction par rôle (La plus stricte)
+        if (group.roles) {
+            return group.roles.includes(role || '');
         }
 
-        // Si restriction par rôle (Fallback/Spécifique)
-        if (group.roles && group.roles.includes(role || '')) {
-            return true;
+        // 2. Si restriction par ressource (RBAC) - Seulement si pas de roles définis
+        if (group.resource) {
+            return hasModuleAccess(user, group.resource);
         }
 
-        return false;
+        // 3. Si aucune restriction, tout le monde voit
+        return true;
     });
 
 
@@ -249,7 +250,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                                             'block px-3 py-2 rounded-md text-sm transition-colors',
                                             isSubActive
                                                 ? 'text-primary-600 font-semibold'
-                                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                                : 'text-gray-600 hover:text-gray-900 hover:bg-primary-50/50'
                                         )}
                                     >
                                         {child.name}
@@ -270,8 +271,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={cn(
                     'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
                     isActive
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                        : 'text-gray-700 dark:text-gray-400 hover:bg-primary-50/50 dark:hover:bg-gray-800'
                 )}
             >
                 <Icon className="h-4.5 w-4.5" />
@@ -317,14 +318,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </div>
 
             {/* Sidebar Desktop et Large Tablet - Floating Card Style */}
-            <aside className="fixed top-6 bottom-6 left-6 z-40 w-[260px] xl:w-[280px] bg-white rounded-[2rem] xl:rounded-[2.5rem] shadow-2xl hidden xl:flex overflow-hidden border border-gray-100 flex-col">
+            <aside className="fixed top-6 bottom-6 left-6 z-40 w-[260px] xl:w-[280px] bg-white dark:bg-gray-900 rounded-[2rem] xl:rounded-[2.5rem] shadow-2xl hidden xl:flex overflow-hidden border border-gray-100 dark:border-gray-800 flex-col transition-colors duration-300">
                 {/* Logo & User profile section at top */}
                 <div className="p-6 xl:p-8 pb-4 flex flex-col items-center text-center">
-                    <div className="h-16 w-16 xl:h-20 xl:w-20 bg-gray-50 rounded-full flex items-center justify-center border-4 border-white shadow-sm mb-3 xl:mb-4">
+                    <div className="h-16 w-16 xl:h-20 xl:w-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 shadow-sm mb-3 xl:mb-4">
                         <User className="h-8 w-8 xl:h-10 xl:w-10 text-primary-600" />
                     </div>
                     <div>
-                        <h2 className="text-sm xl:text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors">
+                        <h2 className="text-sm xl:text-base font-black text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">
                             {user?.personnel ? `${user.personnel.prenom} ${user.personnel.nom}` : user?.name}
                         </h2>
                         <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mt-1.5">
@@ -348,7 +349,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 </nav>
 
                 {/* Logout at bottom */}
-                <div className="p-4 xl:p-6 border-t border-gray-50">
+                <div className="p-4 xl:p-6 border-t border-gray-100/50 dark:border-gray-800">
                     <button
                         onClick={handleLogout}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-red-600 transition-all group"
@@ -396,6 +397,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <InstrumentDetailsModal />
                 <TypeTestModal />
                 <MethodDesignerModal />
+                <ProfileEditModal />
             </div>
         </div>
     );

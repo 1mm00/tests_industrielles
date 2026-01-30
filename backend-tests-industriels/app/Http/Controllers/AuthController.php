@@ -126,4 +126,76 @@ class AuthController extends Controller
             ]
         ]);
     }
+
+    /**
+     * API Update Profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        $personnel = $user->personnel;
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'telephone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        if ($personnel) {
+            // Mise à jour de personnels pour la cohérence UI (nom/prénom)
+            $nameParts = explode(' ', $validated['name'], 2);
+            $nom = $nameParts[0];
+            $prenom = $nameParts[1] ?? '';
+
+            $personnel->update([
+                'nom' => $nom,
+                'prenom' => $prenom,
+                'telephone' => $validated['telephone'],
+                'email' => $validated['email'],
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profil mis à jour avec succès',
+            'data' => [
+                'user' => $user->fresh('personnel.role'),
+                'personnel' => $user->personnel
+            ]
+        ]);
+    }
+
+    /**
+     * API Update Password
+     */
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'L\'ancien mot de passe est incorrect'
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mot de passe modifié avec succès'
+        ]);
+    }
 }
