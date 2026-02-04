@@ -401,7 +401,7 @@ class TestIndustrielService
      */
     public function getCreationData(): array
     {
-        $personnels = \App\Models\Personnel::select('id_personnel', 'nom', 'prenom', 'fonction')->get();
+        $personnels = \App\Models\Personnel::select('id_personnel', 'nom', 'prenom')->get();
         
         // Fallback pour le développement si la table personnels est vide
         if ($personnels->isEmpty()) {
@@ -410,7 +410,6 @@ class TestIndustrielService
                     'id_personnel' => $user->id, // On simule l'ID
                     'nom' => $user->name,
                     'prenom' => '',
-                    'fonction' => 'Utilisateur',
                 ];
             });
         }
@@ -420,28 +419,41 @@ class TestIndustrielService
         $currentUserData = null;
         
         if ($currentUser) {
-            // Charger les relations de manière sécurisée
-            $currentUser->load('personnel.role');
-            
-            // Si l'utilisateur a un personnel associé
-            if ($currentUser->personnel) {
-                $currentUserData = [
-                    'id' => $currentUser->id,
-                    'id_personnel' => $currentUser->personnel->id_personnel,
-                    'nom' => $currentUser->personnel->nom ?? '',
-                    'prenom' => $currentUser->personnel->prenom ?? '',
-                    'fonction' => $currentUser->personnel->fonction ?? 'Responsable',
-                    'role' => optional($currentUser->personnel->role)->nom_role ?? 'Ingénieur',
-                ];
-            } else {
-                // Sinon, utiliser les données de base de l'utilisateur
+            try {
+                // Charger les relations de manière sécurisée
+                $currentUser->load('personnel.role');
+                
+                // Si l'utilisateur a un personnel associé
+                if ($currentUser->personnel) {
+                    $currentUserData = [
+                        'id' => $currentUser->id,
+                        'id_personnel' => $currentUser->personnel->id_personnel,
+                        'nom' => $currentUser->personnel->nom ?? '',
+                        'prenom' => $currentUser->personnel->prenom ?? '',
+                        'fonction' => $currentUser->personnel->poste ?? 'Responsable',
+                        'role' => optional($currentUser->personnel->role)->nom_role ?? 'Ingénieur',
+                    ];
+                } else {
+                    // Sinon, utiliser les données de base de l'utilisateur
+                    $currentUserData = [
+                        'id' => $currentUser->id,
+                        'id_personnel' => $currentUser->id,
+                        'nom' => $currentUser->name ?? '',
+                        'prenom' => '',
+                        'fonction' => 'Workflow Manager',
+                        'role' => 'Ingénieur',
+                    ];
+                }
+            } catch (\Exception $e) {
+                // En cas d'erreur, utiliser les données minimales
+                \Log::warning('Erreur lors de la récupération du current_user: ' . $e->getMessage());
                 $currentUserData = [
                     'id' => $currentUser->id,
                     'id_personnel' => $currentUser->id,
-                    'nom' => $currentUser->name ?? '',
+                    'nom' => $currentUser->name ?? 'Utilisateur',
                     'prenom' => '',
-                    'fonction' => 'Workflow Manager',
-                    'role' => 'Ingénieur',
+                    'fonction' => 'Utilisateur',
+                    'role' => 'Utilisateur',
                 ];
             }
         }
