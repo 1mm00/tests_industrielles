@@ -420,22 +420,25 @@ class TestIndustrielService
         $currentUserData = null;
         
         if ($currentUser) {
+            // Charger les relations de manière sécurisée
+            $currentUser->load('personnel.role');
+            
             // Si l'utilisateur a un personnel associé
             if ($currentUser->personnel) {
                 $currentUserData = [
                     'id' => $currentUser->id,
                     'id_personnel' => $currentUser->personnel->id_personnel,
-                    'nom' => $currentUser->personnel->nom,
-                    'prenom' => $currentUser->personnel->prenom,
+                    'nom' => $currentUser->personnel->nom ?? '',
+                    'prenom' => $currentUser->personnel->prenom ?? '',
                     'fonction' => $currentUser->personnel->fonction ?? 'Responsable',
-                    'role' => $currentUser->personnel->role->nom_role ?? 'Ingénieur',
+                    'role' => optional($currentUser->personnel->role)->nom_role ?? 'Ingénieur',
                 ];
             } else {
                 // Sinon, utiliser les données de base de l'utilisateur
                 $currentUserData = [
                     'id' => $currentUser->id,
                     'id_personnel' => $currentUser->id,
-                    'nom' => $currentUser->name,
+                    'nom' => $currentUser->name ?? '',
                     'prenom' => '',
                     'fonction' => 'Workflow Manager',
                     'role' => 'Ingénieur',

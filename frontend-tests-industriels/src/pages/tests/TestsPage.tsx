@@ -344,14 +344,16 @@ export default function TestsPage() {
                                         <td className="px-4 py-2">
                                             <div className="flex items-center gap-2">
                                                 <div className="h-8 w-8 rounded-full border border-gray-100 shadow-sm bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-white">
-                                                    {test.responsable?.name ? (
-                                                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(test.responsable.name)}&background=random&color=fff`} alt="" />
+                                                    {test.responsable?.nom_complet || test.responsable?.nom ? (
+                                                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(test.responsable?.nom_complet || `${test.responsable?.prenom || ''} ${test.responsable?.nom || ''}`.trim())}&background=random&color=fff`} alt="" />
                                                     ) : (
                                                         <Users className="h-3.5 w-3.5 text-gray-400" />
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className="text-[10px] font-black text-gray-800 truncate max-w-[80px]">{test.responsable?.name || 'Inconnu'}</span>
+                                                    <span className="text-[10px] font-black text-gray-800 truncate max-w-[80px]">
+                                                        {test.responsable?.nom_complet || `${test.responsable?.prenom || ''} ${test.responsable?.nom || ''}`.trim() || 'Inconnu'}
+                                                    </span>
                                                     <span className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Certifié</span>
                                                 </div>
                                             </div>
