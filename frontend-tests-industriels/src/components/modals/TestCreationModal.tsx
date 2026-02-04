@@ -1,29 +1,256 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     FlaskConical,
     X,
-    Save,
-    Calendar,
     MapPin,
     AlertCircle,
     Clock,
     Terminal,
     Layers,
-    User as UserIcon,
     ShieldAlert,
     Zap,
     Shield,
     Wrench,
     Users,
-    CheckCircle2,
-    ChevronDown
+    ChevronDown,
+    Timer,
+    ArrowRight,
+    FileText,
+    Plus,
+    Link as LinkIcon,
+    Search
 } from 'lucide-react';
 import { testsService, CreateTestData } from '@/services/testsService';
 import { useAuthStore } from '@/store/authStore';
 import { useModalStore } from '@/store/modalStore';
 import toast from 'react-hot-toast';
 import { cn } from '@/utils/helpers';
+import {
+    format,
+    addMinutes,
+    parse,
+    differenceInMinutes,
+    startOfMinute
+} from 'date-fns';
+
+// --- Custom Portal Dropdown (Optimized -8%) ---
+function PortalDropdown({
+    label,
+    icon: Icon,
+    options,
+    value,
+    onChange,
+    placeholder,
+    required = false
+}: {
+    label: string,
+    icon: any,
+    options: { value: string, label: string }[],
+    value: string,
+    onChange: (val: string) => void,
+    placeholder: string,
+    required?: boolean
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+
+    const toggle = () => {
+        if (!isOpen && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+                width: rect.width
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
+    const selectedOption = options.find(o => o.value === value);
+
+    return (
+        <div className="space-y-1 relative w-full" ref={containerRef}>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center gap-1.5 mt-1">
+                <Icon className="h-3 w-3 text-blue-500/80" />
+                {label} {required && <span className="text-rose-400 font-bold">*</span>}
+            </label>
+            <div
+                onClick={toggle}
+                className={cn(
+                    "w-full px-4.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-700 flex items-center justify-between cursor-pointer transition-all hover:bg-white hover:border-blue-200 shadow-sm",
+                    isOpen && "border-blue-500 ring-4 ring-blue-500/5 bg-white shadow-md"
+                )}
+            >
+                <span className={cn("truncate max-w-[90%]", !selectedOption && "text-slate-400 font-medium")}>
+                    {selectedOption ? selectedOption.label : placeholder}
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-300", isOpen && "rotate-180")} />
+            </div>
+
+            {isOpen && ReactDOM.createPortal(
+                <>
+                    <div className="fixed inset-0 z-[110]" onClick={() => setIsOpen(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 4, scale: 1 }}
+                        style={{
+                            position: 'absolute',
+                            top: coords.top,
+                            left: coords.left,
+                            width: coords.width,
+                            zIndex: 120
+                        }}
+                        className="bg-white border border-slate-100 rounded-xl shadow-2xl overflow-hidden py-1"
+                    >
+                        <div className="max-h-[220px] overflow-y-auto scrollbar-hide">
+                            {options.map(opt => (
+                                <div
+                                    key={opt.value}
+                                    onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                                    className={cn(
+                                        "px-4.5 py-2.5 text-[11.5px] font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 cursor-pointer transition-colors",
+                                        value === opt.value && "bg-blue-50/50 text-blue-600"
+                                    )}
+                                >
+                                    {opt.label}
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                </>,
+                document.body
+            )}
+        </div>
+    );
+}
+
+// --- Team Avatar Selector (Optimized -8%) ---
+function TeamAvatarPicker({
+    selectedIds,
+    allPersonnel,
+    onToggle,
+    label
+}: {
+    selectedIds: string[],
+    allPersonnel: any[],
+    onToggle: (id: string) => void,
+    label: string
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const [coords, setCoords] = useState({ top: 0, left: 0 });
+    const [search, setSearch] = useState('');
+
+    const toggle = () => {
+        if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX - 240
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
+    const filtered = allPersonnel.filter(p =>
+        (p.nom?.toLowerCase().includes(search.toLowerCase()) || p.prenom?.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    return (
+        <div className="space-y-2">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5"><Users className="h-3 w-3 text-blue-500" /> {label}</span>
+                <span className="text-[8.5px] opacity-60 font-bold">{selectedIds.length} membres</span>
+            </h4>
+
+            <div className="flex items-center gap-1.5 flex-wrap min-h-[34px] p-1.5 bg-slate-50 border border-slate-100 rounded-xl shadow-inner">
+                {selectedIds.map(id => {
+                    const p = allPersonnel.find(x => x.id_personnel === id);
+                    if (!p) return null;
+                    return (
+                        <div
+                            key={id}
+                            className="relative group h-8 w-8 rounded-full border-2 border-white shadow-md ring-1 ring-slate-100 overflow-hidden bg-white flex items-center justify-center text-[10.5px] font-black text-slate-600 hover:scale-110 transition-transform"
+                        >
+                            {p.nom?.[0]}
+                            <button
+                                onClick={() => onToggle(id)}
+                                className="absolute inset-0 bg-rose-500/95 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </div>
+                    );
+                })}
+                <button
+                    ref={buttonRef}
+                    onClick={toggle}
+                    className="h-8 w-8 rounded-full border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
+                >
+                    <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
+                </button>
+            </div>
+
+            {isOpen && ReactDOM.createPortal(
+                <>
+                    <div className="fixed inset-0 z-[130]" onClick={() => setIsOpen(false)} />
+                    <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 4, scale: 1 }}
+                        style={{
+                            position: 'absolute',
+                            top: coords.top,
+                            left: coords.left,
+                            width: '250px',
+                            zIndex: 140
+                        }}
+                        className="bg-white border border-slate-100 rounded-2xl shadow-[0_22px_75px_rgba(0,0,0,0.16)] overflow-hidden"
+                    >
+                        <div className="p-2.5 border-b border-slate-50 flex items-center gap-2.5 bg-slate-50/50">
+                            <Search className="h-3 w-3 text-slate-400" />
+                            <input
+                                autoFocus
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Rechercher..."
+                                className="bg-transparent border-none outline-none text-[11px] font-bold text-slate-700 w-full"
+                            />
+                        </div>
+                        <div className="max-h-[190px] overflow-y-auto p-1.5 space-y-0.5 scrollbar-hide">
+                            {filtered.map(p => {
+                                const isSelected = selectedIds.includes(p.id_personnel);
+                                return (
+                                    <div
+                                        key={p.id_personnel}
+                                        onClick={() => onToggle(p.id_personnel)}
+                                        className={cn(
+                                            "flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all hover:bg-slate-50",
+                                            isSelected && "bg-blue-50"
+                                        )}
+                                    >
+                                        <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 border border-white shadow-sm shrink-0">
+                                            {p.nom?.[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10.5px] font-black text-slate-800 truncate leading-none">{p.nom} {p.prenom}</p>
+                                            <p className="text-[8.5px] font-bold text-slate-400 mt-0.5 uppercase tracking-tight">{p.fonction || 'Membre'}</p>
+                                        </div>
+                                        {isSelected && <Zap className="h-3 w-3 text-blue-500 fill-current shrink-0" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                </>,
+                document.body
+            )}
+        </div>
+    );
+}
 
 export default function TestCreationModal() {
     const queryClient = useQueryClient();
@@ -31,27 +258,14 @@ export default function TestCreationModal() {
     const { isTestModalOpen, closeTestModal, selectedTestId } = useModalStore();
     const isEdit = typeof selectedTestId === 'string';
 
-    const [errors, setErrors] = useState<Record<string, string>>({});
-
-    const getCurrentTime = () => {
-        const now = new Date();
-        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    };
-
-    const getEndTime = () => {
-        const now = new Date();
-        now.setHours(now.getHours() + 2);
-        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    };
-
     const [form, setForm] = useState<CreateTestData>({
         type_test_id: '',
         equipement_id: '',
         phase_id: '',
         procedure_id: '',
-        date_test: new Date().toISOString().split('T')[0],
-        heure_debut: getCurrentTime(),
-        heure_fin: getEndTime(),
+        date_test: format(new Date(), 'yyyy-MM-dd'),
+        heure_debut: format(new Date(), 'HH:mm'),
+        heure_fin: format(addMinutes(new Date(), 60), 'HH:mm'),
         localisation: '',
         niveau_criticite: 1,
         responsable_test_id: '',
@@ -63,11 +277,20 @@ export default function TestCreationModal() {
         resultat_attendu: '',
     });
 
+    const [isLocalisationLinked, setIsLocalisationLinked] = useState(false);
+
+    const [systemNow, setSystemNow] = useState(new Date());
+    useEffect(() => {
+        const interval = setInterval(() => setSystemNow(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const todayStr = useMemo(() => format(systemNow, 'yyyy-MM-dd'), [systemNow]);
+
     const { data: creationData } = useQuery({
         queryKey: ['test-creation-data'],
         queryFn: () => testsService.getCreationData(),
         enabled: isTestModalOpen,
-        staleTime: 5 * 60 * 1000,
     });
 
     const { data: existingTest } = useQuery({
@@ -78,30 +301,73 @@ export default function TestCreationModal() {
 
     useEffect(() => {
         if (existingTest && isEdit) {
-            const parseTime = (timeStr: string | null | undefined) => {
-                if (!timeStr) return '08:00';
-                if (typeof timeStr !== 'string') return '08:00';
-                if (timeStr.includes(' ')) return timeStr.split(' ')[1].substring(0, 5);
-                return timeStr.substring(0, 5);
-            };
-
             setForm({
-                type_test_id: existingTest.type_test_id,
-                equipement_id: existingTest.equipement_id,
-                phase_id: existingTest.phase_id || '',
-                procedure_id: existingTest.procedure_id || '',
-                date_test: existingTest.date_test ? existingTest.date_test.split('T')[0] : '',
-                heure_debut: parseTime(existingTest.heure_debut),
-                heure_fin: parseTime(existingTest.heure_fin),
-                localisation: existingTest.localisation,
-                niveau_criticite: existingTest.niveau_criticite,
-                responsable_test_id: existingTest.responsable_test_id,
+                ...existingTest,
+                date_test: existingTest.date_test?.split('T')[0] || todayStr,
+                heure_debut: existingTest.heure_debut?.substring(0, 5) || '08:00',
+                heure_fin: existingTest.heure_fin?.substring(0, 5) || '09:00',
                 equipe_test: existingTest.equipe_test || [],
                 observations_generales: existingTest.observations_generales || '',
-                arret_production_requis: existingTest.arret_production_requis,
+                resultat_attendu: existingTest.resultat_attendu || '',
             });
         }
-    }, [existingTest, isEdit]);
+    }, [existingTest, isEdit, todayStr]);
+
+    // Smart Sync Logic: Equipement ➔ Localisation
+    const handleEquipementChange = (id: string) => {
+        const eq = creationData?.equipements?.find((e: any) => e.id_equipement === id);
+        // Robust detection of location property from backend object (Fix: added localisation_site)
+        const autoLocalisation = eq?.localisation_site || eq?.localisation || eq?.location || eq?.zone || eq?.site || eq?.site_area || eq?.emplacement || '';
+
+        setForm(prev => ({
+            ...prev,
+            equipement_id: id,
+            localisation: autoLocalisation || prev.localisation
+        }));
+
+        if (autoLocalisation) {
+            setIsLocalisationLinked(true);
+            toast.success(`Zone auto-remplie : ${autoLocalisation}`, {
+                icon: '📍',
+                duration: 2000,
+                style: { borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }
+            });
+        }
+    };
+
+    // Strict Anti-past Validation (System Clock)
+    useEffect(() => {
+        if (form.date_test === todayStr) {
+            const currentStart = parse(form.heure_debut || '00:00', 'HH:mm', new Date());
+            const systemStart = startOfMinute(systemNow);
+            if (currentStart < systemStart) {
+                setForm(prev => {
+                    const newStart = format(systemNow, 'HH:mm');
+                    const start = parse(newStart, 'HH:mm', new Date());
+                    const newEnd = format(addMinutes(start, 60), 'HH:mm');
+                    return { ...prev, heure_debut: newStart, heure_fin: newEnd };
+                });
+            }
+        }
+    }, [form.date_test, todayStr, systemNow]);
+
+    const timeAnalysis = useMemo(() => {
+        try {
+            const start = parse(form.heure_debut || '00:00', 'HH:mm', new Date());
+            const end = parse(form.heure_fin || '00:00', 'HH:mm', new Date());
+            const diff = differenceInMinutes(end, start);
+            const isToday = form.date_test === todayStr;
+            const isPast = isToday && start < startOfMinute(systemNow);
+            return {
+                diff,
+                isPast,
+                isValid: diff >= 15 && !isPast && !!form.equipement_id && !!form.type_test_id,
+                label: diff > 0 ? (diff >= 60 ? `${Math.floor(diff / 60)}h ${diff % 60}m` : `${diff}min`) : '0min'
+            };
+        } catch {
+            return { diff: 0, isPast: false, isValid: false, label: 'Err' };
+        }
+    }, [form.heure_debut, form.heure_fin, form.date_test, todayStr, systemNow, form.equipement_id, form.type_test_id]);
 
     const mutation = useMutation({
         mutationFn: (data: CreateTestData) =>
@@ -109,404 +375,312 @@ export default function TestCreationModal() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tests'] });
             closeTestModal();
-            toast.success(isEdit ? 'Test mis à jour !' : 'Test planifié avec succès !');
-        },
-        onError: (error: any) => {
-            toast.error(`Erreur: ${error.response?.data?.message || 'Une erreur est survenue.'}`);
+            toast.success(isEdit ? 'Architecture mise à jour' : 'Planification activée', {
+                style: { borderRadius: '12px', fontWeight: 'bold' }
+            });
         }
     });
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target as any;
-        const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-
-        setErrors(prev => {
-            const newErrors = { ...prev };
-            delete newErrors[name];
-            return newErrors;
-        });
-
-        if (name === 'equipement_id' && value) {
-            const selectedEquipment = creationData?.equipements?.find((eq: any) => eq.id_equipement === value);
-            if (selectedEquipment && selectedEquipment.localisation_site && !form.localisation) {
-                setForm(prev => ({ ...prev, [name]: val, localisation: selectedEquipment.localisation_site }));
-                return;
-            }
-        }
-
-        setForm(prev => ({ ...prev, [name]: val }));
-    };
-
-    const validateForm = () => {
-        const newErrors: Record<string, string> = {};
-        if (!form.type_test_id) newErrors.type_test_id = 'Type requis';
-        if (!form.equipement_id) newErrors.equipement_id = 'Équipement requis';
-        if (!form.localisation) newErrors.localisation = 'Localisation requise';
-        if (!form.date_test) newErrors.date_test = 'Date requise';
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!validateForm()) {
-            toast.error('Veuillez remplir les champs obligatoires');
+        if (!timeAnalysis.isValid) {
+            toast.error("Veuillez vérifier les champs obligatoires et l'heure (future requis).");
             return;
         }
-
-        const isLikelyUUID = (uuid: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
-
-        const sanitizedData = {
+        const sanitized = {
             ...form,
-            phase_id: isLikelyUUID(form.phase_id || '') ? form.phase_id : null,
-            procedure_id: isLikelyUUID(form.procedure_id || '') ? form.procedure_id : null,
-            instrument_id: isLikelyUUID(form.instrument_id || '') ? form.instrument_id : null,
-            statut_final: form.statut_final || null,
-            responsable_test_id: isLikelyUUID(form.responsable_test_id || '') ? form.responsable_test_id : (user?.id_personnel || user?.id || null),
-            heure_debut: form.heure_debut || null,
-            heure_fin: form.heure_fin || null,
-            heure_debut_planifiee: form.heure_debut || null,
-            heure_fin_planifiee: form.heure_fin || null,
+            responsable_test_id: creationData?.current_user?.id_personnel || creationData?.current_user?.id || user?.id_personnel || user?.id,
+            heure_debut_planifiee: form.heure_debut,
+            heure_fin_planifiee: form.heure_fin,
         };
-
-        mutation.mutate(sanitizedData as any);
+        mutation.mutate(sanitized as any);
     };
 
     if (!isTestModalOpen) return null;
 
-    if (!creationData || (isEdit && !existingTest)) {
-        return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-xl">
-                <div className="bg-white/98 p-10 rounded-[32px] shadow-2xl border border-slate-100 flex flex-col items-center gap-5">
-                    <div className="h-14 w-14 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">Chargement...</p>
-                </div>
-            </div>
-        );
-    }
-
     const criticalityLevels = [
-        { value: 1, label: 'Mineur', color: 'emerald', icon: '●' },
-        { value: 2, label: 'Important', color: 'amber', icon: '●●' },
-        { value: 3, label: 'Critique', color: 'orange', icon: '●●●' },
-        { value: 4, label: 'Vital', color: 'rose', icon: '●●●●' },
+        { value: 1, label: 'Mineur', color: 'bg-emerald-500' },
+        { value: 2, label: 'Important', color: 'bg-amber-500' },
+        { value: 3, label: 'Critique', color: 'bg-orange-500' },
+        { value: 4, label: 'Vital', color: 'bg-rose-500' },
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-xl animate-in fade-in duration-300">
-            <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 w-full max-w-4xl overflow-visible flex flex-col max-h-[96vh] animate-in zoom-in-95 duration-300">
-
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/35 backdrop-blur-md">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-[30px] shadow-[0_40px_120px_-25px_rgba(0,0,0,0.35)] border border-slate-100 w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh]"
+            >
                 {/* Header Section */}
-                <div className="px-8 py-5 flex items-center justify-between border-b border-slate-50 relative z-50">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-100">
-                            <FlaskConical className="h-5 w-5 text-white" />
+                <div className="px-9 py-5 bg-gradient-to-br from-slate-50 to-white border-b border-slate-50 flex items-center justify-between relative overflow-hidden">
+                    <div className="flex items-center gap-6 relative z-10">
+                        <div className="h-13 w-13 rounded-[18px] bg-blue-600 flex items-center justify-center shadow-2xl shadow-blue-100">
+                            <FlaskConical className="h-6.5 w-6.5 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">
-                                {isEdit ? 'Modifier le Test' : 'Nouveau Test'}
+                            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                                ARCHITECTURE DE TEST
                             </h2>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Industrial Engineering UI</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[3px] mt-1.5">Industrial Excellence Framework</p>
                         </div>
                     </div>
-                    <button onClick={closeTestModal} className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600">
-                        <X className="h-5 w-5" />
+                    <button onClick={closeTestModal} className="h-10 w-10 flex items-center justify-center bg-white border border-slate-100 hover:bg-rose-50 hover:border-rose-100 rounded-xl transition-all shadow-sm group">
+                        <X className="h-4.5 w-4.5 text-slate-400 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
+                    <div className="absolute top-0 right-0 w-1/3 h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#2563eb 2px, transparent 0)', backgroundSize: '18px 18px' }} />
                 </div>
 
-                {/* Form Content - overflow-visible on container, overflow-y-auto on inner if needed, but we want dropdowns to pop out */}
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 py-6 space-y-6 scrollbar-hide scroll-smooth">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto scrollbar-hide px-9 py-7">
+                    <div className="grid grid-cols-12 gap-8">
 
-                    <div className="grid grid-cols-12 gap-5">
+                        {/* LEFT COLUMN: Configuration */}
+                        <div className="col-span-12 lg:col-span-8 space-y-7">
 
-                        {/* Type de Contrôle */}
-                        <div className="col-span-12 lg:col-span-6 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Layers className="h-3 w-3 opacity-40" />
-                                Type de Contrôle <span className="text-rose-400">*</span>
-                            </label>
-                            <div className="relative group z-[60]">
-                                <select
-                                    name="type_test_id"
-                                    required
-                                    className={cn(
-                                        "w-full px-4 py-2.5 bg-slate-50 border rounded-2xl text-sm font-bold text-slate-800 outline-none transition-all appearance-none",
-                                        errors.type_test_id ? "border-rose-200" : "border-slate-100 group-hover:border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
-                                    )}
-                                    value={form.type_test_id}
-                                    onChange={handleInputChange}
-                                >
-                                    <option value="">Sélectionner...</option>
-                                    {creationData?.types_tests?.map((type: any) => (
-                                        <option key={type.id_type_test} value={type.id_type_test}>{type.libelle}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
-                            </div>
-                        </div>
-
-                        {/* Équipement */}
-                        <div className="col-span-12 lg:col-span-6 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Wrench className="h-3 w-3 opacity-40" />
-                                Équipement <span className="text-rose-400">*</span>
-                            </label>
-                            <div className="relative group z-[60]">
-                                <select
-                                    name="equipement_id"
-                                    required
-                                    className={cn(
-                                        "w-full px-4 py-2.5 bg-slate-50 border rounded-2xl text-sm font-bold text-slate-800 outline-none transition-all appearance-none",
-                                        errors.equipement_id ? "border-rose-200" : "border-slate-100 group-hover:border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
-                                    )}
+                            <div className="grid grid-cols-2 gap-8 mt-1">
+                                <PortalDropdown
+                                    label="Équipement"
+                                    icon={Terminal}
+                                    placeholder="Sélectionner..."
+                                    options={creationData?.equipements?.map((eq: any) => ({ value: eq.id_equipement, label: `[${eq.code_equipement}] ${eq.designation}` })) || []}
                                     value={form.equipement_id}
-                                    onChange={handleInputChange}
-                                >
-                                    <option value="">Sélectionner un équipement...</option>
-                                    {(() => {
-                                        const selectedType = creationData?.types_tests?.find((t: any) => t.id_type_test === form.type_test_id);
-                                        const eligibleIds = selectedType?.equipements_eligibles || [];
-                                        const equipmentsToShow = eligibleIds.length > 0
-                                            ? creationData?.equipements?.filter((eq: any) => eligibleIds.includes(eq.id_equipement))
-                                            : creationData?.equipements;
-                                        return equipmentsToShow?.map((eq: any) => (
-                                            <option key={eq.id_equipement} value={eq.id_equipement}>[{eq.code_equipement}] {eq.designation}</option>
-                                        ));
-                                    })()}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
+                                    onChange={handleEquipementChange}
+                                    required
+                                />
+                                <PortalDropdown
+                                    label="Type de Contrôle"
+                                    icon={Layers}
+                                    placeholder="Processus..."
+                                    options={creationData?.types_tests?.map((t: any) => ({ value: t.id_type_test, label: t.libelle })) || []}
+                                    value={form.type_test_id}
+                                    onChange={(v) => setForm(p => ({ ...p, type_test_id: v }))}
+                                    required
+                                />
                             </div>
-                        </div>
 
-                        {/* Compact Date/Time Line - 3 Columns */}
-                        <div className="col-span-12 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Clock className="h-3 w-3 opacity-40" />
-                                Slot Industriel (Planifié) <span className="text-rose-400">*</span>
-                            </label>
-                            <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                    <span className="text-[8px] font-bold text-slate-300 uppercase block ml-1">Date Prévue</span>
-                                    <input
-                                        type="date"
-                                        name="date_test"
-                                        required
-                                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                                        value={form.date_test}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[8px] font-bold text-slate-300 uppercase block ml-1">Début</span>
-                                    <input
-                                        type="time"
-                                        name="heure_debut"
-                                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                                        value={form.heure_debut}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-[8px] font-bold text-slate-300 uppercase block ml-1">Fin Estimée</span>
-                                    <input
-                                        type="time"
-                                        name="heure_fin"
-                                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                                        value={form.heure_fin}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Criticité */}
-                        <div className="col-span-12 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Shield className="h-3 w-3 opacity-40" />
-                                Niveau de Criticité <span className="text-rose-400">*</span>
-                            </label>
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                                {criticalityLevels.map((l) => (
-                                    <button
-                                        key={l.value}
-                                        type="button"
-                                        onClick={() => setForm(prev => ({ ...prev, niveau_criticite: l.value }))}
-                                        className={cn(
-                                            "py-3 rounded-2xl border-2 text-[10px] font-black uppercase tracking-tight transition-all flex flex-col items-center gap-1",
-                                            form.niveau_criticite === l.value
-                                                ? l.color === 'emerald' ? "bg-emerald-50/50 border-emerald-500 text-emerald-700" :
-                                                    l.color === 'amber' ? "bg-amber-50/50 border-amber-500 text-amber-700" :
-                                                        l.color === 'orange' ? "bg-orange-50/50 border-orange-500 text-orange-700" :
-                                                            "bg-rose-50/50 border-rose-500 text-rose-700"
-                                                : "bg-slate-50 border-slate-100 text-slate-400 hover:bg-white hover:border-slate-200"
-                                        )}
-                                    >
-                                        <span className="text-sm">{l.icon}</span>
-                                        {l.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Localisation & Instrument */}
-                        <div className="col-span-12 lg:col-span-8 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <MapPin className="h-3 w-3 opacity-40" />
-                                Localisation Spécifique <span className="text-rose-400">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="localisation"
-                                required
-                                placeholder="Site, Atelier, Ligne..."
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-800 outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 placeholder:text-slate-300"
-                                value={form.localisation}
-                                onChange={handleInputChange}
-                            />
-                        </div>
-
-                        <div className="col-span-12 lg:col-span-4 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Zap className="h-3 w-3 opacity-40" />
-                                Instrument
-                            </label>
-                            <div className="relative group z-[60]">
-                                <select
-                                    name="instrument_id"
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 group-hover:border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none transition-all appearance-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
-                                    value={form.instrument_id || ''}
-                                    onChange={handleInputChange}
-                                >
-                                    <option value="">Aucun</option>
-                                    {creationData?.instruments?.map((inst: any) => (
-                                        <option key={inst.id_instrument} value={inst.id_instrument}>N° {inst.numero_serie}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
-                            </div>
-                        </div>
-
-                        {/* Arrêt Production Switch */}
-                        <div className="col-span-12">
-                            <button
-                                type="button"
-                                onClick={() => setForm(prev => ({ ...prev, arret_production_requis: !prev.arret_production_requis }))}
-                                className={cn(
-                                    "w-full p-4 rounded-[24px] flex items-center justify-between border-2 transition-all duration-500",
-                                    form.arret_production_requis
-                                        ? "bg-orange-50/50 border-orange-400 shadow-lg shadow-orange-100/50"
-                                        : "bg-slate-50 border-slate-100 hover:border-slate-200"
-                                )}
-                            >
-                                <div className="flex items-center gap-3">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between px-1">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] flex items-center gap-1.5">
+                                        <Clock className="h-3 w-3 text-blue-600" /> Planification Chronologique
+                                    </h4>
                                     <div className={cn(
-                                        "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-                                        form.arret_production_requis ? "bg-orange-500 text-white" : "bg-slate-200 text-slate-400"
+                                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border shadow-sm transition-all duration-500",
+                                        timeAnalysis.isValid ? "bg-emerald-500 text-white border-emerald-400" : "bg-rose-50 text-rose-500 border-rose-100"
                                     )}>
-                                        <AlertCircle className="h-5 w-5" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">Arrêt Production</p>
-                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Machine Offline</p>
+                                        <Timer className="h-3 w-3" />
+                                        Durée: {timeAnalysis.label}
                                     </div>
                                 </div>
-                                <div className={cn(
-                                    "h-6 w-11 rounded-full relative transition-colors",
-                                    form.arret_production_requis ? "bg-orange-500" : "bg-slate-200"
-                                )}>
-                                    <div className={cn(
-                                        "absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300",
-                                        form.arret_production_requis ? "left-6" : "left-1"
-                                    )}></div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 focus-within:bg-white focus-within:border-blue-200 transition-all shadow-sm">
+                                        <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Exécution le</span>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-transparent text-[12px] font-bold text-slate-800 outline-none"
+                                            min={todayStr}
+                                            value={form.date_test}
+                                            onChange={(e) => setForm(p => ({ ...p, date_test: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", timeAnalysis.isPast ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
+                                        <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Start (T0)</span>
+                                        <input
+                                            type="time"
+                                            className="w-full bg-transparent text-[12px] font-bold text-slate-800 outline-none"
+                                            value={form.heure_debut}
+                                            onChange={(e) => setForm(p => ({ ...p, heure_debut: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", timeAnalysis.diff < 15 ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
+                                        <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">End (TF)</span>
+                                        <input
+                                            type="time"
+                                            className="w-full bg-transparent text-[12px] font-bold text-slate-800 outline-none"
+                                            value={form.heure_fin}
+                                            onChange={(e) => setForm(p => ({ ...p, heure_fin: e.target.value }))}
+                                        />
+                                    </div>
                                 </div>
-                            </button>
-                        </div>
-
-                        {/* Détails Section */}
-                        <div className="col-span-12 lg:col-span-6 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Résultat Attendu</label>
-                            <textarea
-                                name="resultat_attendu"
-                                rows={2}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-medium text-slate-800 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none"
-                                value={form.resultat_attendu || ''}
-                                onChange={handleInputChange}
-                                placeholder="Paramètres de contrôle..."
-                            />
-                        </div>
-
-                        <div className="col-span-12 lg:col-span-6 space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Observations</label>
-                            <textarea
-                                name="observations_generales"
-                                rows={2}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-medium text-slate-800 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none"
-                                value={form.observations_generales}
-                                onChange={handleInputChange}
-                                placeholder="Instructions spéciales..."
-                            />
-                        </div>
-
-                        {/* Equipe Section */}
-                        <div className="col-span-12 space-y-3 pt-2">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                                <Users className="h-3 w-3 opacity-40" />
-                                Équipe Responsable <span className="text-rose-400">*</span>
-                            </label>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase shadow-md shadow-blue-100">
-                                    <div className="h-5 w-5 rounded-full bg-blue-700 flex items-center justify-center text-[7px]">{user?.nom?.[0]}{user?.prenom?.[0]}</div>
-                                    <span>{user?.nom} {user?.prenom}</span>
-                                </div>
-                                {form.equipe_test?.map(id => {
-                                    const p = creationData?.personnels.find(per => per.id_personnel === id);
-                                    return p && (
-                                        <div key={id} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black uppercase border border-slate-200">
-                                            <span>{p.nom} {p.prenom}</span>
-                                            <button type="button" onClick={() => setForm(pr => ({ ...pr, equipe_test: pr.equipe_test?.filter(mid => mid !== id) }))}>
-                                                <X className="h-3 w-3 hover:text-rose-500" />
-                                            </button>
-                                        </div>
-                                    );
-                                })}
                             </div>
-                            <div className="relative group z-[50]">
-                                <select
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 group-hover:border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none transition-all appearance-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
-                                    onChange={(e) => {
-                                        const id = e.target.value;
-                                        if (id && !form.equipe_test?.includes(id)) {
-                                            setForm(pr => ({ ...pr, equipe_test: [...(pr.equipe_test || []), id] }));
-                                        }
-                                        e.target.value = "";
-                                    }}
-                                >
-                                    <option value="">+ Ajouter un membre</option>
-                                    {creationData?.personnels?.filter(p => p.id_personnel !== (user?.id_personnel || user?.id)).map(p => (
-                                        <option key={p.id_personnel} value={p.id_personnel} disabled={form.equipe_test?.includes(p.id_personnel)}>{p.nom} {p.prenom}</option>
+
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-1 relative mt-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center justify-between">
+                                        <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-blue-500" /> ZONE</span>
+                                        {isLocalisationLinked && <span className="text-[8.5px] text-blue-600 font-black flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full"><LinkIcon className="h-2.5 w-2.5" /> SYNC</span>}
+                                    </label>
+                                    <input
+                                        className="w-full px-4.5 py-2.5 bg-slate-50 shadow-sm border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-800 outline-none hover:bg-white focus:bg-white focus:border-blue-500 transition-all"
+                                        placeholder="Emplacement..."
+                                        value={String(form.localisation || '')}
+                                        onChange={(e) => { setForm(p => ({ ...p, localisation: e.target.value })); setIsLocalisationLinked(false); }}
+                                    />
+                                </div>
+                                <PortalDropdown
+                                    label="Instrumentation"
+                                    icon={Wrench}
+                                    placeholder="Instrument..."
+                                    options={creationData?.instruments?.map((i: any) => ({ value: i.id_instrument, label: `[N° ${i.numero_serie}] ${i.designation}` })) || []}
+                                    value={form.instrument_id || ''}
+                                    onChange={(v) => setForm(p => ({ ...p, instrument_id: v }))}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center gap-1.5 opacity-80 mt-1">
+                                        <FileText className="h-3 w-3 text-blue-500/70" /> Résultats Attendus
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-[20px] text-[12px] font-medium text-slate-700 outline-none hover:bg-white focus:bg-white focus:border-blue-500 transition-all resize-none shadow-inner"
+                                        placeholder="Objectifs de conformité..."
+                                        value={form.resultat_attendu || ''}
+                                        onChange={(e) => setForm(p => ({ ...p, resultat_attendu: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center gap-1.5 opacity-80 mt-1">
+                                        <ArrowRight className="h-3 w-3 text-blue-500/70" /> Observations Spécifiques
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-[20px] text-[12px] font-medium text-slate-700 outline-none hover:bg-white focus:bg-white focus:border-blue-500 transition-all resize-none shadow-inner"
+                                        placeholder="Notes techniques..."
+                                        value={form.observations_generales || ''}
+                                        onChange={(e) => setForm(p => ({ ...p, observations_generales: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: Risk & Team */}
+                        <div className="col-span-12 lg:col-span-4 space-y-9 mt-1">
+
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[1.2px] ml-1 flex items-center gap-1.5">
+                                    <ShieldAlert className="h-3 w-3 text-rose-500" /> Diagnostic de Risque
+                                </h4>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {criticalityLevels.map((l) => (
+                                        <button
+                                            key={l.value}
+                                            type="button"
+                                            onClick={() => setForm(prev => ({ ...prev, niveau_criticite: l.value }))}
+                                            className={cn(
+                                                "w-full px-4.5 py-2.5 rounded-xl border-2 transition-all flex items-center justify-between",
+                                                form.niveau_criticite === l.value
+                                                    ? "bg-slate-900 border-slate-800 text-white shadow-lg"
+                                                    : "bg-white border-white text-slate-400 hover:border-slate-100"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn("h-2.5 w-2.5 rounded-full", l.color)} />
+                                                <span className="text-[11px] font-black uppercase tracking-widest">{l.label}</span>
+                                            </div>
+                                            <div className="flex items-center gap-0.5 opacity-20">
+                                                {Array.from({ length: l.value }).map((_, i) => <Zap key={i} className="h-3 w-3" />)}
+                                            </div>
+                                        </button>
                                     ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
-                            </div>
-                        </div>
+                                </div>
 
+                                <div
+                                    onClick={() => setForm(prev => ({ ...prev, arret_production_requis: !prev.arret_production_requis }))}
+                                    className={cn(
+                                        "p-4.5 rounded-[22px] border-2 transition-all flex items-center justify-between cursor-pointer group shadow-sm mt-5",
+                                        form.arret_production_requis ? "bg-rose-600 border-rose-500 text-white shadow-lg" : "bg-white border-white text-slate-700"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center transition-all", form.arret_production_requis ? "bg-white text-rose-600" : "bg-blue-50 text-blue-500")}>
+                                            <AlertCircle className="h-4.5 w-4.5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-[10.5px] font-black uppercase tracking-tight">Machine Offline</h4>
+                                            <p className={cn("text-[8.5px] font-bold uppercase tracking-widest opacity-60 mt-0.5", form.arret_production_requis ? "text-rose-100" : "text-slate-400")}>Arrêt Production</p>
+                                        </div>
+                                    </div>
+                                    <div className={cn("h-4.5 w-8.5 rounded-full relative transition-all p-0.5", form.arret_production_requis ? "bg-white/30" : "bg-slate-200")}>
+                                        <motion.div animate={{ x: form.arret_production_requis ? 16 : 0 }} className="h-3.5 w-3.5 rounded-full bg-white shadow-lg" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <TeamAvatarPicker
+                                label="COHORTE OPÉRATIONNELLE"
+                                selectedIds={form.equipe_test || []}
+                                allPersonnel={creationData?.personnels?.filter((p: any) =>
+                                    p.id_personnel !== creationData?.current_user?.id_personnel
+                                ) || []}
+                                onToggle={(id) => setForm(p => ({
+                                    ...p,
+                                    equipe_test: (p.equipe_test || []).includes(id)
+                                        ? (p.equipe_test || []).filter(x => x !== id)
+                                        : [...(p.equipe_test || []), id]
+                                }))}
+                            />
+
+                            {/* Responsable Display - Fetched from Backend */}
+                            {creationData?.current_user && (
+                                <div className="mt-auto pt-5 border-t border-slate-100 flex items-center gap-3 group">
+                                    <div className="relative">
+                                        <div className="h-11 w-11 rounded-full bg-slate-900 border-4 border-white shadow-xl flex items-center justify-center text-[15px] font-black text-white relative z-10 transition-transform group-hover:scale-110">
+                                            {creationData.current_user.nom?.[0] || 'U'}
+                                        </div>
+                                        <div className="absolute -bottom-0.5 -right-0.5 h-4.5 w-4.5 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-white shadow-lg z-20">
+                                            <Shield className="h-2 w-2 fill-current" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="text-[10.5px] font-black text-slate-800 leading-none">
+                                            Responsable: {creationData.current_user.nom} {creationData.current_user.prenom}
+                                        </p>
+                                        <p className="text-[8.5px] font-black text-blue-600 uppercase tracking-[1.2px]">
+                                            {creationData.current_user.fonction || 'Workflow Manager'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
                     </div>
                 </form>
 
-                {/* Footer Section */}
-                <div className="px-8 py-5 flex items-center justify-end gap-3 bg-slate-50/50 border-t border-slate-100">
-                    <button type="button" onClick={closeTestModal} className="px-5 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-800 transition-colors">Annuler</button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={mutation.isPending}
-                        className="relative group px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[2px] shadow-xl shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
-                        style={{ boxShadow: '0 8px 30px rgba(37, 99, 235, 0.2), 0 0 0 transparent' }}
-                    >
-                        {mutation.isPending ? 'Chargement...' : isEdit ? 'Enregistrer' : 'Valider la Planification'}
+                <div className="px-9 py-5 bg-white border-t border-slate-50 flex items-center justify-between">
+                    <button type="button" onClick={closeTestModal} className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] hover:text-slate-900 transition-all">
+                        Abandonner
                     </button>
+                    <div className="flex items-center gap-7">
+                        <AnimatePresence>
+                            {!timeAnalysis.isValid && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 15 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 15 }}
+                                    className="flex items-center gap-2 text-rose-500"
+                                >
+                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    <span className="text-[9px] font-black uppercase tracking-[1.2px]">Configuration Invalide</span>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!timeAnalysis.isValid || mutation.isPending}
+                            className={cn(
+                                "group h-13 px-13 rounded-xl text-[11.5px] font-black uppercase tracking-[3.5px] flex items-center gap-3 transition-all duration-500 relative shadow-2xl overflow-hidden active:scale-[0.98]",
+                                !timeAnalysis.isValid || mutation.isPending
+                                    ? "bg-slate-100 text-slate-300 pointer-events-none grayscale"
+                                    : "bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 ring-4 ring-blue-500/10"
+                            )}
+                        >
+                            {mutation.isPending ? "Sync..." : isEdit ? "Valider" : "Lancer Planification"}
+                            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }

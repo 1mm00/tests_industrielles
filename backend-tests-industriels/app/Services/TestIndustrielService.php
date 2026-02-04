@@ -401,7 +401,7 @@ class TestIndustrielService
      */
     public function getCreationData(): array
     {
-        $personnels = \App\Models\Personnel::select('id_personnel', 'nom', 'prenom')->get();
+        $personnels = \App\Models\Personnel::select('id_personnel', 'nom', 'prenom', 'fonction')->get();
         
         // Fallback pour le développement si la table personnels est vide
         if ($personnels->isEmpty()) {
@@ -410,8 +410,37 @@ class TestIndustrielService
                     'id_personnel' => $user->id, // On simule l'ID
                     'nom' => $user->name,
                     'prenom' => '',
+                    'fonction' => 'Utilisateur',
                 ];
             });
+        }
+
+        // Récupérer l'utilisateur connecté avec ses informations complètes
+        $currentUser = auth()->user();
+        $currentUserData = null;
+        
+        if ($currentUser) {
+            // Si l'utilisateur a un personnel associé
+            if ($currentUser->personnel) {
+                $currentUserData = [
+                    'id' => $currentUser->id,
+                    'id_personnel' => $currentUser->personnel->id_personnel,
+                    'nom' => $currentUser->personnel->nom,
+                    'prenom' => $currentUser->personnel->prenom,
+                    'fonction' => $currentUser->personnel->fonction ?? 'Responsable',
+                    'role' => $currentUser->personnel->role->nom_role ?? 'Ingénieur',
+                ];
+            } else {
+                // Sinon, utiliser les données de base de l'utilisateur
+                $currentUserData = [
+                    'id' => $currentUser->id,
+                    'id_personnel' => $currentUser->id,
+                    'nom' => $currentUser->name,
+                    'prenom' => '',
+                    'fonction' => 'Workflow Manager',
+                    'role' => 'Ingénieur',
+                ];
+            }
         }
 
         return [
@@ -420,7 +449,8 @@ class TestIndustrielService
             'instruments' => \App\Models\InstrumentMesure::select('id_instrument', 'designation', 'numero_serie', 'type_instrument', 'statut')->orderBy('designation')->get(),
             'phases' => \App\Models\PhaseTest::select('id_phase', 'nom_phase')->orderBy('ordre_execution')->get(),
             'personnels' => $personnels,
-            'procedures' => \App\Models\ProcedureTest::select('id_procedure', 'code_procedure', 'titre')->orderBy('code_procedure')->get()
+            'procedures' => \App\Models\ProcedureTest::select('id_procedure', 'code_procedure', 'titre')->orderBy('code_procedure')->get(),
+            'current_user' => $currentUserData,
         ];
     }
 
