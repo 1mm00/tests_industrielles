@@ -27,6 +27,9 @@ export interface CreateTestData {
     equipe_test?: string[];
     observations_generales?: string;
     arret_production_requis?: boolean;
+    instrument_id?: string | null;
+    statut_final?: 'OK' | 'NOK' | null;
+    resultat_attendu?: string | null;
 }
 
 export const testsService = {
@@ -80,10 +83,19 @@ export const testsService = {
     },
 
     /**
-     * Terminer un test
+     * Terminer un test avec résultat final
      */
-    async finishTest(id: string, data: { resultat_global: string; observations?: string }): Promise<TestIndustriel> {
-        const response = await api.post<ApiResponse<TestIndustriel>>(`/tests/${id}/finish`, data);
+    async finishTest(id: string, data: {
+        resultat_final: 'OK' | 'NOK';
+        observations: string;
+        date_cloture: string;
+        executeur_id?: string;
+        nom_executeur?: string;
+    }): Promise<TestIndustriel> {
+        const response = await api.post<ApiResponse<TestIndustriel>>(`/tests/${id}/finish`, {
+            ...data,
+            statut_test: 'TERMINE'
+        });
         return response.data.data;
     },
 

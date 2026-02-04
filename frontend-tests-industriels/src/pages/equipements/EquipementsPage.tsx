@@ -17,7 +17,7 @@ import { equipementsService, EquipementFilters } from '@/services/equipementsSer
 import { cn } from '@/utils/helpers';
 import { exportToPDF } from '@/utils/pdfExport';
 import { useAuthStore } from '@/store/authStore';
-import { hasPermission } from '@/utils/permissions';
+import { hasPermission, isLecteur } from '@/utils/permissions';
 import { useModalStore } from '@/store/modalStore';
 import toast from 'react-hot-toast';
 
@@ -53,17 +53,28 @@ export default function EquipementsPage() {
 
     const handleDelete = (equipement: any) => {
         toast((t) => (
-            <div className="flex flex-col gap-3">
-                <div>
-                    <p className="font-black text-gray-900 text-sm">Supprimer l'équipement ?</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                        <span className="font-bold">{equipement.code_equipement}</span> - {equipement.designation}
-                    </p>
-                    <p className="text-[10px] text-red-600 font-bold mt-2">
-                        ⚠️ Cette action est irréversible et supprimera tous les tests associés.
-                    </p>
+            <div className="flex flex-col gap-3 p-1">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                        <Trash2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="font-black text-gray-900 text-[13px] uppercase tracking-tight">Supprimer l'actif ?</p>
+                        <p className="text-[10px] text-gray-500 font-bold">{equipement.code_equipement}</p>
+                    </div>
                 </div>
-                <div className="flex gap-2">
+
+                <p className="text-[10px] text-gray-500 leading-relaxed font-medium bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    Cette action est irréversible et supprimera l'historique des tests associés.
+                </p>
+
+                <div className="flex gap-2 justify-end">
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900"
+                    >
+                        Annuler
+                    </button>
                     <button
                         onClick={() => {
                             toast.dismiss(t.id);
@@ -71,28 +82,24 @@ export default function EquipementsPage() {
                                 deleteMutation.mutateAsync(equipement.id_equipement),
                                 {
                                     loading: 'Suppression...',
-                                    success: `Équipement "${equipement.designation}" supprimé`,
-                                    error: 'Erreur lors de la suppression',
+                                    success: 'Équipement supprimé',
+                                    error: 'Erreur suppression',
                                 }
                             );
                         }}
-                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors"
+                        className="px-4 py-1.5 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 active:scale-95"
                     >
                         Confirmer
-                    </button>
-                    <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-xs hover:bg-gray-300 transition-colors"
-                    >
-                        Annuler
                     </button>
                 </div>
             </div>
         ), {
             duration: 8000,
+            position: 'top-center',
             style: {
-                minWidth: '350px',
-            },
+                borderRadius: '20px',
+                padding: '16px',
+            }
         });
     };
 
@@ -127,91 +134,91 @@ export default function EquipementsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Parc Équipements</h1>
-                    <p className="text-sm text-gray-500 font-medium italic">Inventaire technique et suivi opérationnel des actifs</p>
+                    <h1 className="text-lg font-black text-gray-900 uppercase tracking-tight">Parc Équipements</h1>
+                    <p className="text-xs text-gray-500 font-bold italic">Inventaire technique et suivi opérationnel</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {hasPermission(user, 'rapports', 'export') && (
                         <button
                             onClick={handleExportPDF}
-                            className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
+                            className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-bold text-[10px] uppercase tracking-widest shadow-sm"
                         >
-                            <Download className="h-4 w-4" />
-                            Exporter PDF
+                            <Download className="h-3.5 w-3.5 text-primary-600" />
+                            <span className="hidden sm:inline">Exporter PDF</span>
                         </button>
                     )}
                     {hasPermission(user, 'equipements', 'create') && (
                         <button
                             onClick={openEquipementCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-black transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 active:scale-95"
                         >
-                            <Plus className="h-4 w-4" />
-                            Ajouter un Équipement
+                            <Plus className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Ajouter un actif</span>
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="card p-4 flex items-center gap-4 bg-white shadow-sm border border-gray-100">
-                    <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
-                        <Cpu className="h-6 w-6" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 border border-gray-100">
+                        <Cpu className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Actifs</p>
-                        <h3 className="text-xl font-bold text-gray-900">{stats?.total || 0}</h3>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Actifs</p>
+                        <h3 className="text-base font-black text-gray-900">{stats?.total || 0}</h3>
                     </div>
                 </div>
-                <div className="card p-4 flex items-center gap-4 bg-white shadow-sm border-l-4 border-l-green-500">
-                    <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
-                        <ShieldCheck className="h-6 w-6" />
+                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-emerald-500">
+                    <div className="h-9 w-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+                        <ShieldCheck className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">En Service</p>
-                        <h3 className="text-xl font-bold text-green-600">{stats?.en_service || 0}</h3>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">En Service</p>
+                        <h3 className="text-base font-black text-emerald-600">{stats?.en_service || 0}</h3>
                     </div>
                 </div>
-                <div className="card p-4 flex items-center gap-4 bg-white shadow-sm border-l-4 border-l-orange-500">
-                    <div className="h-12 w-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
-                        <Settings className="h-6 w-6" />
+                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-amber-500">
+                    <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
+                        <Settings className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Maintenance</p>
-                        <h3 className="text-xl font-bold text-orange-600">{stats?.en_maintenance || 0}</h3>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Maintenance</p>
+                        <h3 className="text-base font-black text-amber-600">{stats?.en_maintenance || 0}</h3>
                     </div>
                 </div>
-                <div className="card p-4 flex items-center gap-4 bg-white shadow-sm border-l-4 border-l-red-500">
-                    <div className="h-12 w-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-                        <AlertCircle className="h-6 w-6" />
+                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-rose-500">
+                    <div className="h-9 w-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
+                        <AlertCircle className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Critiques</p>
-                        <h3 className="text-xl font-bold text-red-600">{stats?.critiques || 0}</h3>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Critiques</p>
+                        <h3 className="text-base font-black text-rose-600">{stats?.critiques || 0}</h3>
                     </div>
                 </div>
             </div>
 
             {/* Filters Bar */}
-            <div className="card p-4 bg-white shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+            <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-2xl flex flex-col md:flex-row gap-3 items-center">
                 <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Rechercher par code, désignation ou modèle..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all font-medium"
+                        placeholder="Chercher (code, désigne, modèle...)"
+                        className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 outline-none transition-all font-medium"
                         value={filters.search}
                         onChange={handleSearch}
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Filter className="h-4 w-4 text-gray-400" />
+                    <Filter className="h-3.5 w-3.5 text-gray-400" />
                     <select
-                        className="flex-1 md:w-48 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all font-bold text-gray-600 uppercase tracking-tight"
+                        className="flex-1 md:w-44 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 outline-none transition-all font-bold text-gray-600 uppercase tracking-tight"
                         value={filters.statut}
                         onChange={handleStatusFilter}
                     >
@@ -224,108 +231,108 @@ export default function EquipementsPage() {
             </div>
 
             {/* Main Table */}
-            <div className="card bg-white shadow-xl border border-gray-100 overflow-hidden">
+            <div className="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Code / Désignation</th>
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Catégorie</th>
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Localisation</th>
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Criticité</th>
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Statut</th>
-                                <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Actif / ID</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Catégorie</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Localisation</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-center">Criticité</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-center">Statut</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-6 py-4"><div className="h-10 bg-gray-50 rounded-lg w-full" /></td>
+                                        <td colSpan={6} className="px-4 py-5"><div className="h-6 bg-gray-50 rounded-lg w-full" /></td>
                                     </tr>
                                 ))
                             ) : data?.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Cpu className="h-12 w-12 text-gray-200" />
-                                            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Aucun équipement trouvé</p>
+                                    <td colSpan={6} className="px-4 py-12 text-center">
+                                        <div className="flex flex-col items-center gap-2 opacity-40">
+                                            <Cpu className="h-10 w-10 text-gray-400" />
+                                            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Aucun actif répertorié</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 data?.data.map((eq: any) => (
-                                    <tr key={eq.id_equipement} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="px-6 py-4">
+                                    <tr key={eq.id_equipement} className="hover:bg-blue-50/20 transition-all group border-b border-gray-50 last:border-0 border-l-4 border-l-transparent hover:border-l-primary-500">
+                                        <td className="px-4 py-2">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-black text-primary-600 bg-primary-50 px-2 py-1 rounded border border-primary-100 w-fit mb-1">
+                                                <span className="text-[11px] font-black text-primary-600 bg-primary-50 px-2 py-0.5 rounded border border-primary-100 w-fit">
                                                     {eq.code_equipement}
                                                 </span>
-                                                <span className="text-sm font-bold text-gray-800">{eq.designation}</span>
+                                                <span className="text-xs font-black text-gray-800 mt-1">{eq.designation}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-gray-700">{eq.categorie_equipement}</span>
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">{eq.sous_categorie || 'N/A'}</span>
+                                                <span className="text-[11px] font-black text-gray-700">{eq.categorie_equipement}</span>
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{eq.sous_categorie || '-'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2">
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <MapPin className="h-3 w-3 text-gray-400" />
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-semibold">{eq.localisation_site}</span>
-                                                    <span className="text-[10px] text-gray-400">{eq.localisation_precise}</span>
+                                                    <span className="text-[11px] font-bold">{eq.localisation_site}</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium italic">{eq.localisation_precise}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-4 py-2 text-center">
                                             <span className={cn(
-                                                "inline-flex px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border",
-                                                eq.niveau_criticite >= 4 ? "bg-red-50 text-red-600 border-red-100" :
-                                                    eq.niveau_criticite === 3 ? "bg-orange-50 text-orange-600 border-orange-100" :
+                                                "inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-sm",
+                                                eq.niveau_criticite >= 4 ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                                    eq.niveau_criticite === 3 ? "bg-amber-50 text-amber-600 border-amber-100" :
                                                         "bg-blue-50 text-blue-600 border-blue-100"
                                             )}>
-                                                Niveau {eq.niveau_criticite}
+                                                Lv.{eq.niveau_criticite}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-4 py-2 text-center">
                                             <span className={cn(
-                                                "inline-flex px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border",
-                                                eq.statut_operationnel === 'EN_SERVICE' ? "bg-green-50 text-green-600 border-green-100" :
-                                                    eq.statut_operationnel === 'MAINTENANCE' ? "bg-orange-50 text-orange-600 border-orange-100" :
-                                                        "bg-red-50 text-red-600 border-red-100"
+                                                "inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-sm",
+                                                eq.statut_operationnel === 'EN_SERVICE' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                                    eq.statut_operationnel === 'MAINTENANCE' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                                                        "bg-rose-50 text-rose-600 border-rose-100"
                                             )}>
                                                 {eq.statut_operationnel.replace('_', ' ')}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {hasPermission(user, 'equipements', 'read') && (
+                                        <td className="px-4 py-2 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                {(hasPermission(user, 'equipements', 'read') || isLecteur(user)) && (
                                                     <button
                                                         onClick={() => openEquipementDetailsModal(eq.id_equipement)}
-                                                        className="p-2 hover:bg-white hover:text-primary-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
-                                                        title="Voir détails"
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                                        title="Détails"
                                                     >
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'equipements', 'update') && (
                                                     <button
                                                         onClick={() => openEquipementEditModal(eq.id_equipement)}
-                                                        className="p-2 hover:bg-white hover:text-orange-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
-                                                        title="Modifier"
+                                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                        title="Paramètres"
                                                     >
-                                                        <Settings className="h-4 w-4" />
+                                                        <Settings className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'equipements', 'delete') && (
                                                     <button
                                                         onClick={() => handleDelete(eq)}
-                                                        className="p-2 hover:bg-white hover:text-red-600 rounded-lg border border-transparent hover:border-gray-200 transition-all text-gray-400"
+                                                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                                                         title="Supprimer"
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                             </div>
@@ -339,24 +346,24 @@ export default function EquipementsPage() {
 
                 {/* Pagination */}
                 {!isLoading && data && data.meta.total > 0 && (
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <div className="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                             Page {data.meta.current_page} sur {data.meta.last_page}
                         </span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                             <button
-                                className="px-3 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
                                 disabled={data.meta.current_page === 1}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) - 1 }))}
                             >
-                                Précédent
+                                Préc.
                             </button>
                             <button
-                                className="px-3 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
                                 disabled={data.meta.current_page === data.meta.last_page}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
                             >
-                                Suivant
+                                Suiv.
                             </button>
                         </div>
                     </div>

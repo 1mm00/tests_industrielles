@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -42,6 +42,11 @@ import InstrumentDetailsModal from '../modals/InstrumentDetailsModal';
 import TypeTestModal from '../modals/TypeTestModal';
 import MethodDesignerModal from '../modals/MethodDesignerModal';
 import ProfileEditModal from '../modals/ProfileEditModal';
+import TestReportGmailModal from '../modals/TestReportGmailModal';
+import TestDetailsModal from '../modals/TestDetailsModal';
+
+import { hasModuleAccess, hasPermission } from '@/utils/permissions';
+import { authService } from '@/services/authService';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -51,147 +56,170 @@ interface NavItem {
     name: string;
     href?: string;
     icon?: any;
-    children?: { name: string; href: string }[];
+    resource?: string; // Ressource spécifique pour l'item
+    children?: { name: string; href: string, resource?: string }[];
 }
-
-import { hasModuleAccess } from '@/utils/permissions';
 
 interface NavGroup {
     title: string;
     items: NavItem[];
-    resource?: string; // Ressource associée pour le contrôle d'accès
-    roles?: string[]; // Fallback ou complément
+    resource?: string; // Si présent, le groupe entier est soumis à cette permission
 }
 
 const navGroups: NavGroup[] = [
     {
-        title: 'Menu Principal',
+        title: 'Maîtrise Opérationnelle',
         items: [
-            { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
+            { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, resource: 'dashboards' },
         ]
     },
     {
-        title: 'Exécution & Qualité',
-        resource: 'tests',
-        roles: ['Admin', 'Ingénieur'], // Restreint aux profils gestion/ingénierie
+        title: 'Contrôles & Qualité',
         items: [
             {
                 name: 'Tests Industriels',
                 href: '/tests',
                 icon: FlaskConical,
+                resource: 'tests'
             },
             {
                 name: 'Non-Conformités',
                 icon: AlertTriangle,
+                resource: 'non_conformites',
                 children: [
-                    { name: 'Journal des NC', href: '/non-conformites' },
-                    { name: 'Statistiques Qualité', href: '/nc-stats' },
+                    { name: 'Journal des NC', href: '/non-conformites', resource: 'non_conformites' },
+                    { name: 'Statistiques Qualité', href: '/nc-stats', resource: 'non_conformites' },
                 ]
             },
             {
                 name: 'Gestion Référentiels',
                 icon: Layers,
+                resource: 'tests',
                 children: [
-                    { name: 'Types de Tests', href: '/type-tests' },
+                    { name: 'Types de Tests', href: '/type-tests', resource: 'tests' },
                 ]
             },
             {
                 name: 'Parc Équipements',
                 icon: Wrench,
+                resource: 'equipements',
                 children: [
-                    { name: 'Liste équipements', href: '/equipements' },
-                    { name: 'Instrumentation', href: '/instruments' },
-                    { name: 'Alertes Métrologie', href: '/calibration-alerts' },
+                    { name: 'Liste équipements', href: '/equipements', resource: 'equipements' },
+                    { name: 'Instrumentation', href: '/instruments', resource: 'instruments' },
+                    { name: 'Alertes Métrologie', href: '/calibration-alerts', resource: 'instruments' },
                 ]
             },
         ]
     },
     {
-        title: 'Pilotage & Archivage',
-        resource: 'rapports',
-        roles: ['Admin', 'Ingénieur'], // Restreint aux profils gestion/ingénierie
+        title: 'Planification',
         items: [
             {
                 name: 'Planning & Calendrier',
                 icon: Calendar,
+                resource: 'planning',
                 children: [
-                    { name: 'Vue Calendrier', href: '/planning-calendar' },
+                    { name: 'Vue Calendrier', href: '/planning-calendar', resource: 'planning' },
                 ]
             },
             {
                 name: 'Reporting & KPIs',
                 icon: BarChart3,
+                resource: 'rapports',
                 children: [
-                    { name: 'Tableau Bord Performance', href: '/reporting-dashboard' },
-                    { name: 'Registre des Rapports', href: '/reports' },
+                    { name: 'Tableau Bord Performance', href: '/reporting-dashboard', resource: 'rapports' },
+                    { name: 'Registre des Rapports', href: '/reports', resource: 'rapports' },
                 ]
             },
         ]
     },
     {
         title: 'Ingénierie & Expertise',
-        roles: ['Ingénieur'], // Strictement pour Ingénieurs et Admin (via bypass)
+        resource: 'expertise',
         items: [
-            { name: 'Dashboard Industriel', href: '/engineer/dashboard', icon: Activity },
-            { name: 'Analyses Équipements', href: '/engineer/analyses', icon: Microscope },
-            { name: 'Orchestration Tests', href: '/engineer/projets', icon: Layers },
-            { name: 'Gestion des Protocoles', href: '/engineer/protocoles', icon: FlaskConical },
+            { name: 'Dashboard Industriel', href: '/engineer/dashboard', icon: Activity, resource: 'expertise' },
+            { name: 'Analyses Équipements', href: '/engineer/analyses', icon: Microscope, resource: 'expertise' },
+            { name: 'Orchestration Tests', href: '/engineer/projets', icon: Layers, resource: 'expertise' },
+            { name: 'Gestion des Protocoles', href: '/engineer/protocoles', icon: FlaskConical, resource: 'expertise' },
         ]
     },
     {
-        title: 'Missions Technicien',
-        roles: ['Technicien'],
+        title: 'Zone Technique',
+        resource: 'maintenance',
         items: [
-            { name: 'Dashboard Opérationnel', href: '/technician/dashboard', icon: Zap },
-            { name: 'Exécution des Tests', href: '/technician/tests', icon: ClipboardList },
-            { name: 'Signalement NC', href: '/technician/non-conformites', icon: ShieldAlert },
-            { name: 'Consultation Parc', href: '/technician/equipements', icon: Microscope },
-            { name: 'Consultation Rapports', href: '/technician/rapports', icon: FileBarChart },
+            { name: 'Dashboard Opérationnel', href: '/technician/dashboard', icon: Zap, resource: 'maintenance' },
+            { name: 'Exécution des Tests', href: '/technician/tests', icon: ClipboardList, resource: 'maintenance' },
+            {
+                name: 'Signaler une NC', icon: ShieldAlert, resource: 'non_conformites', children: [
+                    { name: 'Signaler une NC', href: '/technician/non-conformites', resource: 'non_conformites' }
+                ]
+            },
+            {
+                name: 'Catalogue Actifs', icon: Microscope, resource: 'equipements', children: [
+                    { name: 'Catalogue Actifs', href: '/technician/equipements', resource: 'equipements' }
+                ]
+            },
+            {
+                name: 'Archives Rapports', icon: FileBarChart, resource: 'rapports', children: [
+                    { name: 'Archives Rapports', href: '/technician/rapports', resource: 'rapports' }
+                ]
+            },
         ]
     },
     {
         title: 'Administration Système',
-        roles: ['Admin'],
+        resource: 'users',
         items: [
-            { name: 'Gestion des Utilisateurs', href: '/users', icon: Users },
-            { name: 'Matrice des Permissions', href: '/roles-permissions', icon: ShieldCheck },
+            { name: 'Gestion des Utilisateurs', href: '/users', icon: Users, resource: 'personnel' },
+            { name: 'Matrice des Permissions', href: '/roles-permissions', icon: ShieldCheck, resource: 'users' },
         ]
     },
     {
-        title: 'Session Utilisateur',
+        title: 'Paramètres Compte',
         items: [
             { name: 'Mon Profil Industriel', href: '/profile', icon: User },
         ]
     }
 ];
 
-
 export default function MainLayout({ children }: MainLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openMenus, setOpenMenus] = useState<string[]>([]);
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout } = useAuthStore();
+    const { user, login, logout } = useAuthStore();
 
-    const role = user?.personnel?.role?.nom_role;
+    // EFFET DE SYNCHRONISATION : Rafraîchit les permissions du Backend au montage
+    useEffect(() => {
+        const syncUser = async () => {
+            try {
+                const data = await authService.me();
+                if (data.user) {
+                    login(data.user, useAuthStore.getState().token || '');
+                }
+            } catch (error) {
+                console.error("Erreur de synchronisation des permissions:", error);
+            }
+        };
+        syncUser();
+    }, []);
 
-    // Filtre les groupes de navigation selon les permissions et le rôle
+    // FILTRAGE ULTRA-STRICT DE LA SIDEBAR
     const filteredNavGroups = navGroups.filter(group => {
-        // BYPASS COMPLET POUR L'ADMIN - Il voit tout
-        if (role === 'Admin') return true;
+        if (user?.personnel?.role?.nom_role?.toLowerCase() === 'admin') return true;
 
-        // 1. Si restriction par rôle (La plus stricte)
-        if (group.roles) {
-            return group.roles.includes(role || '');
+        if (group.resource && !hasModuleAccess(user, group.resource)) {
+            return false;
         }
 
-        // 2. Si restriction par ressource (RBAC) - Seulement si pas de roles définis
-        if (group.resource) {
-            return hasModuleAccess(user, group.resource);
-        }
+        const authorizedItems = group.items.filter(item => {
+            if (item.resource) {
+                return hasModuleAccess(user, item.resource);
+            }
+            return true;
+        });
 
-        // 3. Si aucune restriction, tout le monde voit
-        return true;
+        return authorizedItems.length > 0;
     });
 
 
@@ -209,13 +237,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
     };
 
     const renderNavItem = (item: NavItem, isMobile = false) => {
+        if (item.resource && !hasModuleAccess(user, item.resource)) {
+            return null;
+        }
+
         const Icon = item.icon;
         const hasChildren = item.children && item.children.length > 0;
         const isOpen = openMenus.includes(item.name);
         const isActive = item.href ? location.pathname === item.href : false;
-        const isChildActive = item.children?.some(child => location.pathname === child.href);
 
-        if (hasChildren) {
+        const allowedChildren = item.children?.filter(child =>
+            !child.resource || hasPermission(user, child.resource, 'read')
+        );
+
+        if (hasChildren && allowedChildren && allowedChildren.length > 0) {
+            const isChildActive = allowedChildren.some(child => location.pathname === child.href);
             return (
                 <div key={item.name} className="space-y-1">
                     <button
@@ -239,7 +275,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     </button>
                     {isOpen && (
                         <div className="pl-11 space-y-1">
-                            {item.children?.map((child) => {
+                            {allowedChildren.map((child) => {
                                 const isSubActive = location.pathname === child.href;
                                 return (
                                     <Link
@@ -263,16 +299,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
             );
         }
 
+        if (hasChildren && (!allowedChildren || allowedChildren.length === 0)) {
+            return null;
+        }
+
         return (
             <Link
                 key={item.name}
                 to={item.href || '#'}
                 onClick={() => isMobile && setSidebarOpen(false)}
                 className={cn(
-                    'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
                     isActive
-                        ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                        : 'text-gray-700 dark:text-gray-400 hover:bg-primary-50/50 dark:hover:bg-gray-800'
+                        ? 'bg-primary-50 text-primary-700 shadow-sm'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary-600'
                 )}
             >
                 <Icon className="h-4.5 w-4.5" />
@@ -318,41 +358,48 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </div>
 
             {/* Sidebar Desktop et Large Tablet - Floating Card Style */}
-            <aside className="fixed top-6 bottom-6 left-6 z-40 w-[260px] xl:w-[280px] bg-white dark:bg-gray-900 rounded-[2rem] xl:rounded-[2.5rem] shadow-2xl hidden xl:flex overflow-hidden border border-gray-100 dark:border-gray-800 flex-col transition-colors duration-300">
+            <aside className="fixed top-4 bottom-4 left-4 z-40 w-20 lg:w-[240px] xl:w-[260px] bg-white/80 backdrop-blur-md rounded-[32px] shadow-2xl hidden lg:flex overflow-hidden border border-slate-200 flex-col transition-all duration-500 group/sidebar hover:w-[260px]">
                 {/* Logo & User profile section at top */}
-                <div className="p-6 xl:p-8 pb-4 flex flex-col items-center text-center">
-                    <div className="h-16 w-16 xl:h-20 xl:w-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 shadow-sm mb-3 xl:mb-4">
-                        <User className="h-8 w-8 xl:h-10 xl:w-10 text-primary-600" />
+                <div className="p-4 lg:p-6 pb-2 flex flex-col items-center text-center bg-gradient-to-b from-primary-50/50 to-transparent">
+                    <div className="h-12 w-12 lg:h-14 lg:w-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg mb-2 transition-all duration-300 group-hover/sidebar:h-16 group-hover/sidebar:w-16">
+                        <User className="h-6 w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
-                    <div>
-                        <h2 className="text-sm xl:text-base font-black text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">
+                    <div className="hidden lg:block group-hover/sidebar:block opacity-0 lg:opacity-100 group-hover/sidebar:opacity-100 transition-all duration-300">
+                        <h2 className="text-xs font-black text-gray-900 truncate max-w-[180px]">
                             {user?.personnel ? `${user.personnel.prenom} ${user.personnel.nom}` : user?.name}
                         </h2>
-                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mt-1.5">
+                        <p className="text-[9px] font-black text-primary-600 uppercase tracking-[0.15em] mt-1">
                             {user?.personnel?.role?.nom_role || 'ADMINISTRATEUR'}
                         </p>
                     </div>
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-5 xl:space-y-7 px-4 xl:px-6 py-4 overflow-y-auto scrollbar-hide">
+                <nav className="flex-1 space-y-4 px-3 lg:px-4 py-3 overflow-y-auto scrollbar-hide">
                     {filteredNavGroups.map((group) => (
-                        <div key={group.title} className="space-y-3">
-                            <h3 className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">
+                        <div key={group.title} className="space-y-2">
+                            <h3 className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 hidden lg:block group-hover/sidebar:block">
                                 {group.title}
                             </h3>
-                            <div className="space-y-1">
-                                {group.items.map(item => renderNavItem(item))}
+                            <div className="space-y-0.5">
+                                {group.items.map(item => (
+                                    <div key={item.name} className="relative group/navitem">
+                                        {renderNavItem(item)}
+                                        <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded opacity-0 invisible group-hover/navitem:opacity-100 group-hover/navitem:visible lg:hidden group-hover/sidebar:hidden transition-all z-50 whitespace-nowrap">
+                                            {item.name}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     ))}
                 </nav>
 
                 {/* Logout at bottom */}
-                <div className="p-4 xl:p-6 border-t border-gray-100/50 dark:border-gray-800">
+                <div className="p-4 xl:p-6 border-t border-slate-100">
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-red-600 transition-all group"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all group"
                     >
                         <LogOut className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                         Déconnexion
@@ -361,25 +408,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
             </aside>
 
             {/* Main content area */}
-            <div className="flex-1 flex flex-col xl:pl-[300px] 2xl:pl-[320px]">
-                {/* Mobile and Tablet Navbar (Only visible on small screens) */}
-                <div className="xl:hidden flex h-16 items-center justify-between px-4 md:px-6 bg-white border-b border-gray-100 sticky top-0 z-40">
+            <div className="flex-1 flex flex-col lg:pl-24 xl:pl-72 transition-all duration-500">
+                <div className="lg:hidden flex h-12 items-center justify-between px-4 bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
                     <div className="flex items-center gap-2">
-                        <FlaskConical className="h-6 w-6 text-primary-600" />
-                        <span className="font-bold text-gray-900">Tests Industriels</span>
+                        <FlaskConical className="h-5 w-5 text-primary-600" />
+                        <span className="font-black text-xs uppercase tracking-widest text-gray-900">Industrial Test</span>
                     </div>
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                        <Menu className="h-6 w-6" />
+                        <Menu className="h-5 w-5" />
                     </button>
                 </div>
 
                 <Navbar />
 
                 {/* Page content container */}
-                <main className="p-4 md:p-6 xl:p-8 pt-6 xl:pt-28">
+                <main className="flex-1 w-full max-w-[1440px] mx-auto p-3 md:p-4 lg:p-6 pt-4 lg:pt-24 transition-all duration-300">
                     {children}
                 </main>
 
@@ -398,7 +444,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <TypeTestModal />
                 <MethodDesignerModal />
                 <ProfileEditModal />
+                <TestReportGmailModal />
+                <TestDetailsModal />
             </div>
-        </div>
+        </div >
     );
 }

@@ -15,19 +15,22 @@ interface ModalState {
     isTypeTestModalOpen: boolean;
     isMethodDesignerModalOpen: boolean;
     isProfileEditModalOpen: boolean;
+    isTestGmailModalOpen: boolean;
+    isTestDetailsModalOpen: boolean;
     selectedUser: any | null;
     selectedTestId: string | null;
     selectedNcId: string | null;
     selectedEquipementId: string | null;
     selectedInstrumentId: string | null;
     selectedTypeTestId: string | null;
+    selectedReportId: string | null;
     openTestModal: (testId?: string) => void;
     closeTestModal: () => void;
     openNcModal: () => void;
     closeNcModal: () => void;
     openNcEditModal: (ncId: string) => void;
     closeNcEditModal: () => void;
-    openReportModal: () => void;
+    openReportModal: (reportId?: string) => void;
     closeReportModal: () => void;
     openUserModal: (user?: any) => void;
     closeUserModal: () => void;
@@ -49,6 +52,10 @@ interface ModalState {
     closeMethodDesignerModal: () => void;
     openProfileEditModal: () => void;
     closeProfileEditModal: () => void;
+    openTestGmailModal: (testId: string) => void;
+    closeTestGmailModal: () => void;
+    openTestDetailsModal: (testId: string) => void;
+    closeTestDetailsModal: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -66,20 +73,23 @@ export const useModalStore = create<ModalState>((set) => ({
     isTypeTestModalOpen: false,
     isMethodDesignerModalOpen: false,
     isProfileEditModalOpen: false,
+    isTestGmailModalOpen: false,
+    isTestDetailsModalOpen: false,
     selectedUser: null,
     selectedTestId: null,
     selectedNcId: null,
     selectedEquipementId: null,
     selectedInstrumentId: null, // Added
     selectedTypeTestId: null,
+    selectedReportId: null,
     openTestModal: (testId?: string) => set({ isTestModalOpen: true, selectedTestId: testId || null }),
     closeTestModal: () => set({ isTestModalOpen: false, selectedTestId: null }),
     openNcModal: () => set({ isNcModalOpen: true }),
     closeNcModal: () => set({ isNcModalOpen: false }),
     openNcEditModal: (ncId) => set({ isNcEditModalOpen: true, selectedNcId: ncId }),
     closeNcEditModal: () => set({ isNcEditModalOpen: false, selectedNcId: null }),
-    openReportModal: () => set({ isReportModalOpen: true }),
-    closeReportModal: () => set({ isReportModalOpen: false }),
+    openReportModal: (reportId) => set({ isReportModalOpen: true, selectedReportId: reportId || null }),
+    closeReportModal: () => set({ isReportModalOpen: false, selectedReportId: null }),
     openUserModal: (user = null) => set({ isUserModalOpen: true, selectedUser: user }),
     closeUserModal: () => set({ isUserModalOpen: false, selectedUser: null }),
     openExecutionModal: (testId) => set({ isExecutionModalOpen: true, selectedTestId: testId }),
@@ -100,4 +110,8 @@ export const useModalStore = create<ModalState>((set) => ({
     closeMethodDesignerModal: () => set({ isMethodDesignerModalOpen: false, selectedTypeTestId: null }),
     openProfileEditModal: () => set({ isProfileEditModalOpen: true }),
     closeProfileEditModal: () => set({ isProfileEditModalOpen: false }),
+    openTestGmailModal: (testId) => set({ isTestGmailModalOpen: true, selectedTestId: testId }),
+    closeTestGmailModal: () => set({ isTestGmailModalOpen: false, selectedTestId: null }),
+    openTestDetailsModal: (testId) => set({ isTestDetailsModalOpen: true, selectedTestId: testId }),
+    closeTestDetailsModal: () => set({ isTestDetailsModalOpen: false, selectedTestId: null }),
 }));

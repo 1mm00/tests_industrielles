@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 
 // Layouts
 import MainLayout from '@/components/layout/MainLayout';
+import { hasModuleAccess, hasPermission } from '@/utils/permissions';
 
 // Pages
 import LoginPage from '@/pages/auth/LoginPage';
@@ -66,7 +67,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
-import { hasPermission } from '@/utils/permissions';
+
 
 /**
  * Composant pour protéger les routes par permission granulaire
@@ -96,20 +97,28 @@ import TypeTestsPage from '@/pages/tests/TypeTestsPage';
 function App() {
     const { user } = useAuthStore();
 
-    const renderRoleDashboard = () => {
-        const role = user?.personnel?.role?.nom_role;
-        switch (role) {
-            case 'Admin':
-                return <DashboardPage />;
-            case 'Ingénieur':
-                return <Dashboard_Engineer />;
-            case 'Technicien':
-                return <Dashboard_Technician />;
-            case 'Lecteur':
-                return <Dashboard_Reader />;
-            default:
-                return <DashboardPage />;
+    /**
+     * Rendu dynamique du Dashboard basé sur la Matrice des Permissions
+     * Le rôle (nom) ne définit plus l'interface, ce sont les droits réels.
+     */
+    const renderDynamicDashboard = () => {
+        // 1. Priorité aux outils d'administration ou dashboards globaux
+        if (hasModuleAccess(user, 'users') || hasModuleAccess(user, 'dashboards')) {
+            return <DashboardPage />;
         }
+
+        // 2. Interface Ingénierie & Expertise
+        if (hasModuleAccess(user, 'expertise')) {
+            return <Dashboard_Engineer />;
+        }
+
+        // 3. Interface Maintenance & Terrain
+        if (hasModuleAccess(user, 'maintenance')) {
+            return <Dashboard_Technician />;
+        }
+
+        // 4. Par défaut : Interface de consultation (Lecteur)
+        return <Dashboard_Reader />;
     };
 
     return (
@@ -133,7 +142,7 @@ function App() {
                         element={
                             <PrivateRoute>
                                 <MainLayout>
-                                    {renderRoleDashboard()}
+                                    {renderDynamicDashboard()}
                                 </MainLayout>
                             </PrivateRoute>
                         }
@@ -285,85 +294,66 @@ function App() {
                     <Route
                         path="/nc-stats"
                         element={
-                            <PrivateRoute>
+                            <PermissionRoute resource="non_conformites" action="read">
                                 <MainLayout>
                                     <NonConformitesStatsPage />
-                                </MainLayout>
-                            </PrivateRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/instruments"
-                        element={
-                            <PrivateRoute>
-                                <MainLayout>
-                                    <InstrumentsPage />
-                                </MainLayout>
-                            </PrivateRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/calibration-alerts"
-                        element={
-                            <PrivateRoute>
-                                <MainLayout>
-                                    <CalibrationAlertsPage />
-                                </MainLayout>
-                            </PrivateRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/rapports"
-                        element={
-                            <PermissionRoute resource="rapports" action="read">
-                                <MainLayout>
-                                    <div className="text-center py-12">
-                                        <h1 className="text-2xl font-bold text-gray-900">Page Rapports</h1>
-                                        <p className="text-gray-600 mt-2">À venir...</p>
-                                    </div>
                                 </MainLayout>
                             </PermissionRoute>
                         }
                     />
 
                     <Route
-                        path="/planning"
-                        element={<Navigate to="/planning-calendar" replace />}
+                        path="/instruments"
+                        element={
+                            <PermissionRoute resource="instruments" action="read">
+                                <MainLayout>
+                                    <InstrumentsPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/calibration-alerts"
+                        element={
+                            <PermissionRoute resource="instruments" action="read">
+                                <MainLayout>
+                                    <CalibrationAlertsPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
                     />
 
                     <Route
                         path="/planning-calendar"
                         element={
-                            <PrivateRoute>
+                            <PermissionRoute resource="rapports" action="read">
                                 <MainLayout>
                                     <PlanningCalendarPage />
                                 </MainLayout>
-                            </PrivateRoute>
+                            </PermissionRoute>
                         }
                     />
 
                     <Route
                         path="/reporting-dashboard"
                         element={
-                            <PrivateRoute>
+                            <PermissionRoute resource="rapports" action="read">
                                 <MainLayout>
                                     <ReportingDashboardPage />
                                 </MainLayout>
-                            </PrivateRoute>
+                            </PermissionRoute>
                         }
                     />
 
                     <Route
                         path="/reports"
                         element={
-                            <PrivateRoute>
+                            <PermissionRoute resource="rapports" action="read">
                                 <MainLayout>
                                     <ReportsPage />
                                 </MainLayout>
-                            </PrivateRoute>
+                            </PermissionRoute>
                         }
                     />
 

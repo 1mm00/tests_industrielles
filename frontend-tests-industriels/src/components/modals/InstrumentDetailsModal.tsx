@@ -3,8 +3,12 @@ import { X, Gauge, Calendar, Activity, Info, MapPin, Factory, AlertCircle } from
 import { useModalStore } from '@/store/modalStore';
 import { instrumentsService } from '@/services/instrumentsService';
 import { cn } from '@/utils/helpers';
+import { useAuthStore } from '@/store/authStore';
+import { isLecteur } from '@/utils/permissions';
+import { Eye } from 'lucide-react';
 
 export default function InstrumentDetailsModal() {
+    const { user } = useAuthStore();
     const { isInstrumentDetailsModalOpen, closeInstrumentDetailsModal, selectedInstrumentId } = useModalStore();
 
     const { data: instrument, isLoading } = useQuery<any>({
@@ -36,8 +40,8 @@ export default function InstrumentDetailsModal() {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px] animate-in fade-in duration-200">
+            <div className="bg-white/95 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-white to-gray-50">
                     <div className="flex items-center gap-4">
@@ -202,7 +206,18 @@ export default function InstrumentDetailsModal() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex items-center justify-end">
+                <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                    {isLecteur(user) ? (
+                        <div className="flex items-center gap-3 px-6 py-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600 font-black uppercase tracking-widest text-[10px]">
+                            <Eye className="h-5 w-5" />
+                            Mode Consultation Uniquement
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-gray-400">
+                            <Info className="h-4 w-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Dossier Métrologique Certifié</span>
+                        </div>
+                    )}
                     <button
                         onClick={closeInstrumentDetailsModal}
                         className="px-8 py-3 bg-gray-900 text-white rounded-2xl hover:bg-gray-800 transition-all font-black text-xs uppercase tracking-widest"

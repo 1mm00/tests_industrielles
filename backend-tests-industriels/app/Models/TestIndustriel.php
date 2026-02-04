@@ -40,13 +40,20 @@ class TestIndustriel extends Model
         'incidents_signales',
         'arret_production_requis',
         'duree_arret_heures',
+        'instrument_id',
+        'statut_final',
+        'resultat_attendu',
+        'heure_debut_planifiee',
+        'heure_fin_planifiee',
         'created_by',
     ];
 
     protected $casts = [
         'date_test' => 'date',
-        'heure_debut' => 'datetime:H:i',
-        'heure_fin' => 'datetime:H:i',
+        'heure_debut' => 'datetime:Y-m-d H:i:s',
+        'heure_fin' => 'datetime:Y-m-d H:i:s',
+        'heure_debut_planifiee' => 'string',
+        'heure_fin_planifiee' => 'string',
         'duree_reelle_heures' => 'decimal:2',
         'conditions_environnementales' => 'array', // JSONB
         'niveau_criticite' => 'integer',
@@ -103,6 +110,11 @@ class TestIndustriel extends Model
     public function createur()
     {
         return $this->belongsTo(Personnel::class, 'created_by', 'id_personnel');
+    }
+
+    public function instrument()
+    {
+        return $this->belongsTo(InstrumentMesure::class, 'instrument_id', 'id_instrument');
     }
 
     public function sessions()

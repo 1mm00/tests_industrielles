@@ -20,14 +20,23 @@ class PersonnelService
      */
     public function getPersonnelStats(): array
     {
+        $personnel = Personnel::with('role')->whereNotNull('departement')->get();
+        $grouped = $personnel->groupBy('departement');
+
+        $byDepartement = [];
+        foreach ($grouped as $deptName => $users) {
+            $byDepartement[] = [
+                'departement' => $deptName,
+                'count' => $users->count(),
+                'users' => $users
+            ];
+        }
+
         return [
             'total' => Personnel::count(),
             'actifs' => Personnel::where('actif', true)->count(),
             'inactifs' => Personnel::where('actif', false)->count(),
-            'by_departement' => Personnel::selectRaw('departement, count(*) as count')
-                ->whereNotNull('departement')
-                ->groupBy('departement')
-                ->get(),
+            'by_departement' => $byDepartement,
         ];
     }
 

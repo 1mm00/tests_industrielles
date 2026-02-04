@@ -15,7 +15,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useModalStore } from '@/store/modalStore';
 import toast from 'react-hot-toast';
 import { cn } from '@/utils/helpers';
-import { hasPermission } from '@/utils/permissions';
+import { hasPermission, isLecteur } from '@/utils/permissions';
+import { Eye } from 'lucide-react';
 
 export default function NcEditModal() {
     const queryClient = useQueryClient();
@@ -83,8 +84,8 @@ export default function NcEditModal() {
     const data = nc as any;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px] animate-in fade-in duration-200">
+            <div className="bg-white/95 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
                     <div className="flex items-center gap-4">
@@ -214,26 +215,35 @@ export default function NcEditModal() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {(data?.statut !== 'CLOTUREE' && data?.statutNc !== 'Clôturé') && hasPermission(user, 'non_conformites', 'update') && (
-                            <button
-                                onClick={handleSubmit}
-                                disabled={updateMutation.isPending}
-                                className="flex items-center gap-2 px-8 py-3 bg-sky-500 text-white rounded-2xl hover:bg-sky-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-100"
-                            >
-                                <Save className="h-4 w-4" />
-                                Enregistrer
-                            </button>
-                        )}
+                        {isLecteur(user) ? (
+                            <div className="flex items-center gap-3 px-6 py-3 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-black uppercase tracking-widest text-[10px]">
+                                <Eye className="h-5 w-5" />
+                                Mode Consultation Uniquement
+                            </div>
+                        ) : (
+                            <>
+                                {(data?.statut !== 'CLOTUREE' && data?.statutNc !== 'Clôturé') && hasPermission(user, 'non_conformites', 'update') && (
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={updateMutation.isPending}
+                                        className="flex items-center gap-2 px-8 py-3 bg-sky-500 text-white rounded-2xl hover:bg-sky-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-100"
+                                    >
+                                        <Save className="h-4 w-4" />
+                                        Enregistrer
+                                    </button>
+                                )}
 
-                        {(data?.statut !== 'CLOTUREE' && data?.statutNc !== 'Clôturé') && hasPermission(user, 'non_conformites', 'close') && (
-                            <button
-                                onClick={handleCloseNc}
-                                disabled={updateMutation.isPending}
-                                className="flex items-center gap-2 px-8 py-3 bg-rose-500 text-white rounded-2xl hover:bg-rose-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-100"
-                            >
-                                <CheckCircle2 className="h-4 w-4" />
-                                Clôturer NC
-                            </button>
+                                {(data?.statut !== 'CLOTUREE' && data?.statutNc !== 'Clôturé') && hasPermission(user, 'non_conformites', 'close') && (
+                                    <button
+                                        onClick={handleCloseNc}
+                                        disabled={updateMutation.isPending}
+                                        className="flex items-center gap-2 px-8 py-3 bg-rose-500 text-white rounded-2xl hover:bg-rose-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-100"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Clôturer NC
+                                    </button>
+                                )}
+                            </>
                         )}
 
                         <button

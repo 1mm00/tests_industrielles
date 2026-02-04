@@ -37,7 +37,7 @@ export default function PlanningCalendarPage() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    const { openTestModal, openExecutionModal } = useModalStore();
+    const { openTestModal, openExecutionModal, openTestDetailsModal } = useModalStore();
 
     // Fetch tests for the current month
     const { data: tests, isLoading } = useQuery({
@@ -277,10 +277,16 @@ export default function PlanningCalendarPage() {
                                                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">J. Dupont</span>
                                             </div>
                                             <button
-                                                onClick={() => openExecutionModal(test.id_test)}
+                                                onClick={() => {
+                                                    if (test.statut_test === 'TERMINE') {
+                                                        openTestDetailsModal(test.id_test);
+                                                    } else {
+                                                        openExecutionModal(test.id_test);
+                                                    }
+                                                }}
                                                 className="px-4 py-1.5 bg-white border border-gray-200 rounded-xl text-[9px] font-black uppercase text-gray-600 hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-all shadow-sm"
                                             >
-                                                Ouvrir Test
+                                                {test.statut_test === 'TERMINE' ? 'Voir Rapport' : 'Ouvrir Test'}
                                             </button>
                                         </div>
                                     </div>

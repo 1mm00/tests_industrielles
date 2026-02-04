@@ -62,4 +62,11 @@ export const dashboardService = {
         const response = await api.get('/dashboard/technicien');
         return response.data;
     },
+    /**
+     * Retourne l'URL pour le téléchargement du rapport analytique (PDF)
+     */
+    getAnalyticsPdfUrl(): string {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        return `${baseUrl}/dashboard/analytics/pdf`;
+    }
 };

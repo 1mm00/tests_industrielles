@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { rapportsService, type RapportTest } from '@/services/rapportsService';
 import { formatDate, cn } from '@/utils/helpers';
-import { exportToPDF, exportMasterReportPDF } from '@/utils/pdfExport';
+import { exportToPDF } from '@/utils/pdfExport';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { useModalStore } from '@/store/modalStore';
@@ -60,23 +60,44 @@ export default function ReportsPage() {
         });
     };
 
-    const handleDownloadMasterReport = async (idRapport: string) => {
-        try {
-            toast.loading('Génération du rapport en cours...', { id: 'master-pdf' });
-
-            const masterData = await rapportsService.getMasterReportData(idRapport);
-            exportMasterReportPDF(masterData);
-
-            toast.success('Rapport Master généré avec succès !', {
-                id: 'master-pdf',
-                icon: '📄',
-                duration: 3000
+    const handleDownloadReport = async (report: RapportTest) => {
+        if (report.statut === 'BROUILLON') {
+            toast.error("Veuillez valider le rapport avant de l'exporter en PDF officiel.", {
+                icon: '⚠️',
+                duration: 4000
             });
+            return;
+        }
+
+        try {
+            toast.loading('Génération du PDF par le serveur...', { id: 'pdf-gen' });
+
+            // On utilise axios pour récupérer le blob (car besoin du token Auth)
+            const response = await fetch(rapportsService.getPdfDownloadUrl(report.id_rapport), {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Erreur serveur');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${report.numero_rapport}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            toast.success('Rapport PDF téléchargé !', { id: 'pdf-gen' });
         } catch (error) {
-            console.error('Erreur génération PDF:', error);
-            toast.error('Erreur lors de la génération du rapport', { id: 'master-pdf' });
+            console.error('Erreur PDF:', error);
+            toast.error('Erreur lors de la génération du PDF par le serveur', { id: 'pdf-gen' });
         }
     };
+
+
 
     const getStatutColor = (statut: string) => {
         switch (statut.toUpperCase()) {
@@ -137,37 +158,37 @@ export default function ReportsPage() {
 
             {/* Quick Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="h-12 w-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="h-12 w-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
                         <CheckCircle2 className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Validés</p>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Validés</p>
                         <h4 className="text-2xl font-black text-gray-900">{stats?.valides || 0}</h4>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="h-12 w-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="h-12 w-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600">
                         <Clock className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">En Révision</p>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">En Révision</p>
                         <h4 className="text-2xl font-black text-gray-900">{stats?.en_revision || 0}</h4>
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
                     <div className="h-12 w-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
                         <AlertCircle className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Brouillons</p>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Brouillons</p>
                         <h4 className="text-2xl font-black text-gray-900">{stats?.brouillons || 0}</h4>
                     </div>
                 </div>
             </div>
 
             {/* Reports Grid/List */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -241,15 +262,24 @@ export default function ReportsPage() {
                                         <td className="px-6 py-5">
                                             <div className="flex items-center justify-center gap-2">
                                                 {hasPermission(user, 'rapports', 'read') && (
-                                                    <button className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-primary-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all">
+                                                    <button
+                                                        onClick={() => openReportModal(report.id_rapport)}
+                                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-primary-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all"
+                                                        title="Voir le rapport"
+                                                    >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'rapports', 'export') && (
                                                     <button
-                                                        onClick={() => handleDownloadMasterReport(report.id_rapport)}
-                                                        className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-green-600 hover:shadow-sm border border-transparent hover:border-gray-200 transition-all"
-                                                        title="Télécharger Rapport Master"
+                                                        onClick={() => handleDownloadReport(report)}
+                                                        className={cn(
+                                                            "p-2 rounded-lg border border-transparent transition-all",
+                                                            report.statut === 'BROUILLON'
+                                                                ? "text-gray-200 cursor-not-allowed"
+                                                                : "text-gray-400 hover:bg-white hover:text-green-600 hover:shadow-sm hover:border-gray-200"
+                                                        )}
+                                                        title={report.statut === 'BROUILLON' ? "Rapport non validé" : "Télécharger PDF Officiel"}
                                                     >
                                                         <Download className="h-4 w-4" />
                                                     </button>

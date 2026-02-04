@@ -10,7 +10,9 @@ export interface RapportTest {
     valideur_id?: string;
     date_validation?: string;
     statut: 'BROUILLON' | 'EN_REVISION' | 'VALIDE';
+    titre_rapport?: string;
     resume_executif?: string;
+    recommandations?: string;
     structure_rapport?: any;
     fichier_pdf_url?: string;
     test?: any;
@@ -32,6 +34,14 @@ export const rapportsService = {
     async getRapports(filters: RapportFilters) {
         const response = await api.get('/rapports', { params: filters });
         return response.data;
+    },
+
+    /**
+     * Récupère un rapport spécifique
+     */
+    async getRapport(id: string): Promise<RapportTest> {
+        const response = await api.get(`/rapports/${id}`);
+        return response.data.data;
     },
 
     /**
@@ -85,4 +95,14 @@ export const rapportsService = {
         const response = await api.get('/rapports/stats');
         return response.data;
     },
+
+    /**
+     * Retourne l'URL pour le téléchargement du PDF (Backend)
+     */
+    getPdfDownloadUrl(id: string) {
+        // On récupère l'URL de base de l'API (ex: http://localhost:8000/api)
+        // Les routes dans api.php sont préfixées par 'api' par défaut dans Laravel si non spécifié autrement
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        return `${baseUrl}/rapports/${id}/pdf`;
+    }
 };

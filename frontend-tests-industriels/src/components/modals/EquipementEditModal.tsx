@@ -15,11 +15,15 @@ import {
 } from 'lucide-react';
 import { equipementsService } from '@/services/equipementsService';
 import { useModalStore } from '@/store/modalStore';
+import { useAuthStore } from '@/store/authStore';
+import { isLecteur } from '@/utils/permissions';
 import toast from 'react-hot-toast';
 import { cn } from '@/utils/helpers';
+import { Eye } from 'lucide-react';
 
 export default function EquipementEditModal() {
     const queryClient = useQueryClient();
+    const { user } = useAuthStore();
     const { isEquipementEditModalOpen, closeEquipementEditModal, selectedEquipementId } = useModalStore();
 
     const [form, setForm] = useState<any>({
@@ -74,8 +78,8 @@ export default function EquipementEditModal() {
     if (!isEquipementEditModalOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px] animate-in fade-in duration-200">
+            <div className="bg-white/95 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white sticky top-0 z-10">
                     <div className="flex items-center gap-4">
@@ -127,9 +131,10 @@ export default function EquipementEditModal() {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Modifier le statut</label>
                                 <select
                                     name="statut_operationnel"
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-primary-500 shadow-sm"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-primary-500 shadow-sm disabled:opacity-50"
                                     value={form.statut_operationnel}
                                     onChange={handleInputChange}
+                                    disabled={isLecteur(user)}
                                 >
                                     <option value="EN_SERVICE">EN SERVICE</option>
                                     <option value="MAINTENANCE">MAINTENANCE</option>
@@ -161,9 +166,10 @@ export default function EquipementEditModal() {
                                     <input
                                         type="text"
                                         name="designation"
-                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner"
+                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner disabled:opacity-60"
                                         value={form.designation}
                                         onChange={handleInputChange}
+                                        disabled={isLecteur(user)}
                                     />
                                 </div>
 
@@ -175,9 +181,10 @@ export default function EquipementEditModal() {
                                     <input
                                         type="text"
                                         name="localisation_precise"
-                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner"
+                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner disabled:opacity-60"
                                         value={form.localisation_precise}
                                         onChange={handleInputChange}
+                                        disabled={isLecteur(user)}
                                     />
                                 </div>
 
@@ -189,9 +196,10 @@ export default function EquipementEditModal() {
                                     <input
                                         type="text"
                                         name="fabricant"
-                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner"
+                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner disabled:opacity-60"
                                         value={form.fabricant}
                                         onChange={handleInputChange}
+                                        disabled={isLecteur(user)}
                                     />
                                 </div>
 
@@ -203,9 +211,10 @@ export default function EquipementEditModal() {
                                     <input
                                         type="text"
                                         name="modele"
-                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner"
+                                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-inner disabled:opacity-60"
                                         value={form.modele}
                                         onChange={handleInputChange}
+                                        disabled={isLecteur(user)}
                                     />
                                 </div>
                             </div>
@@ -244,19 +253,26 @@ export default function EquipementEditModal() {
                         >
                             Annuler
                         </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={updateMutation.isPending}
-                            className="flex items-center gap-2 px-10 py-3 bg-cyan-500 text-white rounded-2xl hover:bg-cyan-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-cyan-100"
+                        {isLecteur(user) ? (
+                            <div className="flex items-center gap-3 px-6 py-3 bg-primary-50 border border-primary-100 rounded-2xl text-primary-600 font-black uppercase tracking-widest text-[10px]">
+                                <Eye className="h-5 w-5" />
+                                Mode Consultation Uniquement
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleSubmit}
+                                disabled={updateMutation.isPending}
+                                className="flex items-center gap-2 px-10 py-3 bg-cyan-500 text-white rounded-2xl hover:bg-cyan-600 transition-all font-black text-xs uppercase tracking-widest shadow-xl shadow-cyan-100"
 
-                        >
-                            {updateMutation.isPending ? "Sync..." : (
-                                <>
-                                    <Save className="h-4 w-4 text-primary-400" />
-                                    Mettre à jour l'actif
-                                </>
-                            )}
-                        </button>
+                            >
+                                {updateMutation.isPending ? "Sync..." : (
+                                    <>
+                                        <Save className="h-4 w-4 text-primary-400" />
+                                        Mettre à jour l'actif
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

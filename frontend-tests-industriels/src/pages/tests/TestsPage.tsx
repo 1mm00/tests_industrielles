@@ -6,27 +6,29 @@ import {
     Search,
     Filter,
     Plus,
-    Download,
     Eye,
     Play,
     CheckCircle2,
     Calendar,
     MapPin,
-    AlertCircle,
     Pencil,
     Trash2,
     FileDown,
+    Activity,
+    ShieldCheck,
+    Stethoscope,
+    Users
 } from 'lucide-react';
 import { testsService, TestFilters } from '@/services/testsService';
-import { formatDate, getStatusColor, getCriticalityColor } from '@/utils/helpers';
+import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
 import { exportToPDF, exportTestReportPDF } from '@/utils/pdfExport';
 import { useAuthStore } from '@/store/authStore';
-import { hasPermission } from '@/utils/permissions';
+import { hasPermission, isLecteur } from '@/utils/permissions';
 
 export default function TestsPage() {
     const { user } = useAuthStore();
-    const { openTestModal, openExecutionModal } = useModalStore();
+    const { openTestModal, openExecutionModal, openTestDetailsModal } = useModalStore();
     const queryClient = useQueryClient();
     const [filters, setFilters] = useState<TestFilters>({
         page: 1,
@@ -69,8 +71,6 @@ export default function TestsPage() {
     };
 
     const handleExportSinglePDF = (test: any) => {
-        // Le test ici contient les relations chargées par l'API
-        // On s'assure d'avoir toutes les données requises par exportTestReportPDF
         exportTestReportPDF(test);
     };
 
@@ -142,94 +142,110 @@ export default function TestsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Header section with Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Gestion des Tests</h1>
-                    <p className="text-sm text-gray-500 font-medium italic">Suivi et exécution des contrôles industriels</p>
+                    <h1 className="text-lg font-black text-gray-900 uppercase tracking-tight">Gestion des Tests</h1>
+                    <p className="text-xs text-gray-500 font-bold italic">Suivi et exécution des contrôles industriels</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {hasPermission(user, 'rapports', 'export') && (
                         <button
                             onClick={handleExportPDF}
-                            className="flex items-center gap-2 px-4 py-2 border border-black bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-semibold text-sm shadow-sm"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-bold text-[10px] uppercase tracking-widest shadow-sm"
                         >
-                            <Download className="h-4 w-4" />
-                            Exporter PDF
+                            <FileDown className="h-3.5 w-3.5 text-primary-600" />
+                            <span className="hidden sm:inline">Exporter PDF</span>
                         </button>
                     )}
                     {hasPermission(user, 'tests', 'create') && (
                         <button
                             onClick={() => openTestModal()}
-                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-200 active:scale-95"
                         >
-                            <Plus className="h-4 w-4" />
-                            Nouveau Test
+                            <Plus className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Nouveau Test</span>
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Top Stats Row (Visual highlight) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="card p-4 flex items-center gap-4 border-l-4 border-l-primary-600 bg-white shadow-sm">
-                    <div className="h-12 w-12 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600">
-                        <FlaskConical className="h-6 w-6" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.1)] group-hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all">
+                            <FlaskConical className="h-5 w-5 lg:h-6 lg:w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[1.5px]">Total Tests</p>
+                            <h3 className="text-xl lg:text-2xl font-black text-gray-900 mt-0.5">{data?.meta.total || 0}</h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Tests</p>
-                        <h3 className="text-2xl font-bold text-gray-900">{data?.meta.total || 0}</h3>
-                    </div>
-                </div>
-                <div className="card p-4 flex items-center gap-4 border-l-4 border-l-yellow-500 bg-white shadow-sm">
-                    <div className="h-12 w-12 rounded-xl bg-yellow-50 flex items-center justify-center text-yellow-600">
-                        <Play className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">En Cours</p>
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {data?.data.filter(t => t.statut_test === 'EN_COURS').length || 0}
-                        </h3>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-50">
+                        <div className="h-full bg-blue-500 rounded-r-full shadow-[0_0_8px_rgba(59,130,246,0.4)]" style={{ width: '85%' }}></div>
                     </div>
                 </div>
-                <div className="card p-4 flex items-center gap-4 border-l-4 border-l-red-500 bg-white shadow-sm">
-                    <div className="h-12 w-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-                        <AlertCircle className="h-6 w-6" />
+
+                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.1)] group-hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] transition-all">
+                            <Activity className="h-5 w-5 lg:h-6 lg:w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[1.5px]">En Cours</p>
+                            <h3 className="text-xl lg:text-2xl font-black text-gray-900 mt-0.5">
+                                {data?.data.filter(t => t.statut_test === 'EN_COURS').length || 0}
+                            </h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Critiques</p>
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {data?.data.filter(t => (t.niveau_criticite || 0) >= 3).length || 0}
-                        </h3>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-50">
+                        <div className="h-full bg-amber-500 rounded-r-full shadow-[0_0_8px_rgba(245,158,11,0.4)]" style={{ width: '45%' }}></div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 shadow-[0_0_15px_rgba(225,29,72,0.1)] group-hover:shadow-[0_0_20px_rgba(225,29,72,0.2)] transition-all">
+                            <ShieldCheck className="h-5 w-5 lg:h-6 lg:w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-[1.5px]">Critiques</p>
+                            <h3 className="text-xl lg:text-2xl font-black text-gray-900 mt-0.5">
+                                {data?.data.filter(t => (t.niveau_criticite || 0) >= 3).length || 0}
+                            </h3>
+                        </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-50">
+                        <div className="h-full bg-rose-500 rounded-r-full shadow-[0_0_8px_rgba(225,29,72,0.4)]" style={{ width: '12%' }}></div>
                     </div>
                 </div>
             </div>
 
             {/* Filters Bar */}
-            <div className="card p-4 bg-white shadow-sm border border-gray-100">
-                <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-2xl">
+                <div className="flex flex-col md:flex-row gap-3 items-center">
                     <div className="relative flex-1 w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Rechercher par numéro, équipement ou type..."
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium"
+                            placeholder="Recherche rapide..."
+                            className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-medium"
                             onChange={handleSearch}
                         />
                     </div>
-                    <div className="flex gap-4 w-full md:w-auto">
-                        <div className="relative w-full md:w-48">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <div className="relative w-full md:w-40">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                             <select
-                                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-semibold text-gray-700"
+                                className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-gray-700"
                                 onChange={handleStatusFilter}
                             >
-                                <option value="">Tous les statuts</option>
+                                <option value="">Statut</option>
                                 <option value="PLANIFIE">Planifié</option>
                                 <option value="EN_COURS">En cours</option>
                                 <option value="TERMINE">Terminé</option>
-                                <option value="SUSPENDU">Suspendu</option>
                             </select>
                         </div>
                     </div>
@@ -237,139 +253,153 @@ export default function TestsPage() {
             </div>
 
             {/* Tests List / Table */}
-            <div className="card overflow-hidden bg-white shadow-lg border-0">
+            <div className="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Test</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Équipement</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Planification</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Criticité</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest">Statut</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                            <tr className="bg-gray-50/50 border-b border-gray-100">
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">ID Test</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Équipement</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Echéance</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Expert</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Statut</th>
+                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-6 py-8">
-                                            <div className="h-4 bg-gray-100 rounded w-full"></div>
+                                        <td colSpan={6} className="px-4 py-6">
+                                            <div className="h-3 bg-gray-100 rounded-full w-full"></div>
                                         </td>
                                     </tr>
                                 ))
                             ) : data?.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 font-medium italic">
-                                        Aucun test trouvé
+                                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-xs font-bold italic">
+                                        Aucun test enregistré
                                     </td>
                                 </tr>
                             ) : (
                                 data?.data.map((test) => (
-                                    <tr key={test.id_test} className="hover:bg-gray-50 transition-colors group">
-                                        <td className="px-6 py-4">
+                                    <tr key={test.id_test} className="hover:bg-blue-50/20 transition-all group border-b border-gray-50 last:border-0 border-l-4 border-l-transparent hover:border-l-primary-500">
+                                        <td className="px-4 py-2">
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                                                <span className="text-[13px] font-black text-gray-900 group-hover:text-blue-600 transition-colors">
                                                     {test.numero_test}
                                                 </span>
-                                                <span className="text-xs text-gray-500 font-medium truncate max-w-[200px]">
-                                                    {test.type_test?.libelle || 'Type inconnu'}
+                                                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
+                                                    {test.type_test?.libelle || 'Standard'}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded bg-primary-50 flex items-center justify-center text-primary-600 font-bold text-xs ring-1 ring-primary-100">
+                                        <td className="px-4 py-2">
+                                            <div className="flex items-center gap-3 group/tooltip cursor-help relative">
+                                                <div className="h-9 w-9 rounded-lg bg-gray-50 flex items-center justify-center text-gray-700 font-black text-[10px] border border-gray-100 group-hover/tooltip:bg-blue-50 group-hover/tooltip:text-blue-600 transition-all shrink-0">
                                                     {test.equipement?.code_equipement?.substring(0, 2) || 'EQ'}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-gray-800">{test.equipement?.designation}</span>
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{test.equipement?.code_equipement}</span>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[11px] font-black text-gray-800 truncate">{test.equipement?.designation}</span>
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest bg-gray-100 px-1 rounded">{test.equipement?.code_equipement}</span>
+                                                        <span className="text-[8px] text-blue-500 font-black uppercase tracking-widest truncate">{test.instrument?.code_instrument || 'AUTO'}</span>
+                                                    </div>
+                                                </div>
+                                                {/* Tooltip Metrologique */}
+                                                <div className="absolute bottom-full left-0 mb-1 invisible group-hover/tooltip:visible opacity-0 group-hover/tooltip:opacity-100 transition-all z-50 min-w-[200px] pointer-events-none">
+                                                    <div className="bg-gray-950 text-white p-3 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-md">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Stethoscope className="h-3.5 w-3.5 text-blue-400" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Métrologie Instrument</span>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <div>
+                                                                <p className="text-[8px] text-gray-500 uppercase font-black">Dernière Calibration</p>
+                                                                <p className="text-[10px] font-bold text-gray-300">{test.instrument?.date_derniere_calibration ? formatDate(test.instrument.date_derniere_calibration) : 'Donnée indisponible'}</p>
+                                                            </div>
+                                                            <div className="h-px bg-white/5"></div>
+                                                            <div>
+                                                                <p className="text-[8px] text-gray-500 uppercase font-black">Prochaine Échéance</p>
+                                                                <p className="text-[10px] font-bold text-amber-500">{test.instrument?.date_prochaine_calibration ? formatDate(test.instrument.date_prochaine_calibration) : 'À planifier'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-3 h-3 bg-gray-950 transform rotate-45 ml-4 -mt-1.5 border-r border-b border-white/10"></div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-                                                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                                        <td className="px-4 py-2">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5 text-[11px] text-gray-700 font-black">
+                                                    <Calendar className="h-3.5 w-3.5 text-blue-500" />
                                                     {formatDate(test.date_test, 'short')}
                                                 </div>
-                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold uppercase">
-                                                    <MapPin className="h-3 w-3" />
-                                                    {test.localisation || 'Zone indéf.'}
+                                                <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold uppercase tracking-tight">
+                                                    <MapPin className="h-3.5 w-3.5 text-gray-300" />
+                                                    {test.localisation || 'Salle de Test A1'}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${getCriticalityColor(test.niveau_criticite || 1)}`}>
-                                                Niveau {test.niveau_criticite || 1}
-                                            </span>
+                                        <td className="px-4 py-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-8 w-8 rounded-full border border-gray-100 shadow-sm bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-white">
+                                                    {test.responsable?.name ? (
+                                                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(test.responsable.name)}&background=random&color=fff`} alt="" />
+                                                    ) : (
+                                                        <Users className="h-3.5 w-3.5 text-gray-400" />
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[10px] font-black text-gray-800 truncate max-w-[80px]">{test.responsable?.name || 'Inconnu'}</span>
+                                                    <span className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Certifié</span>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${getStatusColor(test.statut_test)}`}>
+                                        <td className="px-4 py-2">
+                                            <div className={cn(
+                                                "px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-[1.2px] flex items-center gap-1.5 border w-fit shadow-sm",
+                                                test.statut_test === 'TERMINE'
+                                                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                                    : test.statut_test === 'EN_COURS'
+                                                        ? "bg-blue-50 text-blue-700 border-blue-100"
+                                                        : "bg-amber-50 text-amber-700 border-amber-100"
+                                            )}>
+                                                {test.statut_test === 'TERMINE' && <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>}
+                                                {test.statut_test === 'EN_COURS' && <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span></span>}
                                                 {test.statut_test}
-                                            </span>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-end gap-2 group/actions">
-                                                {/* Edit - Planifié only */}
+                                        <td className="px-4 py-2">
+                                            <div className="flex items-center justify-end gap-1 group/actions">
                                                 {test.statut_test === 'PLANIFIE' && hasPermission(user, 'tests', 'update') && (
-                                                    <button
-                                                        onClick={() => openTestModal(test.id_test)}
-                                                        className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                                                        title="Modifier le test"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
+                                                    <button onClick={() => openTestModal(test.id_test)} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier">
+                                                        <Pencil className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
-
-                                                {/* Export PDF */}
-                                                <button
-                                                    onClick={() => handleExportSinglePDF(test)}
-                                                    className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
-                                                    title="Exporter PDF"
-                                                >
-                                                    <FileDown className="h-4 w-4" />
+                                                <button onClick={() => handleExportSinglePDF(test)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all" title="PDF">
+                                                    <FileDown className="h-3.5 w-3.5" />
                                                 </button>
-
-                                                {/* Delete */}
                                                 {hasPermission(user, 'tests', 'delete') && (
-                                                    <button
-                                                        onClick={() => handleDeleteClick(test.id_test, test.numero_test)}
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                        title="Supprimer"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
+                                                    <button onClick={() => handleDeleteClick(test.id_test, test.numero_test)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
+                                                        <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
 
-                                                {/* Spacer/Separator */}
-                                                <div className="w-px h-8 bg-gray-100 mx-1" />
+                                                <div className="w-px h-5 bg-gray-100 mx-1" />
 
-                                                {/* Primary Contextual Action */}
-                                                {test.statut_test === 'PLANIFIE' ? (
-                                                    <button
-                                                        onClick={() => openExecutionModal(test.id_test)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95"
-                                                    >
-                                                        <Play className="h-3 w-3 fill-current" />
-                                                        Démarrer
+                                                {(test.statut_test === 'PLANIFIE' && !isLecteur(user)) ? (
+                                                    <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95">
+                                                        <Play className="h-3.5 w-3.5 fill-current" />
                                                     </button>
-                                                ) : test.statut_test === 'EN_COURS' ? (
-                                                    <button
-                                                        onClick={() => openExecutionModal(test.id_test)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
-                                                    >
-                                                        <CheckCircle2 className="h-3 w-3" />
-                                                        Finaliser
+                                                ) : (test.statut_test === 'EN_COURS' && !isLecteur(user)) ? (
+                                                    <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95">
+                                                        <CheckCircle2 className="h-3.5 w-3.5" />
                                                     </button>
                                                 ) : (
-                                                    <button
-                                                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95 border border-gray-200"
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                        Détails
+                                                    <button onClick={() => openTestDetailsModal(test.id_test)} className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-black text-[9px] uppercase tracking-widest group">
+                                                        <Eye className="h-3 w-3 group-hover:text-primary-600" />
+                                                        <span className="hidden xl:inline">Détails</span>
                                                     </button>
                                                 )}
                                             </div>
@@ -383,24 +413,24 @@ export default function TestsPage() {
 
                 {/* Pagination */}
                 {!isLoading && data && data.meta.total > 0 && (
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <div className="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">
                             Page {data.meta.current_page} sur {data.meta.last_page}
                         </span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                             <button
-                                className="px-3 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
                                 disabled={data.meta.current_page === 1}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) - 1 }))}
                             >
-                                Précédent
+                                Préc.
                             </button>
                             <button
-                                className="px-3 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
                                 disabled={data.meta.current_page === data.meta.last_page}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
                             >
-                                Suivant
+                                Suiv.
                             </button>
                         </div>
                     </div>

@@ -13,6 +13,10 @@ export interface UserPersonnel {
     departement?: string;
     actif: boolean;
     date_embauche?: string;
+    nom_complet?: string;
+    role?: {
+        nom_role: string;
+    };
 }
 
 export interface UserStats {

@@ -19,6 +19,14 @@ class MesureService
 
     public function ajouterMesure(array $data): Mesure
     {
+        // Auto-remplir l'instrument_id depuis le test si non fourni
+        if (empty($data['instrument_id']) && !empty($data['test_id'])) {
+            $test = TestIndustriel::find($data['test_id']);
+            if ($test && $test->instrument_id) {
+                $data['instrument_id'] = $test->instrument_id;
+            }
+        }
+
         // Calculer la conformité si possible
         if (isset($data['valeur_mesuree']) && isset($data['valeur_reference'])) {
             $val = (float) $data['valeur_mesuree'];

@@ -118,11 +118,55 @@ class AuthController extends Controller
         // Charger le personnel et le rôle
         $user->load('personnel.role');
         
+        $personnelId = $user->id_personnel;
+        
+        // Récupérer les activités récentes
+        $activities = [];
+        
+        if ($personnelId) {
+            // Derniers tests exécutés
+            $recentTests = \App\Models\TestIndustriel::with('equipement')
+                ->where('responsable_test_id', $personnelId)
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(function($test) {
+                    return [
+                        'type' => 'test',
+                        'title' => "Exécution du test: {$test->numero_test}",
+                        'subtitle' => $test->equipement?->designation ?? 'Équipement inconnu',
+                        'time' => $test->created_at->diffForHumans(),
+                        'statut' => $test->statut_test,
+                        'date' => $test->created_at
+                    ];
+                });
+                
+            // Derniers rapports édités
+            $recentReports = \App\Models\RapportTest::where('redacteur_id', $personnelId)
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(function($report) {
+                    return [
+                        'type' => 'rapport',
+                        'title' => "Édition du rapport: {$report->numero_rapport}",
+                        'subtitle' => $report->type_rapport,
+                        'time' => $report->created_at->diffForHumans(),
+                        'statut' => $report->statut,
+                        'date' => $report->created_at
+                    ];
+                });
+                
+            $activities = $recentTests->concat($recentReports)->sortByDesc('date')->take(5)->values();
+        }
+        
         return response()->json([
             'success' => true,
             'data' => [
                 'user' => $user,
-                'personnel' => $user->personnel
+                'personnel' => $user->personnel,
+                'activities' => $activities,
+                'habilitations' => $user->personnel?->habilitations ?? []
             ]
         ]);
     }

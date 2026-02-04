@@ -20,7 +20,39 @@ class TestIndustrielService
         // Le numero_test sera généré automatiquement via le boot() du model
         $test = TestIndustriel::create($data);
         
-        return $test;
+        // Génération automatique des lignes de mesures à partir de la checklist dès la création (planification)
+        $test->load(['typeTest.checklistsControle.items', 'instrument']);
+        $checklist = $test->typeTest->checklistsControle->first();
+        if ($checklist && $checklist->items->count() > 0) {
+            foreach ($checklist->items as $item) {
+                \App\Models\Mesure::create([
+                    'test_id' => $test->id_test,
+                    'instrument_id' => $test->instrument_id,
+                    'parametre_mesure' => $item->libelle,
+                    'type_mesure' => $item->type_verif ?? 'TECHNIQUE',
+                    'valeur_reference' => $item->valeur_reference,
+                    'unite_mesure' => $test->instrument?->unite_mesure ?? '',
+                    'tolerance_min' => $item->tolerance,
+                    'tolerance_max' => $item->tolerance,
+                    'conforme' => null, // En attente de saisie
+                    'operateur_id' => auth()->id() ?? $test->responsable_test_id,
+                    'timestamp_mesure' => now(),
+                ]);
+            }
+        }
+        
+        return $test->fresh(['mesures', 'instrument']);
+    }
+
+    /**
+     * Mettre à jour un test existant
+     */
+    public function modifierTest(string $testId, array $data): TestIndustriel
+    {
+        $test = TestIndustriel::findOrFail($testId);
+        $test->update($data);
+        
+        return $test->fresh();
     }
 
     /**
@@ -28,8 +60,15 @@ class TestIndustrielService
      */
     public function getTestDetails(string $testId): TestIndustriel
     {
-        return TestIndustriel::with(['equipement', 'typeTest.checklistsControle', 'responsable', 'createur'])
-            ->findOrFail($testId);
+        return TestIndustriel::with([
+            'equipement', 
+            'typeTest.checklistsControle', 
+            'responsable', 
+            'createur',
+            'instrument', // Relation belongsTo instrument_id
+            'mesures',
+            'nonConformites'
+        ])->findOrFail($testId);
     }
 
     /**
@@ -37,15 +76,51 @@ class TestIndustrielService
      */
     public function demarrerTest(string $testId): TestIndustriel
     {
-        $test = TestIndustriel::findOrFail($testId);
+        $test = TestIndustriel::with(['typeTest.checklistsControle.items', 'instrument'])->findOrFail($testId);
         
         if ($test->statut_test !== TestStatutEnum::PLANIFIE) {
             throw new \Exception("Le test doit être en statut 'Planifié' pour être démarré.");
         }
+
+        // Sécurité temporelle industrielle : Verrouillage si avant l'heure prévue
+        // Uniquement si une heure de début planifiée existe
+        if ($test->heure_debut_planifiee) {
+            $dateStr = $test->date_test instanceof \DateTime ? $test->date_test->format('Y-m-d') : $test->date_test;
+            $planStart = Carbon::parse($dateStr . ' ' . $test->heure_debut_planifiee);
+            
+            // Tolérance de 1 minute (60 secondes) pour absorber les décalages de synchro client/serveur
+            if (Carbon::now()->addMinute()->lessThan($planStart)) {
+                $diff = Carbon::now()->diffForHumans($planStart, ['parts' => 3, 'join' => true]);
+                throw new \Exception("Verrouillage de sécurité : Ce test ne peut démarrer que dans " . $diff . ".");
+            }
+        }
+        
+        // Sécurité : Si aucune mesure n'a été générée à la création, on tente de les générer maintenant
+        if ($test->mesures()->count() === 0) {
+            $checklist = $test->typeTest->checklistsControle->first();
+            // Si une checklist existe, on génère les mesures, sinon on laisse le test démarrer vide
+            if ($checklist && $checklist->items->count() > 0) {
+                foreach ($checklist->items as $item) {
+                    \App\Models\Mesure::create([
+                        'test_id' => $test->id_test,
+                        'instrument_id' => $test->instrument_id,
+                        'parametre_mesure' => $item->libelle,
+                        'type_mesure' => $item->type_verif ?? 'TECHNIQUE',
+                        'valeur_reference' => $item->valeur_reference,
+                        'unite_mesure' => $test->instrument?->unite_mesure ?? '',
+                        'tolerance_min' => $item->tolerance,
+                        'tolerance_max' => $item->tolerance,
+                        'conforme' => null,
+                        'operateur_id' => auth()->id() ?? $test->responsable_test_id,
+                        'timestamp_mesure' => now(),
+                    ]);
+                }
+            }
+        }
         
         $test->demarrer();
         
-        return $test->fresh();
+        return $test->fresh(['mesures', 'instrument']);
     }
 
     /**
@@ -111,7 +186,7 @@ class TestIndustrielService
             $role = $user->personnel->role->nom_role;
             $personnelId = $user->id_personnel;
 
-            if (in_array($role, ['Technicien', 'Lecteur'])) {
+            if ($role === 'Technicien') {
                 $query->where(function($q) use ($personnelId) {
                     $q->where('responsable_test_id', $personnelId)
                       ->orWhere('created_by', $personnelId)
@@ -340,11 +415,12 @@ class TestIndustrielService
         }
 
         return [
-            'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement')->get(),
+            'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement', 'localisation_site')->get(),
             'types_tests' => \App\Models\TypeTest::select('id_type_test', 'libelle', 'code_type', 'description', 'frequence_recommandee', 'niveau_criticite_defaut', 'equipements_eligibles', 'actif')->orderBy('libelle')->get(),
-
+            'instruments' => \App\Models\InstrumentMesure::select('id_instrument', 'designation', 'numero_serie', 'type_instrument', 'statut')->orderBy('designation')->get(),
             'phases' => \App\Models\PhaseTest::select('id_phase', 'nom_phase')->orderBy('ordre_execution')->get(),
             'personnels' => $personnels,
+            'procedures' => \App\Models\ProcedureTest::select('id_procedure', 'code_procedure', 'titre')->orderBy('code_procedure')->get()
         ];
     }
 

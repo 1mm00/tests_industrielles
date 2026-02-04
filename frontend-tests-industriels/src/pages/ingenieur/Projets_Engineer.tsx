@@ -20,7 +20,7 @@ import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
 
 export default function Projets_Engineer() {
-    const { openTestModal, openExecutionModal } = useModalStore();
+    const { openTestModal, openExecutionModal, openTestDetailsModal } = useModalStore();
     const [filter, setFilter] = useState('all');
 
     const { data: tests, isLoading } = useQuery({
@@ -188,9 +188,15 @@ export default function Projets_Engineer() {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => openExecutionModal(test.id_test)}
+                                            onClick={() => {
+                                                if (test.statut_test === 'TERMINE') {
+                                                    openTestDetailsModal(test.id_test);
+                                                } else {
+                                                    openExecutionModal(test.id_test);
+                                                }
+                                            }}
                                             className="p-4 bg-gray-50 rounded-2xl hover:bg-primary-600 hover:text-white transition-all group/btn"
-                                            title="Superviser l'exécution"
+                                            title={test.statut_test === 'TERMINE' ? "Voir le rapport" : "Superviser l'exécution"}
                                         >
                                             <ChevronRight className="h-6 w-6 group-hover/btn:translate-x-1 transition-transform" />
                                         </button>

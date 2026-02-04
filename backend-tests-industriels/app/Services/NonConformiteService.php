@@ -22,9 +22,9 @@ class NonConformiteService
             $role = $user->personnel->role->nom_role;
             $personnelId = $user->id_personnel;
 
-            if (in_array($role, ['Technicien', 'Lecteur'])) {
+            if ($role === 'Technicien') {
                 $query->where(function($q) use ($personnelId) {
-                    $q->where('detectee_par_id', $personnelId)
+                    $q->where('detecteur_id', $personnelId)
                       ->orWhereHas('test', function($qt) use ($personnelId) {
                           $qt->where('responsable_test_id', $personnelId)
                             ->orWhereJsonContains('equipe_test', $personnelId);
@@ -65,7 +65,7 @@ class NonConformiteService
             'summary' => [
                 'total' => NonConformite::count(),
                 'ouvertes' => NonConformite::where('statut', 'OUVERTE')->count(),
-                'en_cours' => NonConformite::where('statut', 'EN_COURS')->count(),
+                'en_cours' => NonConformite::where('statut', 'TRAITEMENT')->count(),
                 'cloturees' => NonConformite::where('statut', 'CLOTUREE')->count(),
             ],
             'by_status' => NonConformite::selectRaw('statut, count(*) as count')
@@ -91,6 +91,7 @@ class NonConformiteService
                 ->where('date_detection', '>=', now()->subDays(30))
                 ->groupBy('date')
                 ->orderBy('date', 'asc')
+                ->get()
         ];
     }
 

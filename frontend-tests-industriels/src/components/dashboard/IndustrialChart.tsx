@@ -21,83 +21,81 @@ const IndustrialChart = ({ data }: IndustrialChartProps) => {
     const options: ApexOptions = {
         chart: {
             stacked: false,
-            toolbar: {
-                show: false,
-            },
+            toolbar: { show: false },
             fontFamily: 'Inter, sans-serif',
+            background: 'transparent',
         },
         stroke: {
-            width: [0, 2, 4],
+            width: [0, 4, 3],
             curve: "smooth",
+            dashArray: [0, 0, 8]
         },
         plotOptions: {
             bar: {
-                columnWidth: "50%",
-                borderRadius: 4,
+                columnWidth: "30%",
+                borderRadius: 10,
             },
         },
-        colors: ["#3b5de7", "#45cb85", "#f06292"],
+        colors: ["#2E5BFF", "#00C853", "#FFAB00"], // Cobalt, Emerald, Security Orange
         fill: {
-            opacity: [0.85, 0.25, 1],
+            type: ['solid', 'gradient', 'solid'],
             gradient: {
-                inverseColors: false,
-                shade: "light",
-                type: "vertical",
-                opacityFrom: 0.85,
-                opacityTo: 0.55,
-                stops: [0, 100, 100, 100],
-            },
+                shadeIntensity: 1,
+                opacityFrom: 0.4,
+                opacityTo: 0.1,
+                stops: [0, 90, 100]
+            }
         },
         labels: categories,
         markers: {
-            size: 0,
+            size: [0, 5, 0],
+            strokeWidth: 3,
+            hover: { size: 7 }
         },
         xaxis: {
             type: "category",
+            axisBorder: { show: false },
+            axisTicks: { show: false },
+            labels: { style: { colors: '#94a3b8', fontWeight: 700, fontSize: '10px' } }
         },
         yaxis: {
-            title: {
-                text: "Nombre d'événements",
-                style: {
-                    color: '#6b7280',
-                    fontWeight: 500,
-                }
-            },
+            labels: { style: { colors: '#94a3b8', fontWeight: 700, fontSize: '10px' } }
         },
         tooltip: {
+            theme: 'dark',
             shared: true,
             intersect: false,
-            y: {
-                formatter: function (y) {
-                    if (typeof y !== "undefined") {
-                        return y.toFixed(0) + " tests/nc";
-                    }
-                    return y;
-                },
-            },
         },
         grid: {
-            borderColor: "#f1f1f1",
+            borderColor: "#f1f5f9",
+            strokeDashArray: 4,
+            xaxis: { lines: { show: true } },
+            yaxis: { lines: { show: true } },
         },
         legend: {
             position: 'top',
             horizontalAlign: 'right',
+            fontWeight: 700,
+            fontSize: '11px',
+            markers: { size: 6 }
         }
     };
 
     return (
-        <div className="card h-full">
-            <div className="card-header flex items-center justify-between">
-                <h2 className="card-title">Performance & Qualité Industrielle</h2>
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 h-full">
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Performance & Qualité Industrielle</h2>
+                <div className="flex gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                    <span className="h-2 w-2 rounded-full bg-slate-200"></span>
+                </div>
             </div>
-            <div className="p-4">
-                <ReactApexChart
-                    options={options}
-                    series={series}
-                    type="line"
-                    height={350}
-                />
-            </div>
+            <ReactApexChart
+                options={options}
+                series={series}
+                type="line"
+                height={350}
+            />
         </div>
     );
 };

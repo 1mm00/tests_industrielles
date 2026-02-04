@@ -58,23 +58,31 @@ export interface TestIndustriel {
     equipement_id: string;
     phase_id?: string;
     procedure_id?: string;
+    instrument_id?: string; // Added: instrument principal utilisé pour le test
     date_test: string;
     heure_debut?: string;
     heure_fin?: string;
+    heure_debut_planifiee?: string;
+    heure_fin_planifiee?: string;
     duree_reelle_heures?: number;
     localisation: string;
     conditions_environnementales?: Record<string, any>;
     niveau_criticite: 1 | 2 | 3 | 4;
     statut_test: 'PLANIFIE' | 'EN_COURS' | 'TERMINE' | 'SUSPENDU' | 'ANNULE';
     resultat_global?: 'CONFORME' | 'NON_CONFORME' | 'PARTIEL' | 'NON_APPLICABLE';
+    statut_final?: 'OK' | 'NOK'; // Added: statut final simplifié (OK/NOK)
+    resultat_final?: 'OK' | 'NOK'; // Liaison Backend
+    resultat_attendu?: string; // Added: résultat attendu pour comparaison
 
     taux_conformite_pct?: number;
     responsable_test_id?: string;
     equipe_test?: string[];
     observations_generales?: string;
+    observations?: string; // Liaison Backend Clôture
     incidents_signales?: string;
     arret_production_requis?: boolean;
     duree_arret_heures?: number;
+    date_cloture?: string; // Liaison Backend Clôture
     created_at: string;
     updated_at?: string;
     created_by?: string;
@@ -82,6 +90,8 @@ export interface TestIndustriel {
     type_test?: TypeTest;
     equipement?: Equipement;
     responsable?: User;
+    instrument?: InstrumentMesure; // Added: relation vers l'instrument principal
+    createur?: User; // Added: utilisateur qui a créé le test
 }
 
 export interface TypeTest {
@@ -279,28 +289,28 @@ export interface Mesure {
 // Instruments de Mesure
 // ----------------------------------------------------------------------------
 export interface InstrumentMesure {
-    id: string;
-    codeInstrument: string;
+    id_instrument: string;
+    code_instrument: string;
     designation: string;
-    typeInstrument: string;
-    categorieMesure: 'Électrique' | 'Mécanique' | 'Thermique' | 'Acoustique' | 'Vibration' | 'CND' | 'Autre';
+    type_instrument: string;
+    categorie_mesure: 'Électrique' | 'Mécanique' | 'Thermique' | 'Acoustique' | 'Vibration' | 'CND' | 'Autre';
     fabricant?: string;
     modele?: string;
-    numeroSerie?: string;
+    numero_serie?: string;
     precision?: string;
-    plageMesureMin?: number;
-    plageMesureMax?: number;
-    uniteMesure?: string;
+    plage_mesure_min?: number;
+    plage_mesure_max?: number;
+    unite_mesure?: string;
     resolution?: string;
-    dateAcquisition?: string;
-    dateDerniereCalibration?: string;
-    dateProchaineCalibration: string;
-    periodiciteCalibrationMois: number;
+    date_acquisition?: string;
+    date_derniere_calibration?: string;
+    date_prochaine_calibration: string;
+    periodicite_calibration_mois: number;
     statut: 'Opérationnel' | 'En calibration' | 'Hors service' | 'Réforme';
     localisation?: string;
-    certificatCalibrationUrl?: string;
-    createdAt: string;
-    updatedAt?: string;
+    certificat_calibration_url?: string;
+    created_at: string;
+    updated_at?: string;
 }
 
 // ----------------------------------------------------------------------------

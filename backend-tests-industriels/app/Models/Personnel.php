@@ -42,4 +42,22 @@ class Personnel extends Model
     {
         return $this->belongsTo(Role::class, 'role_id', 'id_role');
     }
+
+    /**
+     * Attribut calculé pour le nom complet
+     */
+    public function getNomCompletAttribute()
+    {
+        return "{$this->prenom} {$this->nom}";
+    }
+
+    protected $appends = ['nom_complet'];
+
+    /**
+     * Relation avec les tests industriels (en tant que responsable)
+     */
+    public function testsIndustriels()
+    {
+        return $this->hasMany(TestIndustriel::class, 'responsable_test_id', 'id_personnel');
+    }
 }

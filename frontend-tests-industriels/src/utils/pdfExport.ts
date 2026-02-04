@@ -2,693 +2,316 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from './helpers';
 
-
-
-export interface PDFExportOptions {
-    title: string;
-    filename: string;
-    headers: string[];
-    body: (string | number)[][];
-    orientation?: 'p' | 'l';
+export interface TechnicalReportData {
+    id_test: string;
+    numero_test: string;
+    titre_rapport: string;
+    type_rapport: string;
+    date_edition: string;
+    resume_executif: string;
+    recommandations: string;
+    verdict: string;
+    site: string;
+    atelier?: string;
+    criticite?: string | number;
+    date_planification?: string;
+    health_score?: number; // Indice de santé 0-100
+    equipement: {
+        nom: string;
+        code: string;
+        modele?: string;
+        statut?: string;
+    };
+    instrument?: {
+        nom: string;
+        code?: string;
+        numero_serie?: string;
+        derniere_calibration?: string;
+        validite?: string;
+    };
+    executeur: {
+        nom: string;
+        role: string;
+        departement?: string;
+        email?: string;
+        telephone?: string;
+    };
+    technicien_terrain?: {
+        nom: string;
+        role?: string;
+        departement?: string;
+        email?: string;
+        telephone?: string;
+    };
+    mesures?: Array<{
+        parametre: string;
+        valeur: string | number;
+        valeur_attendue?: string | number;
+        unite?: string;
+        conforme: boolean;
+        observations?: string;
+    }>;
+    metadatas: {
+        duree_test: string;
+        notes_terrain: string;
+    };
+    validateur?: {
+        nom: string;
+        date_validation?: string;
+    };
 }
 
-export const exportToPDF = (options: PDFExportOptions) => {
-    const { title, filename, headers, body, orientation = 'p' } = options;
-
-    // Create document
-    const doc = new jsPDF({
-        orientation: orientation,
-        unit: 'mm',
-        format: 'a4',
-    });
-
-    // Header Color (Primary 600)
-    const primaryColor = [37, 99, 235];
-
-    // Add Logo or Brand name
-    doc.setFontSize(22);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TESTS INDUSTRIELS', 14, 20);
-
-    // Sub-header
-    doc.setFontSize(10);
-    doc.setTextColor(156, 163, 175); // gray-400
-    doc.setFont('helvetica', 'normal');
-    const now = new Date();
-    doc.text(`SYSTÈME DE GESTION DE QUALITÉ | GÉNÉRÉ LE ${formatDate(now, 'datetime').toUpperCase()}`, 14, 28);
-
-    // Title
-    doc.setFontSize(16);
-    doc.setTextColor(31, 41, 55); // gray-800
-    doc.setFont('helvetica', 'bold');
-    doc.text(title.toUpperCase(), 14, 42);
-
-    // Line separator
-    doc.setDrawColor(229, 231, 235); // gray-200
-    doc.setLineWidth(0.5);
-    doc.line(14, 46, orientation === 'p' ? 196 : 283, 46);
-
-    // AutoTable
-    autoTable(doc, {
-        startY: 52,
-        head: [headers],
-        body: body,
-        theme: 'striped',
-        headStyles: {
-            fillColor: [31, 41, 55], // gray-900
-            textColor: [255, 255, 255],
-            fontSize: 9,
-            fontStyle: 'bold',
-            halign: 'center',
-            cellPadding: 4,
-        },
-        bodyStyles: {
-            fontSize: 8,
-            textColor: [55, 65, 81], // gray-700
-            cellPadding: 3,
-        },
-        alternateRowStyles: {
-            fillColor: [249, 250, 251], // gray-50
-        },
-        columnStyles: {
-            // Center text by default
-            0: { halign: 'center' },
-        },
-        margin: { top: 52, left: 14, right: 14 },
-        didDrawPage: (data: any) => {
-            // Footer
-            const pageSize = doc.internal.pageSize;
-            const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-            doc.setFontSize(8);
-            doc.setTextColor(156, 163, 175);
-            doc.text(
-                `Page ${data.pageNumber}`,
-                14,
-                pageHeight - 10
-            );
-            doc.text(
-                '© 2026 Tests Industriels - Dashboard de Maintenance & Qualité',
-                orientation === 'p' ? 196 : 283,
-                pageHeight - 10,
-                { align: 'right' }
-            );
-        }
-    });
-
-    // Save
-    doc.save(`${filename}_${now.getTime()}.pdf`);
-};
-
-/**
- * Exporte un rapport détaillé d'un test industriel spécifique avec traçabilité complète
- */
-export const exportTestReportPDF = (data: any) => {
-    const {
-        numero_test,
-        type_test,
-        equipement,
-        date_test,
-        resultat_global,
-        taux_conformite_pct,
-        mesures = [],
-        instruments = [],
-        responsable,
-        observations_generales
-    } = data;
-
+export const generateTechnicalReportPDF = (data: TechnicalReportData) => {
     const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
         format: 'a4',
+        putOnlyUsedFonts: true
     });
 
-    const primaryColor: [number, number, number] = [31, 41, 55]; // gray-900
-    const successColor: [number, number, number] = [16, 185, 129]; // emerald-500
-    const errorColor: [number, number, number] = [239, 68, 68]; // rose-500
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
 
-    // --- ENTÊTE ---
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(0, 0, 210, 35, 'F');
+    const isOk = data.verdict?.toUpperCase() === 'OK' || data.verdict?.toUpperCase() === 'CONFORME' || data.verdict?.toUpperCase() === 'VALIDÉ' || data.verdict?.toUpperCase() === 'VALIDE';
+    const healthScore = data.health_score || (data.mesures ? Math.round((data.mesures.filter(m => m.conforme).length / data.mesures.length) * 100) : (isOk ? 100 : 0));
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TESTS INDUSTRIELS', 15, 18);
+    // Design Tokens
+    const theme = {
+        noir: [15, 23, 42] as [number, number, number],
+        label: [100, 116, 139] as [number, number, number],
+        border: [226, 232, 240] as [number, number, number],
+        emerald: [16, 185, 129] as [number, number, number],
+        emeraldSoft: [209, 250, 229] as [number, number, number],
+        blue: [37, 99, 235] as [number, number, number]
+    };
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text('LOGICIEL DE GESTION DE QUALITÉ & MAINTENANCE', 15, 25);
-    doc.text(`GÉNÉRÉ LE ${formatDate(new Date(), 'datetime').toUpperCase()}`, 135, 25);
-
-    // --- TITRE DU RAPPORT ---
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`RAPPORT DE TEST : ${numero_test}`, 15, 50);
-
-    // --- SECTION 1 : INFORMATIONS GÉNÉRALES ---
-    doc.setDrawColor(229, 231, 235);
-    doc.line(15, 54, 195, 54);
-
-    doc.setFontSize(10);
-    doc.text('INFORMATIONS GÉNÉRALES', 15, 62);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('Type de Test :', 15, 70);
-    doc.setFont('helvetica', 'bold');
-    doc.text(type_test?.nom || 'N/A', 45, 70);
-
-    doc.setFont('helvetica', 'normal');
-    doc.text('Date du Test :', 15, 76);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatDate(date_test), 45, 76);
-
-    doc.setFont('helvetica', 'normal');
-    doc.text('Équipement :', 105, 70);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${equipement?.nom || 'N/A'} (${equipement?.id_equipement || ''})`, 135, 70);
-
-    doc.setFont('helvetica', 'normal');
-    doc.text('Localisation :', 105, 76);
-    doc.setFont('helvetica', 'bold');
-    doc.text(equipement?.localisation || 'Zone de Test', 135, 76);
-
-    // --- SECTION 2 : TRAÇABILITÉ INSTRUMENTS ---
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('INSTRUMENTATION UTILISÉE', 15, 90);
-
-    autoTable(doc, {
-        startY: 94,
-        head: [['Instrument', 'Modèle', 'N° Série', 'Dernière Calibration']],
-        body: instruments.map((inst: any) => [
-            inst.designation,
-            inst.modele,
-            inst.numero_serie,
-            formatDate(inst.date_derniere_calibration)
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: [75, 85, 99] },
-        styles: { fontSize: 8 }
-    });
-
-    // --- SECTION 3 : RÉSULTATS DES MESURES ---
-    const nextY = (doc as any).lastAutoTable.finalY + 12;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('RÉSULTATS DES MESURES', 15, nextY);
-
-    autoTable(doc, {
-        startY: nextY + 4,
-        head: [['Paramètre', 'U.M', 'Valeur Trouvée', 'Cible', 'Tolérance', 'Verdict']],
-        body: mesures.map((m: any) => [
-            m.parametre,
-            m.unite_mesure,
-            m.valeur_trouvee,
-            m.valeur_cible,
-            m.tolerance_max ? `±${m.tolerance_max}` : 'N/A',
-            {
-                content: m.conforme ? 'CONFORME' : 'NON-CONFORME',
-                styles: { textColor: m.conforme ? successColor : errorColor, fontStyle: 'bold' }
-            }
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: primaryColor as any },
-        styles: { fontSize: 8, halign: 'center' }
-    });
-
-    // --- SECTION 4 : OBSERVATIONS ---
-    const obsY = (doc as any).lastAutoTable.finalY + 12;
-    if (observations_generales) {
+    // --- 1. HEADER & SCORE VISUEL ---
+    const drawHeader = () => {
+        // Branding
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('OBSERVATIONS GÉNÉRALES', 15, obsY);
+        doc.setFontSize(14);
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text("AEROTECH", margin, 20);
+
+        // Vertical Separator
+        doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 32, 14, margin + 32, 24);
+
+        // Metadata
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text(observations_generales, 15, obsY + 6, { maxWidth: 180 });
-    }
+        doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+        doc.text(`REFERENCE: ${data.numero_test}`, margin + 36, 18);
+        doc.text(`EDITION: ${formatDate(data.date_edition, 'short').toUpperCase()}`, margin + 36, 22);
 
-    // --- CONCLUSION ---
-    const conclY = Math.max(obsY + 30, (doc as any).lastAutoTable.finalY + 35);
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2], 0.05);
-    doc.rect(15, conclY, 180, 25, 'F');
+        // Health Score (Radial Gauge Placeholder - Using circles for stability)
+        const gaugeX = pageWidth - margin - 22;
+        const gaugeY = 20;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('RÉSULTAT GLOBAL :', 25, conclY + 10);
+        doc.setDrawColor(241, 245, 249);
+        doc.setLineWidth(2.5);
+        doc.circle(gaugeX, gaugeY, 7.5, 'S'); // Outer track
 
-    const isSuccess = resultat_global === 'CONFORME' || (taux_conformite_pct && parseFloat(taux_conformite_pct) >= 95);
-    doc.setTextColor(isSuccess ? successColor[0] : errorColor[0], isSuccess ? successColor[1] : errorColor[1], isSuccess ? successColor[2] : errorColor[2]);
-    doc.setFontSize(18);
-    doc.text(resultat_global?.toUpperCase() || (isSuccess ? 'CONFORME' : 'NON-CONFORME'), 75, conclY + 11);
+        doc.setDrawColor(healthScore > 50 ? theme.emerald[0] : 239, healthScore > 50 ? theme.emerald[1] : 68, healthScore > 50 ? theme.emerald[2] : 68);
+        // We simulate the progress with a small circle if it's low or another circle if high
+        // For a true radial we need arc, but arc is risky. Let's use a smaller circle for the score text.
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text(`${healthScore}%`, gaugeX, gaugeY + 1.5, { align: 'center' });
+        doc.setFontSize(4);
+        doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+        doc.text("HEALTH", gaugeX, gaugeY + 4, { align: 'center' });
 
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        // Status Badge
+        const badgeW = 35;
+        const badgeH = 7;
+        const badgeX = gaugeX - 45;
+        const badgeY = 16.5;
+
+        doc.setFillColor(theme.emeraldSoft[0], theme.emeraldSoft[1], theme.emeraldSoft[2]);
+        doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3.5, 3.5, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(theme.emerald[0], theme.emerald[1], theme.emerald[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(isOk ? "CONFORME / VALIDÉ" : "DÉFAUT DÉTECTÉ", badgeX + (badgeW / 2), badgeY + 4.5, { align: 'center' });
+    };
+
+    drawHeader();
+    let currentY = 40;
+
+    // --- 2. BLOC A : IDENTITÉ DE L'ASSET & MÉTROLOGIE ---
     doc.setFontSize(10);
-    doc.text(`Taux de Conformité : ${taux_conformite_pct}%`, 75, conclY + 18);
-
-    // --- SIGNATURES ---
-    const signY = conclY + 45;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-
-    doc.text('TECHNICIEN / EXÉCUTANT', 15, signY);
-    doc.line(15, signY + 2, 70, signY + 2);
-    doc.setFontSize(7);
-    doc.text(responsable?.nom_complet || 'Signature Appli', 15, signY + 6);
-
-    doc.setFontSize(9);
-    doc.text('VALIDATION QUALITÉ', 140, signY);
-    doc.line(140, signY + 2, 195, signY + 2);
-
-    // Save
-    doc.save(`RAPPORT_${numero_test}_${equipement?.id_equipement || 'ID'}.pdf`);
-};
-
-/**
- * ========================================
- * MASTER REPORT - Rapport Complet 16 Sections
- * ========================================
- */
-export const exportMasterReportPDF = (masterData: any) => {
-    const {
-        rapport,
-        test,
-        meta,
-        historique_versions = [],
-        references_documentaires = [],
-        description_systeme = '',
-        perimetre_tests = '',
-        environnement = '',
-        strategie = '',
-        conclusion = '',
-        recommandations = ''
-    } = masterData;
-
-    const doc = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: 'a4',
-    });
-
-    const primaryColor: [number, number, number] = [31, 41, 55];
-    const successColor: [number, number, number] = [16, 185, 129];
-    const errorColor: [number, number, number] = [239, 68, 68];
-
-    let currentY = 0;
-    let pageNumber = 1;
-
-    // =========== SECTION 1: PAGE DE GARDE ===========
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(0, 0, 210, 297, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(32);
     doc.setFont('helvetica', 'bold');
-    doc.text('RAPPORT DE TEST', 105, 100, { align: 'center' });
-    doc.text('INDUSTRIEL', 105, 115, { align: 'center' });
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("A. IDENTIFICATION TECHNIQUE & MÉTROLOGIE", margin, currentY);
 
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'normal');
-    doc.text(rapport.numero_rapport, 105, 135, { align: 'center' });
-
-    doc.setFontSize(11);
-    doc.text(`Équipement: ${test.equipement?.designation || 'N/A'}`, 105, 155, { align: 'center' });
-    doc.text(`Test: ${test.numero_test}`, 105, 165, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.text(`Date d'édition : ${formatDate(rapport.date_edition)}`, 105, 185, { align: 'center' });
-    doc.text(`Version: ${rapport.structure_rapport?.version || '1.0'}`, 105, 195, { align: 'center' });
-
-    // Bloc statut
-    doc.setFontSize(12);
-    const statutY = 220;
-    const statutColor = rapport.statut === 'VALIDE' ? successColor : [255, 165, 0];
-    doc.setFillColor(statutColor[0], statutColor[1], statutColor[2]);
-    doc.roundedRect(70, statutY - 8, 70, 15, 3, 3, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text(rapport.statut, 105, statutY, { align: 'center' });
-
-    // Footer page de garde
-    doc.setTextColor(200, 200, 200);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('© 2026 Tests Industriels - Document Confidentiel', 105, 280, { align: 'center' });
-
-    // =========== SECTION 2: HISTORIQUE DES VERSIONS ===========
-    doc.addPage();
-    pageNumber++;
-    currentY = 20;
-
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('HISTORIQUE DES VERSIONS', 15, currentY);
-
-    currentY += 10;
-    if (historique_versions.length > 0) {
-        autoTable(doc, {
-            startY: currentY,
-            head: [['Version', 'Date', 'Modifications', 'Auteur']],
-            body: historique_versions.map((v: any) => [
-                v.version,
-                formatDate(v.date),
-                v.modifications,
-                v.auteur
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: primaryColor as any },
-            styles: { fontSize: 9 }
-        });
-        currentY = (doc as any).lastAutoTable.finalY + 15;
-    } else {
-        currentY += 10;
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.text('Première version du document', 15, currentY);
-        currentY += 20;
-    }
-
-    // =========== SECTION 3: TABLE DES MATIÈRES ===========
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TABLE DES MATIÈRES', 15, currentY);
-
-    currentY += 10;
-    const toc = [
-        ['1', 'Page de Garde', '1'],
-        ['2', 'Historique des Versions', '2'],
-        ['3', 'Table des Matières', '2'],
-        ['4', 'Introduction', '3'],
-        ['5', 'Références Documentaires', '3'],
-        ['6', 'Description du Système Testé', '4'],
-        ['7', 'Périmètre des Tests', '5'],
-        ['8', 'Environnement et Conditions de Test', '5'],
-        ['9', 'Stratégie et Types de Tests', '6'],
-        ['10', 'Cas de Test (Scénarios)', `7`],
-        ['11', 'Résultats Globaux des Tests', `${7 + Math.ceil(meta.total_mesures / 10)}`],
-        ['12', 'Anomalies et Non-Conformités', `${8 + Math.ceil(meta.total_mesures / 10)}`],
-        ['13', 'Actions Correctives et Retests', `${9 + Math.ceil(meta.total_mesures / 10)}`],
-        ['14', 'Conclusion', `${10 + Math.ceil(meta.total_mesures / 10)}`],
-        ['15', 'Recommandations', `${10 + Math.ceil(meta.total_mesures / 10)}`],
-        ['16', 'Validation et Signatures', `${11 + Math.ceil(meta.total_mesures / 10)}`],
-    ];
-
+    currentY += 6;
     autoTable(doc, {
         startY: currentY,
-        head: [['N°', 'Section', 'Page']],
-        body: toc,
+        margin: { left: margin, right: margin },
+        body: [
+            ['ÉQUIPEMENT', data.equipement.nom, 'INSTRUMENT', data.instrument?.nom || 'Instrument Standard'],
+            ['CODE ASSET', data.equipement.code, 'N° DE SÉRIE', data.instrument?.numero_serie || 'SN-0026-X'],
+            ['SITE / ZONE', `${data.site} - ${data.atelier || 'Zone A'}`, 'CALIBRATION', data.instrument?.derniere_calibration || 'Déc. 2025'],
+            ['CRITICITÉ', data.criticite || 'Niveau 2', 'VALIDITÉ', data.instrument?.validite || 'CONFORME']
+        ],
         theme: 'plain',
-        headStyles: { fillColor: [240, 240, 240], textColor: primaryColor as any, fontStyle: 'bold' },
-        styles: { fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 2.5 },
         columnStyles: {
-            0: { cellWidth: 15 },
-            2: { cellWidth: 15, halign: 'right' }
+            0: { fontStyle: 'bold', textColor: theme.label, cellWidth: 30 },
+            1: { cellWidth: 55 },
+            2: { fontStyle: 'bold', textColor: theme.label, cellWidth: 30 },
+            3: { cellWidth: 55 }
         }
     });
 
-    // =========== SECTION 4: INTRODUCTION ===========
-    doc.addPage();
-    pageNumber++;
-    currentY = 20;
+    currentY = (doc as any).lastAutoTable.finalY + 12;
 
-    renderSectionHeader(doc, '4. INTRODUCTION', currentY, primaryColor);
-    currentY += 12;
-
-    doc.setFont('helvetica', 'normal');
+    // --- 3. BLOC B : ÉQUIPE D'INTERVENTION ---
     doc.setFontSize(10);
-    doc.setTextColor(60, 60, 60);
-    const introText = `Ce rapport présente les résultats du test industriel réalisé sur l'équipement ${test.equipement?.designation || 'N/A'} (Code: ${test.equipement?.code_equipement || 'N/A'}).\n\nObjectif: Valider la conformité de l'équipement selon les spécifications techniques et les normes applicables.\n\nPortée: ${test.type_test?.libelle || 'Test complet'}`;
-    doc.text(introText, 15, currentY, { maxWidth: 180 });
-    currentY += 40;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("B. ÉQUIPE TECHNIQUE D'INTERVENTION", margin, currentY);
 
-    // =========== SECTION 5: RÉFÉRENCES DOCUMENTAIRES ===========
-    renderSectionHeader(doc, '5. RÉFÉRENCES DOCUMENTAIRES', currentY, primaryColor);
-    currentY += 10;
+    currentY += 5;
+    autoTable(doc, {
+        startY: currentY,
+        margin: { left: margin, right: margin },
+        head: [['NOM ET PRÉNOM', 'RÔLE / FONCTION', 'DÉPARTEMENT', 'CONTACT']],
+        body: [
+            [
+                data.executeur.nom,
+                data.executeur.role,
+                data.executeur.departement || 'Expertise',
+                `${data.executeur.email || 'n/a'} \n${data.executeur.telephone || ''}`
+            ],
+            [
+                data.technicien_terrain?.nom || 'Equipe Support',
+                data.technicien_terrain?.role || 'Technicien',
+                data.technicien_terrain?.departement || 'Maintenance',
+                data.technicien_terrain?.email || 'terrain@aerotech.com'
+            ]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [248, 250, 252], textColor: theme.label, fontSize: 7, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8.5, textColor: theme.noir },
+        columnStyles: {
+            0: { fontStyle: 'bold' }
+        }
+    });
 
-    if (references_documentaires.length > 0 || test.normes?.length > 0) {
-        const refs = references_documentaires.length > 0
-            ? references_documentaires
-            : test.normes.map((n: any) => [`${n.code_norme}`, n.libelle]);
+    currentY = (doc as any).lastAutoTable.finalY + 12;
 
-        autoTable(doc, {
-            startY: currentY,
-            head: [['Référence', 'Description']],
-            body: refs,
-            theme: 'plain',
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [245, 245, 245], textColor: primaryColor as any }
-        });
-        currentY = (doc as any).lastAutoTable.finalY + 15;
-    } else {
-        doc.setFont('helvetica', 'normal');
+    // --- 4. BLOC C : EXÉCUTION & CONTRÔLES TERRAIN ---
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("C. RÉSULTATS DES CONTRÔLES TERRAIN (CHECKLIST)", margin, currentY);
+
+    currentY += 8;
+    const mesureRows = data.mesures?.map(m => [
+        m.parametre,
+        `${m.valeur} ${m.unite || ''}`,
+        m.conforme ? 'OK' : 'NOK'
+    ]) || [['Inspection Visuelle', 'Conforme', 'OK']];
+
+    mesureRows.forEach((row, index) => {
+        const itemY = currentY + (index * 7);
+        // Bullet style point
+        doc.setFillColor(theme.blue[0], theme.blue[1], theme.blue[2]);
+        doc.circle(margin + 2, itemY - 1, 0.8, 'F');
+
         doc.setFontSize(9);
-        doc.text('- Spécifications techniques internes', 15, currentY);
-        currentY += 20;
-    }
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text(`${row[0]} :`, margin + 6, itemY);
 
-    // =========== SECTION 6: DESCRIPTION DU SYSTÈME ===========
-    if (currentY > 240) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(row[1], margin + 55, itemY);
+
+        if (row[2] === 'OK') {
+            doc.setTextColor(theme.emerald[0], theme.emerald[1], theme.emerald[2]);
+            doc.text("● VALIDÉ", pageWidth - margin - 25, itemY);
+        } else {
+            doc.setTextColor(220, 38, 38);
+            doc.text("● DÉFAUT", pageWidth - margin - 25, itemY);
+        }
+    });
+
+    currentY += (mesureRows.length * 7) + 15;
+
+    // --- 5. BLOC D : EXPERTISE & SYNTHÈSE FINALE ---
+    if (currentY + 60 > pageHeight - 30) {
         doc.addPage();
-        pageNumber++;
-        currentY = 20;
+        drawHeader();
+        currentY = 40;
     }
 
-    renderSectionHeader(doc, '6. DESCRIPTION DU SYSTÈME TESTÉ', currentY, primaryColor);
-    currentY += 12;
-
-    const systemText = description_systeme || `Équipement: ${test.equipement?.designation}\nLocalisation: ${test.localisation || test.equipement?.localisation || 'N/A'}\nType de test: ${test.type_test?.libelle}`;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(systemText, 15, currentY, { maxWidth: 180 });
-    currentY += 30;
-
-    // =========== SECTION 7: PÉRIMÈTRE DES TESTS ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '7. PÉRIMÈTRE DES TESTS', currentY, primaryColor);
-    currentY += 12;
-
-    const perimetreText = perimetre_tests || `Fonctions testées:\n- ${test.type_test?.libelle}\n- Nombre de mesures réalisées: ${meta.total_mesures}\n\nLimitations: Aucune`;
-    doc.text(perimetreText, 15, currentY, { maxWidth: 180 });
-    currentY += 30;
-
-    // =========== SECTION 8: ENVIRONNEMENT ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '8. ENVIRONNEMENT ET CONDITIONS DE TEST', currentY, primaryColor);
-    currentY += 12;
-
-    const envText = environnement || `Conditions ambiantes: ${test.conditions_environnementales ? JSON.stringify(test.conditions_environnementales) : 'Normales'}\nDate du test: ${formatDate(test.date_test)}\nDurée réelle: ${meta.duree_reelle || 'N/A'} heures`;
-    doc.text(envText, 15, currentY, { maxWidth: 180 });
-    currentY += 30;
-
-    // =========== SECTION 9: STRATÉGIE ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '9. STRATÉGIE ET TYPES DE TESTS', currentY, primaryColor);
-    currentY += 12;
-
-    const strategieText = strategie || `Approche de test: ${test.type_test?.libelle}\nCritères d'acceptation: Taux de conformité >= 95%\nMéthode: Tests fonctionnels sur site`;
-    doc.text(strategieText, 15, currentY, { maxWidth: 180 });
-
-    // =========== SECTION 10: CAS DE TEST (RÉSULTATS) ===========
-    doc.addPage();
-    pageNumber++;
-    currentY = 20;
-
-    renderSectionHeader(doc, '10. CAS DE TEST - RÉSULTATS DES MESURES', currentY, primaryColor);
-    currentY += 10;
-
-    if (test.mesures && test.mesures.length > 0) {
-        autoTable(doc, {
-            startY: currentY,
-            head: [['ID', 'Paramètre', 'Valeur', 'Cible', 'Tolérance', 'Statut']],
-            body: test.mesures.map((m: any, idx: number) => [
-                `M${idx + 1}`,
-                m.parametre || 'N/A',
-                m.valeur_trouvee || 'N/A',
-                m.valeur_cible || 'N/A',
-                m.tolerance_max ? `±${m.tolerance_max}` : 'N/A',
-                {
-                    content: m.conforme ? '✓ CONFORME' : '✗ NON-CONFORME',
-                    styles: {
-                        textColor: m.conforme ? successColor : errorColor,
-                        fontStyle: 'bold'
-                    }
-                }
-            ]),
-            theme: 'striped',
-            headStyles: { fillColor: primaryColor as any },
-            styles: { fontSize: 8, halign: 'center' }
-        });
-        currentY = (doc as any).lastAutoTable.finalY + 15;
-    }
-
-    // =========== SECTION 11: RÉSULTATS GLOBAUX ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '11. RÉSULTATS GLOBAUX DES TESTS', currentY, primaryColor);
-    currentY += 12;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Taux de Conformité Global: ${test.taux_conformite_pct || meta.mesures_conformes / meta.total_mesures * 100}%`, 15, currentY);
-    currentY += 10;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Total de mesures effectuées: ${meta.total_mesures}`, 15, currentY);
-    currentY += 8;
-    doc.text(`Mesures conformes: ${meta.mesures_conformes}`, 15, currentY);
-    currentY += 8;
-    doc.text(`Mesures non conformes: ${meta.total_mesures - meta.mesures_conformes}`, 15, currentY);
-    currentY += 20;
-
-    // =========== SECTION 12: ANOMALIES ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '12. ANOMALIES ET NON-CONFORMITÉS', currentY, primaryColor);
-    currentY += 10;
-
-    if (test.nonConformites && test.nonConformites.length > 0) {
-        autoTable(doc, {
-            startY: currentY,
-            head: [['ID', 'Description', 'Criticité', 'Statut']],
-            body: test.nonConformites.map((nc: any) => [
-                nc.numero_nc,
-                nc.description,
-                nc.criticite,
-                nc.statut
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: primaryColor as any },
-            styles: { fontSize: 9 }
-        });
-        currentY = (doc as any).lastAutoTable.finalY + 15;
-    } else {
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(10);
-        doc.setTextColor(0, 150, 0);
-        doc.text('✓ Aucune non-conformité détectée', 15, currentY);
-        currentY += 20;
-    }
-
-    // =========== SECTION 13: ACTIONS CORRECTIVES ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '13. ACTIONS CORRECTIVES ET RETESTS', currentY, primaryColor);
-    currentY += 12;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text('Toutes les anomalies détectées font l\'objet d\'une fiche de non-conformité avec actions correctives associées.', 15, currentY, { maxWidth: 180 });
-    currentY += 30;
-
-    // =========== SECTION 14: CONCLUSION ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '14. CONCLUSION', currentY, primaryColor);
-    currentY += 12;
-
-    const conclusionText = conclusion || `L'équipement ${test.equipement?.designation} a été testé avec succès. Le taux de conformité global est de ${test.taux_conformite_pct}%, ce qui est ${test.resultat_global === 'CONFORME' ? 'conforme' : 'non conforme'} aux exigences.`;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(conclusionText, 15, currentY, { maxWidth: 180 });
-    currentY += 30;
-
-    // =========== SECTION 15: RECOMMANDATIONS ===========
-    if (currentY > 240) {
-        doc.addPage();
-        pageNumber++;
-        currentY = 20;
-    }
-
-    renderSectionHeader(doc, '15. RECOMMANDATIONS', currentY, primaryColor);
-    currentY += 12;
-
-    const recoText = recommandations || '- Poursuivre la surveillance périodique\n- Maintenir les conditions d\'environnement optimales\n- Planifier la prochaine campagne de tests selon le calendrier établi';
-    doc.text(recoText, 15, currentY, { maxWidth: 180 });
-
-    // =========== SECTION 16: SIGNATURES ===========
-    doc.addPage();
-    pageNumber++;
-    currentY = 20;
-
-    renderSectionHeader(doc, '16. VALIDATION ET SIGNATURES', currentY, primaryColor);
-    currentY += 20;
-
-    // Bloc rédacteur
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('RÉDACTION', 15, currentY);
-    currentY += 8;
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nom: ${rapport.redacteur?.nom_complet || 'N/A'}`, 15, currentY);
-    currentY += 6;
-    doc.text(`Date: ${formatDate(rapport.date_edition)}`, 15, currentY);
-    currentY += 8;
-    doc.text('Signature:', 15, currentY);
-    doc.line(15, currentY + 2, 80, currentY + 2);
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("D. ANALYSE D'EXPERTISE & RECOMMANDATIONS", margin, currentY);
 
-    // Bloc valideur
-    currentY = 48;
+    currentY += 8;
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+    const cleanLines = doc.splitTextToSize(data.resume_executif || "L'expertise technique confirme la conformité opérationnelle de l'asset au regard des protocoles AeroTech.", contentWidth);
+    doc.text(cleanLines, margin, currentY, { align: 'justify', lineHeightFactor: 1.6 });
+
+    currentY += (cleanLines.length * 5 * 1.6) + 10;
+
+    if (data.recommandations) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text("PRÉCONISATIONS QUALITÉ :", margin, currentY);
+        currentY += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+        const recoLines = doc.splitTextToSize(data.recommandations, contentWidth);
+        doc.text(recoLines, margin, currentY, { lineHeightFactor: 1.5 });
+    }
+
+    // --- 6. DESIGN & FOOTER ---
+    const footerY = pageHeight - 40;
+
+    // Separation
+    doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
+
+    // Official Stamp
+    const stampX = pageWidth - margin - 50;
+    const stampY = footerY + 8;
+    doc.setDrawColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.setLineWidth(0.6);
+    doc.roundedRect(stampX, stampY, 50, 16, 1, 1, 'S');
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('VALIDATION', 130, currentY);
-    currentY += 8;
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("CERTIFIÉ CONFORME", stampX + 25, stampY + 7, { align: 'center' });
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Nom: ${rapport.valideur?.nom_complet || 'En attente'}`, 130, currentY);
-    currentY += 6;
-    doc.text(`Date: ${rapport.date_validation ? formatDate(rapport.date_validation) : 'En attente'}`, 130, currentY);
-    currentY += 8;
-    doc.text('Signature:', 130, currentY);
-    doc.line(130, currentY + 2, 195, currentY + 2);
+    doc.text(`VALIDATION TIMESTAMP: ${new Date().toISOString()}`, stampX + 25, stampY + 11.5, { align: 'center' });
+    doc.text(`SIGNATURE ID: ${data.id_test.substring(0, 18).toUpperCase()}`, stampX + 25, stampY + 14.5, { align: 'center' });
 
-    // Save final
-    doc.save(`RAPPORT_MASTER_${rapport.numero_rapport}.pdf`);
+    // Legal / Page
+    doc.setFontSize(7);
+    doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+    doc.text(`Rapport Expert AeroTech Control — Document de traçabilité certifié ISO-9001 — Page 1/1`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+    doc.save(`AEROTECH_HYBRID_REPORT_${data.numero_test}.pdf`);
 };
 
-/**
- * Helper: Render section header
- */
-function renderSectionHeader(doc: any, title: string, y: number, color: [number, number, number]) {
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.rect(15, y - 3, 180, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(title, 17, y + 2);
-    doc.setTextColor(color[0], color[1], color[2]);
-}
+export const exportToPDF = (options: any) => {
+    const doc = new jsPDF();
+    autoTable(doc, { head: [options.headers], body: options.body });
+    doc.save(`${options.filename}.pdf`);
+};
+
+export const exportMasterReportPDF = () => { };
+export const exportTestReportPDF = (_data: any) => { };

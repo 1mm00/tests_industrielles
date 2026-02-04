@@ -1,6 +1,29 @@
 import { User } from '@/types';
 
 /**
+ * Configuration de la pertinence des ressources par rôle.
+ * Définit quelles ressources sont autorisées pour chaque profil métier.
+ * Sert de filtre de sécurité supplémentaire au-delà du simple JSON backend.
+ */
+export const ROLE_RESOURCES_RELEVANCE: Record<string, string[]> = {
+    'Admin': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'personnel', 'instruments', 'expertise', 'maintenance', 'planning', 'users'
+    ],
+    'Ingénieur': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'instruments', 'expertise', 'planning'
+    ],
+    'Technicien': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'instruments', 'maintenance', 'planning'
+    ],
+    'Lecteur': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports', 'instruments', 'planning'
+    ],
+};
+
+/**
  * Interface pour définir une exigence de permission
  */
 export interface PermissionRequirement {
@@ -17,9 +40,18 @@ export const hasPermission = (user: User | null, resource: string, action: strin
         return false;
     }
 
+    const roleName = user.personnel.role.nom_role;
+    const normalizedRole = roleName?.toLowerCase() === 'admin' ? 'Admin' : roleName;
+
     // BYPASS COMPLET POUR L'ADMIN
-    if (user.personnel.role.nom_role === 'Admin') {
+    if (normalizedRole === 'Admin') {
         return true;
+    }
+
+    // VÉRIFICATION DE LA PERTINENCE DU RÔLE (Whitelist Frontend)
+    const allowedResources = ROLE_RESOURCES_RELEVANCE[normalizedRole] || [];
+    if (!allowedResources.includes(resource)) {
+        return false;
     }
 
     let permissions = user.personnel.role.permissions;
@@ -48,9 +80,18 @@ export const hasModuleAccess = (user: User | null, resource: string): boolean =>
         return false;
     }
 
+    const roleName = user.personnel.role.nom_role;
+    const normalizedRole = roleName?.toLowerCase() === 'admin' ? 'Admin' : roleName;
+
     // BYPASS COMPLET POUR L'ADMIN
-    if (user.personnel.role.nom_role === 'Admin') {
+    if (normalizedRole === 'Admin') {
         return true;
+    }
+
+    // VÉRIFICATION DE LA PERTINENCE DU RÔLE (Whitelist Frontend)
+    const allowedResources = ROLE_RESOURCES_RELEVANCE[normalizedRole] || [];
+    if (!allowedResources.includes(resource)) {
+        return false;
     }
 
     let permissions = user.personnel.role.permissions;
@@ -65,5 +106,14 @@ export const hasModuleAccess = (user: User | null, resource: string): boolean =>
     }
 
     return !!(permissions && permissions[resource] && (permissions[resource] as string[]).length > 0);
+};
+
+/**
+ * Vérifie si l'utilisateur est un simple Lecteur (Mode consultation uniquement)
+ * Insensible à la casse pour plus de robustesse
+ */
+export const isLecteur = (user: User | null): boolean => {
+    const roleName = user?.personnel?.role?.nom_role?.toLowerCase();
+    return roleName === 'lecteur';
 };
 

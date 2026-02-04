@@ -19,6 +19,8 @@ class RapportTest extends Model
         'test_id',
         'numero_rapport',
         'type_rapport',
+        'titre_rapport',
+        'recommandations',
         'date_edition',
         'redacteur_id',
         'valideur_id',

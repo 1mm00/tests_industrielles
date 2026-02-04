@@ -25,17 +25,8 @@ export default function LoginPage() {
             const { user, token } = await authService.login(formData);
             login(user, token);
 
-            // Redirection selon le rôle
-            const role = user.personnel?.role?.nom_role;
-            if (role === 'Admin') {
-                navigate('/');
-            } else if (role === 'Ingénieur') {
-                navigate('/engineer/dashboard');
-            } else if (role === 'Technicien') {
-                navigate('/'); // À adapter si une page spécifique existe
-            } else {
-                navigate('/');
-            }
+            // Redirection vers la racine (le routage central App.tsx gérera l'aiguillage selon les droits)
+            navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Erreur lors de la connexion');
         } finally {

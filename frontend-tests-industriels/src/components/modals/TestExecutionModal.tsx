@@ -1,415 +1,406 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Activity,
+    Timer,
+    AlertTriangle,
     X,
     Play,
-    CheckCircle2,
-    Trash2,
+    Activity,
     Clock,
-    Plus,
-    AlertTriangle,
-    Thermometer
+    ShieldCheck,
+    Box,
 } from 'lucide-react';
 import { testsService } from '@/services/testsService';
 import { useModalStore } from '@/store/modalStore';
-import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/helpers';
+import toast from 'react-hot-toast';
 import type { TestIndustriel } from '@/types';
+
+/**
+ * TEST EXECUTION MODAL - VERSION ULTRA-SÉCURISÉE
+ * Piloté 100% par le temps réel et la matrice des permissions
+ */
 
 export default function TestExecutionModal() {
     const queryClient = useQueryClient();
-    const { isExecutionModalOpen, closeExecutionModal, selectedTestId } = useModalStore();
+    const { isExecutionModalOpen, closeExecutionModal, selectedTestId, openTestGmailModal } = useModalStore();
 
-    const [newMeasure, setNewMeasure] = useState({
-        type_mesure: 'TECHNIQUE',
-        parametre_mesure: '',
-        valeur_mesuree: '',
-        unite_mesure: '',
-        valeur_reference: '',
-        tolerance_min: '0.05',
-        tolerance_max: '0.05',
-        instrument_id: '',
-    });
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [hasNotifiedPreStart, setHasNotifiedPreStart] = useState(false);
 
-    // Fetch test details
-    const { data: rawData, isLoading: isLoadingTest, error: testError } = useQuery({
+    // Mise à jour de l'horloge système chaque seconde (Source de Vérité)
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Récupération des données du test
+    const { data: rawData, isLoading } = useQuery({
         queryKey: ['test', selectedTestId],
         queryFn: () => testsService.getTest(selectedTestId!),
         enabled: !!selectedTestId && isExecutionModalOpen,
     });
 
-    // Robust extraction: API returns { success: true, data: test }
-    // But testsService.getTest already extracts response.data.data
     const test = rawData as TestIndustriel;
 
-    // Fetch measures
-    const { data: mesures } = useQuery({
-        queryKey: ['test-mesures', selectedTestId],
-        queryFn: () => testsService.getTestMesures(selectedTestId!),
-        enabled: !!selectedTestId && isExecutionModalOpen,
-    });
+    // Calculs de temps basés sur les ISO Strings reçus du Backend
+    const timeLogic = useMemo(() => {
+        if (!test) {
+            return null;
+        }
+
+        const { heure_debut, heure_fin } = test;
+        if (!heure_debut || !heure_fin) {
+            return null;
+        }
+
+        const start = new Date(heure_debut);
+        const end = new Date(heure_fin);
+
+        // Sécurité contre les dates invalides
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return null;
+        }
+
+        const now = currentTime;
+
+        // Vérification de la date (même jour)
+        const isSameDay = start.toDateString() === now.toDateString();
+
+        // Vérification de l'heure
+        const isTimeReached = now.getTime() >= start.getTime();
+        const isSessionExpired = now.getTime() >= end.getTime();
+
+        // Calcul du temps restant avant démarrage (Countdown)
+        const msToStart = start.getTime() - now.getTime();
+        const countdownToStart = msToStart > 0 ? msToStart : 0;
+
+        // Calcul du temps restant de session (Chrono)
+        const msRemaining = end.getTime() - now.getTime();
+        const sessionRemaining = msRemaining > 0 ? msRemaining : 0;
+
+        // Alerte critique si < 5 minutes
+        const isCritical = sessionRemaining > 0 && sessionRemaining < 5 * 60 * 1000;
+
+        // Détection du retard au démarrage
+        const isLate = now.getTime() > start.getTime();
+
+        return {
+            start,
+            end,
+            isSameDay,
+            isTimeReached,
+            isSessionExpired,
+            isLate,
+            countdownToStart,
+            sessionRemaining,
+            isCritical,
+            canStart: isSameDay && (isTimeReached || isLate) && test.statut_test !== 'TERMINE' && test.statut_test !== 'EN_COURS'
+        };
+    }, [test, currentTime]);
+
+    // FERMETURE AUTOMATIQUE ET TRANSITION VERS RAPPORT GMAIL
+    useEffect(() => {
+        if (test?.statut_test === 'EN_COURS' && timeLogic?.sessionRemaining === 0) {
+            console.log("[TestExecutionModal] Session expirée - Redirection vers le rapport");
+            closeExecutionModal();
+            openTestGmailModal(selectedTestId!);
+            toast("Session terminée. Veuillez finaliser votre rapport de clôture.", {
+                icon: '📝',
+                duration: 5000
+            });
+        }
+    }, [test?.statut_test, timeLogic?.sessionRemaining, closeExecutionModal, openTestGmailModal, selectedTestId]);
+
+    // Notification d'anticipation (10 minutes avant)
+    useEffect(() => {
+        if (timeLogic && timeLogic.countdownToStart > 0 && timeLogic.countdownToStart <= 10 * 60 * 1000 && !hasNotifiedPreStart) {
+            toast(`Rappel : Le test ${test?.numero_test} commence dans 10 minutes.`, {
+                icon: '⏰',
+                duration: 6000,
+                style: { borderRadius: '15px', background: '#334155', color: '#fff', fontWeight: 'bold' }
+            });
+            setHasNotifiedPreStart(true);
+        }
+    }, [timeLogic, hasNotifiedPreStart, test?.numero_test, test]);
+
+    // Formatage du temps (HH:MM:SS)
+    const formatMs = (ms: number) => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
 
     const startMutation = useMutation({
         mutationFn: () => testsService.startTest(selectedTestId!),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['test', selectedTestId] });
-            queryClient.invalidateQueries({ queryKey: ['tests'] });
-            toast.success('Test démarré ! Statut mis à jour.');
-        }
+            toast.success('Démarrage de la SEQUENCE D\'ACQUISITION');
+        },
+        onError: (err: any) => toast.error(err.response?.data?.message || 'Erreur de verrouillage temporel')
     });
 
-    const finishMutation = useMutation({
-        mutationFn: () => testsService.finishTest(selectedTestId!, {
-            resultat_global: 'CONFORME',
-            observations: 'Test finalisé via interface expertise.'
-        }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['test', selectedTestId] });
-            queryClient.invalidateQueries({ queryKey: ['tests'] });
-            toast.success('Test finalisé ! Résultats calculés.');
-            closeExecutionModal();
+    // Diagnostic des données du test (Uniquement au montage/changement de test)
+    useEffect(() => {
+        if (isExecutionModalOpen && test) {
+            if (!test.heure_debut || !test.heure_fin) {
+                console.warn("[TestExecutionModal] Configuration temporelle incomplète pour le test #", test.numero_test);
+            } else {
+                const start = new Date(test.heure_debut);
+                const end = new Date(test.heure_fin);
+                if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                    console.error("[TestExecutionModal] Format de date ISO invalide détecté pour le test #", test.numero_test);
+                }
+            }
         }
-    });
-
-    const addMeasureMutation = useMutation({
-        mutationFn: (data: any) => testsService.addTestMesure(selectedTestId!, data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['test-mesures', selectedTestId] });
-            toast.success('Mesure enregistrée');
-            setNewMeasure(prev => ({ ...prev, parametre_mesure: '', valeur_mesuree: '' }));
-        }
-    });
-
-    const deleteMeasureMutation = useMutation({
-        mutationFn: (id: string) => testsService.deleteMesure(id),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['test-mesures', selectedTestId] });
-            toast.success('Mesure supprimée');
-        }
-    });
+    }, [test?.id_test, isExecutionModalOpen]);
 
     if (!isExecutionModalOpen) return null;
 
-    const handleAddMeasure = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMeasure.parametre_mesure || !newMeasure.valeur_mesuree) {
-            toast.error('Veuillez remplir les champs obligatoires');
-            return;
-        }
-        addMeasureMutation.mutate(newMeasure);
-    };
+    const isSessionActive = test?.statut_test === 'EN_COURS';
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-                {/* Header */}
-                <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-white">
-                    <div className="flex items-center gap-4">
-                        <div className="h-14 w-14 bg-gray-900 rounded-2xl flex items-center justify-center text-white shadow-xl">
-                            <Activity className="h-8 w-8 text-primary-400" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black text-gray-900 uppercase">Exécution & Mesures</h2>
-                            <div className="flex items-center gap-3 mt-1">
-                                <span className="text-[10px] font-black bg-primary-100 text-primary-700 px-2 py-0.5 rounded uppercase tracking-widest">
-                                    {test?.numero_test}
-                                </span>
-                                <span className="text-xs text-gray-400 font-bold uppercase tracking-widest italic">
-                                    {test?.equipement?.designation}
-                                </span>
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px]"
+            >
+                <motion.div
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 20 }}
+                    className="bg-white/95 rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col border border-white/40"
+                >
+                    {/* Header Premium */}
+                    <div className="bg-slate-900 px-8 py-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center border border-emerald-500/30">
+                                <Activity className={cn("h-6 w-6 text-emerald-500", isSessionActive && "animate-pulse")} />
                             </div>
-                        </div>
-                    </div>
-                    <button onClick={closeExecutionModal} className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-400 hover:text-gray-900">
-                        <X className="h-6 w-6" />
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-                    {/* Left Panel: Info & Actions */}
-                    <div className="lg:w-1/3 bg-gray-50/50 p-8 border-r border-gray-50 flex flex-col gap-6 overflow-y-auto">
-                        <div>
-                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Statut Opérationnel</h3>
-
-                            {/* Debug Panel */}
-                            <div className="mb-4 p-3 bg-gray-100 rounded-lg text-xs space-y-1">
-                                <p className="font-bold text-red-600">DEBUG:</p>
-                                <p>Statut brut: {test?.statut_test || 'NON DÉFINI'}</p>
-                                <p>Test ID: {selectedTestId}</p>
-                                <p>Test chargé: {test ? 'OUI' : 'NON'}</p>
-                                <p>Chargement: {isLoadingTest ? 'EN COURS...' : 'TERMINÉ'}</p>
-                                {testError && (
-                                    <p className="text-red-600">
-                                        ERREUR: {(testError as any)?.message || 'Erreur inconnue'}
-                                    </p>
-                                )}
-                                {test && (
-                                    <>
-                                        <p className="text-green-600">✓ Données reçues</p>
-                                        <p>Équipement: {test.equipement?.designation || 'N/A'}</p>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className={cn(
-                                "p-6 rounded-3xl border flex flex-col items-center justify-center text-center gap-2 transition-all shadow-sm",
-                                test?.statut_test?.toUpperCase() === 'PLANIFIE' ? "bg-amber-50 border-amber-100 text-amber-600" :
-                                    test?.statut_test?.toUpperCase() === 'EN_COURS' ? "bg-emerald-50 border-emerald-100 text-emerald-600 animate-pulse" :
-                                        "bg-blue-50 border-blue-100 text-blue-600"
-                            )}>
-                                {test?.statut_test?.toUpperCase() === 'PLANIFIE' && <Clock className="h-8 w-8 mb-1" />}
-                                {test?.statut_test?.toUpperCase() === 'EN_COURS' && <Activity className="h-8 w-8 mb-1" />}
-                                {test?.statut_test?.toUpperCase() === 'TERMINE' && <CheckCircle2 className="h-8 w-8 mb-1" />}
-                                <p className="text-xl font-black uppercase tracking-tighter">{test?.statut_test || 'INCONNU'}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            {test?.statut_test?.toUpperCase() === 'PLANIFIE' && (
-                                <button
-                                    onClick={() => startMutation.mutate()}
-                                    disabled={startMutation.isPending}
-                                    className="w-full py-4 bg-sky-500 text-white rounded-2xl flex items-center justify-center gap-3 font-black text-sm hover:bg-sky-600 transition-all shadow-xl shadow-sky-100 disabled:opacity-50"
-                                >
-                                    <Play className="h-5 w-5" />
-                                    DÉMARRER LA SESSION
-                                </button>
-                            )}
-
-                            {test?.statut_test?.toUpperCase() === 'EN_COURS' && (
-                                <button
-                                    onClick={() => finishMutation.mutate()}
-                                    disabled={finishMutation.isPending}
-                                    className="w-full py-4 bg-emerald-500 text-white rounded-2xl flex items-center justify-center gap-3 font-black text-sm hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
-                                >
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    FINALISER & CALCULER
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                            <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Détails Techniques</h4>
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-gray-400 font-bold uppercase">Type</span>
-                                    <span className="font-black text-gray-700">{test?.type_test?.libelle || test?.type_test?.code_type || 'N/A'}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-gray-400 font-bold uppercase">Localisation</span>
-                                    <span className="font-black text-gray-700">{test?.localisation}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-gray-400 font-bold uppercase">Criticité</span>
-                                    <span className={cn(
-                                        "font-black",
-                                        (test?.niveau_criticite ?? 0) >= 3 ? "text-red-600" : "text-emerald-600"
-                                    )}>Niveau {test?.niveau_criticite}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Panel: Measures Table & Form */}
-                    <div className="flex-1 p-8 overflow-y-auto bg-white space-y-8">
-                        {/* Protocol Display (Checklist) */}
-                        {test?.type_test?.checklists_controle && test.type_test.checklists_controle.length > 0 && (
-                            <div className="p-6 bg-primary-50 rounded-[2rem] border border-primary-100 space-y-4">
-                                <h3 className="text-[10px] font-black text-primary-700 uppercase tracking-widest flex items-center gap-2">
-                                    <Activity className="h-4 w-4" />
-                                    Protocole de Test (Étapes à suivre)
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {test.type_test.checklists_controle.map((step: any) => (
-                                        <div key={step.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-primary-100 shadow-sm">
-                                            <span className="h-5 w-5 rounded-full bg-primary-600 text-white text-[10px] flex items-center justify-center font-black">
-                                                {step.ordre}
-                                            </span>
-                                            <span className="text-xs font-bold text-gray-700">{step.nom_etape}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Summary Stats */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Mesures</p>
-                                <p className="text-xl font-black text-gray-900">{mesures?.length || 0}</p>
-                            </div>
-                            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                                <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">Conformes</p>
-                                <p className="text-xl font-black text-emerald-700">{mesures?.filter((m: any) => m.conforme).length || 0}</p>
-                            </div>
-                            <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
-                                <p className="text-[8px] font-black text-red-600 uppercase tracking-widest mb-1">Non-Conformes</p>
-                                <p className="text-xl font-black text-red-700">{mesures?.filter((m: any) => !m.conforme).length || 0}</p>
-                            </div>
-                        </div>
-
-                        {/* Add Measure Form (Visible if En cours or Planifié) */}
-                        {(test?.statut_test === 'EN_COURS' || test?.statut_test === 'PLANIFIE') && (
-
-                            <div className="p-6 bg-gray-900 rounded-[2rem] text-white shadow-2xl space-y-6 animate-in slide-in-from-bottom-5">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Plus className="h-5 w-5 text-primary-400" />
-                                        <h3 className="text-sm font-black uppercase tracking-widest">Enregistrer une nouvelle mesure</h3>
-                                    </div>
-                                    {test?.statut_test === 'PLANIFIE' && (
-                                        <span className="text-[10px] font-black bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full border border-amber-500/30 uppercase tracking-tighter">
-                                            Auto-démarre le test
+                            <div>
+                                <h2 className="text-white text-xl font-black uppercase tracking-tight">
+                                    {test?.numero_test || 'EXÉCUTION DU TEST'}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] font-black bg-white/10 text-white/60 px-2 py-0.5 rounded-md uppercase tracking-widest border border-white/5">
+                                        Site de Marignane
+                                    </span>
+                                    {isSessionActive && (
+                                        <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-md uppercase tracking-widest animate-pulse">
+                                            LIVE
                                         </span>
                                     )}
                                 </div>
-                                <form onSubmit={handleAddMeasure} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="md:col-span-2 space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Paramètre / Grandeur</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ex: Pression Pompe"
-                                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white/20 outline-none transition-all"
-                                            value={newMeasure.parametre_mesure}
-                                            onChange={(e) => setNewMeasure({ ...newMeasure, parametre_mesure: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Valeur</label>
-                                        <input
-                                            type="number"
-                                            step="0.001"
-                                            placeholder="0.00"
-                                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white/20 outline-none transition-all"
-                                            value={newMeasure.valeur_mesuree}
-                                            onChange={(e) => setNewMeasure({ ...newMeasure, valeur_mesuree: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Unité</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ex: Bar, °C"
-                                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white/20 outline-none transition-all"
-                                            value={newMeasure.unite_mesure}
-                                            onChange={(e) => setNewMeasure({ ...newMeasure, unite_mesure: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Réf. (Cible)</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Cible"
-                                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white/20 outline-none transition-all"
-                                            value={newMeasure.valeur_reference}
-                                            onChange={(e) => setNewMeasure({ ...newMeasure, valeur_reference: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Tolérance ±</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold focus:bg-white/20 outline-none transition-all"
-                                            value={newMeasure.tolerance_max}
-                                            onChange={(e) => setNewMeasure({ ...newMeasure, tolerance_min: e.target.value, tolerance_max: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2 flex items-end">
-                                        <button
-                                            type="submit"
-                                            disabled={addMeasureMutation.isPending}
-                                            className="w-full bg-indigo-500 text-white py-2 rounded-xl font-black text-xs uppercase hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50"
-                                        >
-                                            {addMeasureMutation.isPending ? "Sync..." : "Enregistrer la mesure"}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        )}
-
-                        {/* Measures List */}
-                        <div className="space-y-4">
-                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Journal des Mesures</h3>
-                            <div className="overflow-hidden rounded-3xl border border-gray-100 shadow-sm">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="bg-gray-50/50">
-                                            <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase">Paramètre</th>
-                                            <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase">Valeur / Cible</th>
-                                            <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase">Tolérance</th>
-                                            <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase">Conformité</th>
-                                            <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {mesures?.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic text-xs">
-                                                    Aucune mesure enregistrée pour le moment.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            mesures?.map((m: any) => (
-                                                <tr key={m.id_mesure} className="group hover:bg-gray-50/50 transition-all">
-                                                    <td className="px-6 py-4">
-                                                        <p className="text-sm font-black text-gray-900">{m.parametre_mesure}</p>
-                                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{m.type_mesure}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-black text-gray-900">{m.valeur_mesuree} {m.unite_mesure}</span>
-                                                            <span className="text-[10px] text-gray-400">/ {m.valeur_reference}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-[10px] font-bold text-gray-500">±{m.tolerance_max}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className={cn(
-                                                            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm",
-                                                            m.conforme ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                                                        )}>
-                                                            {m.conforme ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                                                            {m.conforme ? "Conforme" : "Non-Conforme"}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <button
-                                                            onClick={() => deleteMeasureMutation.mutate(m.id_mesure)}
-                                                            className="p-2 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded-lg transition-all"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* Footer Modal */}
-                <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between sticky bottom-0 z-10">
-                    <div className="flex items-center gap-4 text-gray-400">
-                        <Thermometer className="h-5 w-5" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Monitoring Métrologique Actif</span>
-                    </div>
-                    <div className="flex items-center gap-3">
                         <button
                             onClick={closeExecutionModal}
-                            className="px-8 py-3 text-xs font-black text-gray-500 hover:text-gray-900 transition-all uppercase tracking-widest"
+                            className="h-10 w-10 bg-white/5 text-white/50 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-all"
                         >
-                            Fermer
+                            <X className="h-6 w-6" />
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                                <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">Initialisation de la session...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="bg-slate-900 px-8 py-4 border-b border-white/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Séquence temporelle active</span>
+                                    </div>
+                                    {isSessionActive && timeLogic?.isLate && (
+                                        <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-3 py-1 rounded-full animate-bounce">
+                                            <AlertTriangle className="h-3 w-3 text-orange-500" />
+                                            <span className="text-[9px] font-black text-orange-500 uppercase">Démarré avec retard</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 p-8">
+                                    {/* Colonne gauche : Infos */}
+                                    <div className="md:col-span-7 space-y-6">
+                                        <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                                                    <Box className="h-5 w-5 text-white" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Actif lié au test</p>
+                                                    <p className="text-sm font-black text-gray-900">{test?.equipement?.designation}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Code Équipement</p>
+                                                    <p className="font-mono text-sm font-bold text-gray-900">{test?.equipement?.code_equipement}</p>
+                                                </div>
+                                                <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Responsable</p>
+                                                    <p className="text-sm font-bold text-gray-900">{test?.responsable?.prenom} {test?.responsable?.nom}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-emerald-50/50 rounded-3xl p-6 border border-emerald-100/50">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                                                <h3 className="text-xs font-black text-emerald-800 uppercase tracking-widest">Protocole Validé</h3>
+                                            </div>
+                                            <p className="text-sm text-emerald-900 leading-relaxed font-medium">
+                                                Le type de test <span className="font-black">"{test?.type_test?.libelle}"</span> est conforme aux standards ISO-9001.
+                                                Toute déviation durant l'acquisition doit être rapportée immédiatement.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Colonne droite : Chronos et Actions */}
+                                    <div className="md:col-span-5 space-y-6">
+                                        {/* PHASE DE CLOTURE OU CHRONO ACTIVÉ */}
+                                        <div className={cn(
+                                            "rounded-3xl p-8 flex flex-col items-center justify-center transition-all duration-500",
+                                            isSessionActive
+                                                ? "bg-slate-900 text-white shadow-2xl shadow-emerald-500/20"
+                                                : "bg-gray-900 text-white"
+                                        )}>
+                                            {(!isSessionActive && timeLogic && timeLogic.countdownToStart > 0) ? (
+                                                <>
+                                                    <Clock className="h-8 w-8 text-emerald-400 mb-4 animate-pulse" />
+                                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-2">
+                                                        Attente Planning
+                                                    </p>
+                                                    <p className="text-4xl font-mono font-black tabular-nums">
+                                                        {formatMs(timeLogic.countdownToStart)}
+                                                    </p>
+                                                </>
+                                            ) : !isSessionActive && timeLogic?.isLate ? (
+                                                <>
+                                                    <AlertTriangle className="h-8 w-8 text-orange-400 mb-4 animate-bounce" />
+                                                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-2 text-center">
+                                                        Retard Constaté
+                                                    </p>
+                                                    <div className="bg-orange-500/10 border border-orange-500/20 px-4 py-2 rounded-xl text-center">
+                                                        <p className="text-sm font-bold text-orange-200">
+                                                            Prêt pour démarrage immédiat
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Timer className={cn("h-8 w-8 mb-4", timeLogic?.isCritical ? "text-red-500 animate-bounce" : "text-emerald-400")} />
+                                                    <p className={cn(
+                                                        "text-[10px] font-black uppercase tracking-[0.2em] mb-2",
+                                                        timeLogic?.isCritical ? "text-red-500" : "text-emerald-400"
+                                                    )}>
+                                                        Fin de Session dans
+                                                    </p>
+                                                    <p className={cn(
+                                                        "text-5xl font-mono font-black tabular-nums",
+                                                        timeLogic?.isCritical ? "text-red-500 animate-pulse" : "text-white"
+                                                    )}>
+                                                        {timeLogic ? formatMs(timeLogic.sessionRemaining) : '00:00:00'}
+                                                    </p>
+                                                    {(timeLogic?.isCritical || timeLogic?.isSessionExpired) && (
+                                                        <div className="mt-4 flex flex-col items-center gap-2">
+                                                            <div className="flex items-center gap-2 text-red-500 animate-pulse">
+                                                                <AlertTriangle className="h-4 w-4" />
+                                                                <span className="text-[10px] font-black uppercase">
+                                                                    {timeLogic?.isSessionExpired ? "Session Terminée - Clôture Requise" : "Alerte : Temps Critique !"}
+                                                                </span>
+                                                            </div>
+                                                            {timeLogic?.isSessionExpired && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        closeExecutionModal();
+                                                                        openTestGmailModal(selectedTestId!);
+                                                                    }}
+                                                                    className="mt-2 text-[9px] font-black bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full uppercase transition-all"
+                                                                >
+                                                                    Passer à la saisie
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* ACTION BUTTON */}
+                                        <div className="space-y-4">
+                                            {!isSessionActive ? (
+                                                <button
+                                                    onClick={() => startMutation.mutate()}
+                                                    disabled={!timeLogic?.canStart || startMutation.isPending}
+                                                    className={cn(
+                                                        "w-full py-5 rounded-2xl flex items-center justify-center gap-3 font-black text-sm uppercase tracking-widest transition-all shadow-xl",
+                                                        timeLogic?.canStart
+                                                            ? "bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-emerald-500/30"
+                                                            : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                                    )}
+                                                >
+                                                    {timeLogic?.canStart ? (
+                                                        <>
+                                                            <Play className="h-5 w-5 fill-current" />
+                                                            Démarrer la session du test
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Activity className="h-5 w-5" />
+                                                            Session Verrouillée
+                                                        </>
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        closeExecutionModal();
+                                                        openTestGmailModal(selectedTestId!);
+                                                    }}
+                                                    className="w-full py-5 rounded-2xl bg-slate-900 border-2 border-slate-700 text-white flex items-center justify-center gap-3 font-black text-sm uppercase tracking-widest hover:bg-red-600 hover:border-red-600 transition-all shadow-xl shadow-black/10"
+                                                >
+                                                    <X className="h-5 w-5" />
+                                                    Arrêter et Clôturer
+                                                </button>
+                                            )}
+
+                                            {!timeLogic?.canStart && !isSessionActive && (
+                                                <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-center gap-3">
+                                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                                    <p className="text-[9px] font-black text-orange-700 uppercase leading-relaxed">
+                                                        Le bouton s'activera automatiquement dès que l'heure planifiée ({test?.heure_debut?.substring(11, 16)}) sera atteinte.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Footer / Status Bar */}
+                    <div className="bg-gray-50 px-8 py-4 border-t border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Synchronisation Temps Réel Active
+                        </div>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            {currentTime.toLocaleTimeString()}
+                        </div>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
     );
 }

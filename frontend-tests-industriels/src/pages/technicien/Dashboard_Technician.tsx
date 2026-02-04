@@ -1,16 +1,43 @@
-import { Play, ClipboardCheck, AlertTriangle, Clock, Activity, CheckCircle2, FlaskConical, ChevronRight, Zap, Target, ShieldAlert, BarChart3, Microscope } from 'lucide-react';
+import {
+    Play,
+    ClipboardCheck,
+    AlertTriangle,
+    Clock,
+    Activity,
+    CheckCircle2,
+    ChevronRight,
+    Zap,
+    Target,
+    ShieldAlert,
+    BarChart3,
+    Microscope,
+    Share2,
+    Edit3
+} from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { testsService } from '@/services/testsService';
 import { ncService } from '@/services/ncService';
 import { cn } from '@/utils/helpers';
 import { useNavigate } from 'react-router-dom';
 import { useModalStore } from '@/store/modalStore';
+import { useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 export default function Dashboard_Technician() {
     const { user } = useAuthStore();
     const navigate = useNavigate();
-    const { openExecutionModal, openNcModal } = useModalStore();
+    const queryClient = useQueryClient();
+    const { openExecutionModal, openNcModal, openTestDetailsModal } = useModalStore();
+
+    // Prefetching intelligent : charger les données du formulaire en arrière-plan
+    useEffect(() => {
+        queryClient.prefetchQuery({
+            queryKey: ['test-creation-data'],
+            queryFn: () => testsService.getCreationData(),
+            staleTime: 5 * 60 * 1000,
+        });
+    }, [queryClient]);
 
     const { data: stats, isLoading } = useQuery({
         queryKey: ['technician-stats'],
@@ -142,8 +169,7 @@ export default function Dashboard_Technician() {
                                 stats.assignedTests.map((test: any) => (
                                     <div
                                         key={test.id_test}
-                                        onClick={() => openExecutionModal(test.id_test)}
-                                        className="group flex items-center justify-between p-6 bg-gray-50 rounded-[2rem] hover:bg-white hover:shadow-2xl hover:ring-1 hover:ring-primary-100 transition-all cursor-pointer border border-transparent border-l-4 border-l-primary-500"
+                                        className="group flex flex-col sm:flex-row sm:items-center justify-between p-6 bg-gray-50 rounded-[2rem] hover:bg-white hover:shadow-2xl hover:ring-1 hover:ring-primary-100 transition-all border border-transparent border-l-4 border-l-primary-500 gap-6"
                                     >
                                         <div className="flex items-center gap-6">
                                             <div className="h-14 w-14 rounded-2xl bg-white shadow-sm flex items-center justify-center font-black text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all text-xs border border-gray-100">
@@ -152,7 +178,15 @@ export default function Dashboard_Technician() {
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <p className="text-sm font-black text-gray-900 uppercase">{test.numero_test}</p>
-                                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded uppercase">Critique</span>
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 text-[8px] font-black rounded uppercase",
+                                                        test.statut_test === 'EN_COURS' ? "bg-amber-100 text-amber-700" :
+                                                            test.statut_test === 'TERMINE' ? "bg-emerald-100 text-emerald-700" :
+                                                                "bg-blue-100 text-blue-700"
+                                                    )}>
+                                                        {test.statut_test === 'EN_COURS' ? 'En Cours' :
+                                                            test.statut_test === 'TERMINE' ? 'Terminé' : 'Planifié'}
+                                                    </span>
                                                 </div>
                                                 <div className="flex flex-col gap-0.5">
                                                     <p className="text-xs text-gray-500 font-bold uppercase tracking-tight">{test.equipement?.designation}</p>
@@ -160,17 +194,67 @@ export default function Dashboard_Technician() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="hidden md:flex flex-col items-end gap-1">
-                                                <span className="text-[10px] font-black text-gray-900 bg-gray-200 px-2 py-0.5 rounded uppercase tracking-widest">{test.statut_test}</span>
-                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold">
-                                                    <Microscope className="h-3 w-3" />
-                                                    Zone: {test.localisation || 'B-01'}
+
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            {/* Action principale selon le statut */}
+                                            {test.statut_test === 'PLANIFIE' && (
+                                                <button
+                                                    onClick={() => openExecutionModal(test.id_test)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-600 transition-all shadow-md shadow-sky-100"
+                                                >
+                                                    <Play className="h-3 w-3 fill-current" />
+                                                    Démarrer le test
+                                                </button>
+                                            )}
+
+                                            {test.statut_test === 'EN_COURS' && (
+                                                <button
+                                                    onClick={() => openExecutionModal(test.id_test)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-600 transition-all shadow-md shadow-amber-100"
+                                                >
+                                                    <ClipboardCheck className="h-3 w-3" />
+                                                    Ajouter les résultats
+                                                </button>
+                                            )}
+
+                                            {test.statut_test === 'TERMINE' && (
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => openTestDetailsModal(test.id_test)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-md"
+                                                    >
+                                                        Détails
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const { openTestModal } = useModalStore.getState();
+                                                            openTestModal(test.id_test);
+                                                        }}
+                                                        className="p-2 bg-white border border-gray-200 text-gray-400 rounded-xl hover:text-primary-600 hover:border-primary-100 transition-all"
+                                                        title="Modifier"
+                                                    >
+                                                        <Edit3 className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (navigator.share) {
+                                                                navigator.share({
+                                                                    title: `Rapport Test ${test.numero_test}`,
+                                                                    text: `Résultats du test pour ${test.equipement?.designation}`,
+                                                                    url: window.location.href,
+                                                                }).catch(() => toast.error("Erreur lors du partage"));
+                                                            } else {
+                                                                navigator.clipboard.writeText(window.location.href);
+                                                                toast.success("Lien copié dans le presse-papier");
+                                                            }
+                                                        }}
+                                                        className="p-2 bg-white border border-gray-200 text-gray-400 rounded-xl hover:text-blue-600 hover:border-blue-100 transition-all"
+                                                        title="Partager"
+                                                    >
+                                                        <Share2 className="h-4 w-4" />
+                                                    </button>
                                                 </div>
-                                            </div>
-                                            <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100 text-gray-300 group-hover:text-primary-600 group-hover:scale-110 transition-all">
-                                                <Play className="h-5 w-5 fill-current" />
-                                            </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))

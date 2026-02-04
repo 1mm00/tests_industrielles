@@ -18,7 +18,7 @@ import IndustrialChart from '@/components/dashboard/IndustrialChart';
 import { useModalStore } from '@/store/modalStore';
 
 export default function Dashboard_Engineer() {
-    const { openExecutionModal } = useModalStore();
+    const { openExecutionModal, openTestDetailsModal } = useModalStore();
 
     // Récupération des données réelles du dashboard
     const { data: dashboardData, isLoading } = useQuery({
@@ -119,7 +119,7 @@ export default function Dashboard_Engineer() {
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {engineerKpis.map((kpi) => (
-                    <div key={kpi.title} className="group relative bg-white p-6 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/50 hover:shadow-2xl hover:shadow-primary-100/50 transition-all duration-500 overflow-hidden">
+                    <div key={kpi.title} className="group relative bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-primary-100/20 transition-all duration-500 overflow-hidden">
                         <div className={cn(
                             "absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 rounded-full transition-all group-hover:opacity-20",
                             `bg-${kpi.color}-500`
@@ -127,23 +127,23 @@ export default function Dashboard_Engineer() {
 
                         <div className="relative z-10">
                             <div className={cn(
-                                "h-12 w-12 rounded-2xl flex items-center justify-center mb-4 border-2 shadow-sm group-hover:scale-110 transition-transform duration-500",
-                                kpi.color === 'emerald' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
-                                    kpi.color === 'orange' ? "bg-orange-50 border-orange-100 text-orange-600" :
-                                        kpi.color === 'red' ? "bg-red-50 border-red-100 text-red-600" :
-                                            "bg-blue-50 border-blue-100 text-blue-600"
+                                "h-12 w-12 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 shadow-sm group-hover:scale-110 transition-transform duration-500",
+                                kpi.color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
+                                    kpi.color === 'orange' ? "bg-orange-50 text-orange-600" :
+                                        kpi.color === 'red' ? "bg-red-50 text-red-600" :
+                                            "bg-blue-50 text-blue-600"
                             )}>
                                 <kpi.icon className="h-6 w-6" />
                             </div>
 
-                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">{kpi.title}</h3>
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.title}</h3>
                             <div className="flex items-end gap-3">
                                 <span className="text-3xl font-black text-gray-900 leading-none">{kpi.value}</span>
                                 <div className={cn(
                                     "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full",
                                     kpi.trend === 'up' ? "bg-emerald-100 text-emerald-700" :
                                         kpi.trend === 'down' ? "bg-red-100 text-red-700" :
-                                            "bg-gray-100 text-gray-700"
+                                            "bg-slate-100 text-slate-700"
                                 )}>
                                     {kpi.trend === 'up' ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> :
                                         kpi.trend === 'down' ? <ArrowDownRight className="h-3 w-3 mr-0.5" /> : null}
@@ -160,7 +160,7 @@ export default function Dashboard_Engineer() {
 
                 {/* Charts Area */}
                 <div className="lg:col-span-8 space-y-8">
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h2 className="text-xl font-black text-gray-900 uppercase">Performance Technique</h2>
@@ -182,7 +182,7 @@ export default function Dashboard_Engineer() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-gradient-to-br from-primary-600 to-indigo-700 p-8 rounded-[2.5rem] text-white shadow-xl shadow-primary-200">
+                        <div className="bg-gradient-to-br from-primary-600 to-indigo-700 p-8 rounded-3xl text-white shadow-lg shadow-primary-200/20">
                             <TrendingUp className="h-10 w-10 mb-6 opacity-50" />
                             <h3 className="text-2xl font-black mb-2 leading-tight">Optimisation de la Production</h3>
                             <p className="text-primary-100 text-sm font-medium mb-6 opacity-80">Les derniers tests montrent une amélioration de 4% sur la ligne A après calibration métrologique.</p>
@@ -190,7 +190,7 @@ export default function Dashboard_Engineer() {
                                 Voir les Recommandations
                             </button>
                         </div>
-                        <div className="bg-gray-900 p-8 rounded-[2.5rem] text-white shadow-xl">
+                        <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-lg">
                             <FlaskConical className="h-10 w-10 mb-6 text-primary-400" />
                             <h3 className="text-2xl font-black mb-2 leading-tight">Protocoles Expérimentaux</h3>
                             <p className="text-gray-400 text-sm font-medium mb-6">3 nouveaux types de tests en attente de définition technique pour le nouveau parc machine.</p>
@@ -206,7 +206,7 @@ export default function Dashboard_Engineer() {
 
                 {/* Sidebar Tasks / Feed */}
                 <div className="lg:col-span-4 space-y-8">
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="p-8 pb-4 flex items-center justify-between border-b border-gray-50">
                             <h2 className="text-lg font-black text-gray-900 uppercase">Actions Requises</h2>
                             <span className="flex h-6 w-6 items-center justify-center bg-red-100 text-red-600 text-xs font-black rounded-full">4</span>
@@ -216,7 +216,13 @@ export default function Dashboard_Engineer() {
                                 dashboardData.actions_requises.map((test: any) => (
                                     <div
                                         key={test.id_test}
-                                        onClick={() => openExecutionModal(test.id_test)}
+                                        onClick={() => {
+                                            if (test.statut_test === 'TERMINE' || (test.statut && test.statut.includes('TERMINE'))) {
+                                                openTestDetailsModal(test.id_test);
+                                            } else {
+                                                openExecutionModal(test.id_test);
+                                            }
+                                        }}
                                         className="group p-4 rounded-3xl hover:bg-gray-50 transition-all cursor-pointer flex items-center justify-between"
                                     >
                                         <div className="flex items-center gap-4">
@@ -247,7 +253,7 @@ export default function Dashboard_Engineer() {
                         </div>
                     </div>
 
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
                         <h2 className="text-lg font-black text-gray-900 uppercase mb-6">Expertise Équipement</h2>
                         <div className="space-y-6">
                             {dashboardData?.expertise_equipement && dashboardData.expertise_equipement.length > 0 ? (

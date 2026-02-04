@@ -99,6 +99,8 @@ class RapportTestController extends Controller
         $validated = $request->validate([
             'test_id' => 'required|exists:tests_industriels,id_test',
             'type_rapport' => 'required|string',
+            'titre_rapport' => 'nullable|string|max:255',
+            'recommandations' => 'nullable|string',
             'resume_executif' => 'nullable|string',
             'structure_rapport' => 'nullable|array',
         ]);
@@ -115,6 +117,18 @@ class RapportTestController extends Controller
     }
 
     /**
+     * Récupère un rapport spécifique
+     */
+    public function show($id)
+    {
+        $rapport = RapportTest::with(['test.equipement', 'redacteur', 'valideur'])->findOrFail($id);
+        return response()->json([
+            'success' => true,
+            'data' => $rapport
+        ]);
+    }
+
+    /**
      * Mettre à jour un rapport
      */
     public function update(Request $request, $id)
@@ -123,6 +137,8 @@ class RapportTestController extends Controller
 
         $validated = $request->validate([
             'resume_executif' => 'nullable|string',
+            'recommandations' => 'nullable|string',
+            'titre_rapport' => 'nullable|string|max:255',
             'structure_rapport' => 'nullable|array',
             'statut' => 'nullable|in:BROUILLON,EN_REVISION,VALIDE',
         ]);
@@ -130,6 +146,56 @@ class RapportTestController extends Controller
         $rapport->update($validated);
 
         return response()->json($rapport);
+    }
+
+    /**
+     * Supprimer un rapport
+     */
+    public function destroy($id)
+    {
+        $rapport = RapportTest::findOrFail($id);
+        $rapport->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rapport supprimé avec succès'
+        ]);
+    }
+
+    /**
+     * Générer et télécharger le rapport en PDF
+     */
+    public function downloadPdf($id)
+    {
+        try {
+            $rapport = RapportTest::with([
+                'test.typeTest',
+                'test.equipement',
+                'test.mesures',
+                'redacteur.role',
+                'valideur.role'
+            ])->findOrFail($id);
+
+            $data = [
+                'rapport' => $rapport,
+                'test' => $rapport->test,
+                'redacteur' => $rapport->redacteur,
+                'valideur' => $rapport->valideur,
+                'equipement' => $rapport->test->equipement,
+                'mesures' => $rapport->test->mesures,
+                'date' => now()->format('d/m/Y H:i')
+            ];
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.technical_report', $data)
+                ->setPaper('a4', 'portrait');
+
+            return $pdf->download($rapport->numero_rapport . '.pdf');
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erreur lors de la génération du PDF',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

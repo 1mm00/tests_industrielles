@@ -8,7 +8,8 @@ import {
     ChevronRight,
     ClipboardList,
     Activity,
-    Thermometer
+    Thermometer,
+    FileText
 } from 'lucide-react';
 import { testsService, TestFilters } from '@/services/testsService';
 import { formatDate, getCriticalityColor, cn } from '@/utils/helpers';
@@ -25,7 +26,7 @@ export default function Tests_Technician() {
         queryFn: () => testsService.getTests(filters)
     });
 
-    const { openExecutionModal } = useModalStore();
+    const { openExecutionModal, openTestGmailModal, openTestDetailsModal } = useModalStore();
 
     const handleExecute = (testId: string) => {
         openExecutionModal(testId);
@@ -136,25 +137,44 @@ export default function Tests_Technician() {
                                 {/* Actions */}
                                 <div className="flex items-center gap-2 lg:border-l lg:pl-6 border-gray-100">
                                     {test.statut_test === 'TERMINE' ? (
-                                        <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-50 text-gray-400 font-bold text-sm cursor-not-allowed border border-gray-100">
+                                        <button
+                                            onClick={() => openTestDetailsModal(test.id_test)}
+                                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-50 text-emerald-600 font-bold text-sm border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95"
+                                        >
                                             <CheckCircle2 size={18} />
-                                            Clôturé
+                                            Voir Rapport
                                         </button>
                                     ) : (
-                                        <button
-                                            onClick={() => handleExecute(test.id_test)}
-                                            className={cn(
-                                                "flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 border",
-                                                test.statut_test === 'EN_COURS'
-                                                    ? "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
-                                                    : "bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-100"
+                                        <div className="flex items-center gap-2">
+                                            {/* Bouton spécifique si le temps est écoulé */}
+                                            {test.heure_fin && new Date(test.heure_fin) < new Date() ? (
+                                                <button
+                                                    onClick={() => openTestGmailModal(test.id_test)}
+                                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-orange-500 text-white font-black text-sm transition-all active:scale-95 shadow-lg shadow-orange-200 hover:bg-orange-600 animate-in fade-in zoom-in duration-300"
+                                                >
+                                                    <FileText size={18} />
+                                                    Finaliser le Rapport
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleExecute(test.id_test)}
+                                                    className={cn(
+                                                        "flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 border",
+                                                        test.statut_test === 'EN_COURS'
+                                                            ? "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
+                                                            : "bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-100"
+                                                    )}
+                                                >
+                                                    {test.statut_test === 'EN_COURS' ? 'Reprendre' : 'Démarrer'}
+                                                    <Play size={18} />
+                                                </button>
                                             )}
-                                        >
-                                            {test.statut_test === 'EN_COURS' ? 'Reprendre' : 'Démarrer'}
-                                            <Play size={18} />
-                                        </button>
+                                        </div>
                                     )}
-                                    <button className="p-3 rounded-2xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+                                    <button
+                                        onClick={() => openTestDetailsModal(test.id_test)}
+                                        className="p-3 rounded-2xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all active:scale-95"
+                                    >
                                         <ChevronRight size={20} />
                                     </button>
                                 </div>

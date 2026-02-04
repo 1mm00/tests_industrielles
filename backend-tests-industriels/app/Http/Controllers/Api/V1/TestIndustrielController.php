@@ -55,6 +55,11 @@ class TestIndustrielController extends Controller
             'observations_generales' => 'nullable|string',
             'equipe_test' => 'nullable|array',
             'equipe_test.*' => 'uuid',
+            'instrument_id' => 'nullable|uuid',
+            'statut_final' => 'nullable|in:OK,NOK',
+            'resultat_attendu' => 'nullable|string',
+            'heure_debut_planifiee' => 'nullable|string',
+            'heure_fin_planifiee' => 'nullable|string',
         ]);
 
         $test = $this->testService->creerTest($validated);
@@ -103,11 +108,42 @@ class TestIndustrielController extends Controller
      */
     public function update(Request $request, string $id): JsonResponse
     {
-        // Logique de mise à jour
-        return response()->json([
-            'success' => true,
-            'message' => 'Test mis à jour'
-        ], 200);
+        $validated = $request->validate([
+            'type_test_id' => 'sometimes|required|uuid',
+            'equipement_id' => 'sometimes|required|uuid',
+            'phase_id' => 'nullable|uuid',
+            'procedure_id' => 'nullable|uuid',
+            'responsable_test_id' => 'nullable|uuid',
+            'date_test' => 'sometimes|required|date',
+            'heure_debut' => 'nullable|string',
+            'heure_fin' => 'nullable|string',
+            'localisation' => 'sometimes|required|string',
+            'niveau_criticite' => 'sometimes|required|integer|between:1,4',
+            'arret_production_requis' => 'nullable|boolean',
+            'observations_generales' => 'nullable|string',
+            'equipe_test' => 'nullable|array',
+            'equipe_test.*' => 'uuid',
+            'instrument_id' => 'nullable|uuid',
+            'statut_final' => 'nullable|in:OK,NOK',
+            'resultat_attendu' => 'nullable|string',
+            'heure_debut_planifiee' => 'nullable|string',
+            'heure_fin_planifiee' => 'nullable|string',
+        ]);
+
+        try {
+            $test = $this->testService->modifierTest($id, $validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Test mis à jour avec succès',
+                'data' => $test
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour: ' . $e->getMessage()
+            ], 400);
+        }
     }
 
     /**

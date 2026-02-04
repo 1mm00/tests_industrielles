@@ -11,20 +11,50 @@ import {
     FileText,
     Users,
     Activity,
-    Info
+    Info,
+    LayoutDashboard,
+    Microscope,
+    Calendar
 } from 'lucide-react';
 import { usersService } from '@/services/usersService';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 
 const RESOURCES = [
+    { id: 'dashboards', label: 'Tableaux de Bord', icon: LayoutDashboard, desc: 'Accès aux synthèses et overview' },
     { id: 'tests', label: 'Gestion des Tests', icon: FlaskConical, desc: 'Contrôles et interventions industrielles' },
     { id: 'non_conformites', label: 'Non-Conformités', icon: AlertTriangle, desc: 'Gestion des écarts et plans d\'action' },
     { id: 'equipements', label: 'Parc Équipements', icon: Settings, desc: 'Configuration et suivi des machines' },
     { id: 'rapports', label: 'Centre de Rapports', icon: FileText, desc: 'Génération et archivage de documents' },
-    { id: 'users', label: 'Gestion Personnel', icon: Users, desc: 'Comptes utilisateurs et RH' },
+    { id: 'personnel', label: 'Gestion Personnel', icon: Users, desc: 'Comptes utilisateurs et RH' },
     { id: 'instruments', label: 'Métrologie', icon: Activity, desc: 'Instruments de mesure et calibration' },
+    { id: 'expertise', label: 'Ingénierie & Expertise', icon: Microscope, desc: 'Protocoles avancés et orchestration' },
+    { id: 'maintenance', label: 'Zone Technique', icon: Activity, desc: 'Exécution terrain et maintenance' },
+    { id: 'planning', label: 'Planning & Calendrier', icon: Calendar, desc: 'Interventions et rendez-vous' },
+    { id: 'users', label: 'Permissions & Rôles', icon: ShieldCheck, desc: 'Configuration de la sécurité système' },
 ];
+
+/**
+ * Configuration de la pertinence des ressources par rôle.
+ * Définit quelles lignes s'affichent dans la matrice pour chaque profil.
+ */
+const ROLE_RESOURCES_RELEVANCE: Record<string, string[]> = {
+    'Admin': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'personnel', 'instruments', 'expertise', 'maintenance', 'users'
+    ],
+    'Ingénieur': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'instruments', 'expertise'
+    ],
+    'Technicien': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports',
+        'instruments', 'maintenance'
+    ],
+    'Lecteur': [
+        'dashboards', 'tests', 'non_conformites', 'equipements', 'rapports', 'instruments'
+    ],
+};
 
 const ACTIONS = [
     { id: 'read', label: 'Lecture' },
@@ -82,6 +112,15 @@ export default function PermissionsManagerPage() {
         if (selectedRole.nom_role === 'Admin') return true;
         return selectedRole.permissions?.[resource]?.includes(action);
     };
+
+    // Filtrage dynamique des ressources affichées selon le rôle sélectionné
+    const filteredResources = RESOURCES.filter(res => {
+        if (!selectedRole) return true;
+        const allowed = ROLE_RESOURCES_RELEVANCE[selectedRole.nom_role];
+        // Si le rôle n'est pas dans notre config de pertinence, on affiche tout par défaut
+        if (!allowed) return true;
+        return allowed.includes(res.id);
+    });
 
     if (isLoading) {
         return (
@@ -154,7 +193,7 @@ export default function PermissionsManagerPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {RESOURCES.map((res) => (
+                            {filteredResources.map((res) => (
                                 <tr key={res.id} className="group hover:bg-indigo-50/30 transition-colors">
                                     <td className="px-8 py-6 border-r border-gray-50">
                                         <div className="flex items-center gap-4">

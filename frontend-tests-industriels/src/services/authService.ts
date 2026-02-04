@@ -21,6 +21,8 @@ export interface RegisterData {
 export interface MeResponse {
     user: User;
     personnel?: any;
+    activities?: any[];
+    habilitations?: any[];
 }
 
 export const authService = {

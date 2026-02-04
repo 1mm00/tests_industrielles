@@ -160,10 +160,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rapports/stats', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'getStats']);
     Route::get('rapports/{id}/master-data', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'getMasterReportData']);
     Route::post('rapports/{id}/valider', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'valider']);
+    Route::get('rapports/{id}/pdf', [\App\Http\Controllers\Api\V1\RapportTestController::class, 'downloadPdf']);
     Route::apiResource('rapports', \App\Http\Controllers\Api\V1\RapportTestController::class);
     
     // Dashboards
     Route::get('dashboard/ingenieur', [\App\Http\Controllers\Api\V1\DashboardController::class, 'getDashboardIngenieur']);
     Route::get('dashboard/technicien', [\App\Http\Controllers\Api\V1\DashboardController::class, 'getDashboardTechnicien']);
+    Route::get('dashboard/analytics/pdf', [\App\Http\Controllers\Api\V1\DashboardController::class, 'downloadAnalyticsPdf']);
 });
 

@@ -16,14 +16,15 @@ import {
     AlertTriangle,
     CheckCircle2,
     Info,
-    ChevronDown
+    ChevronDown,
+    Sun
 } from 'lucide-react';
+import { hasPermission } from '@/utils/permissions';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/helpers';
 import { systemService } from '@/services/systemService';
 import { useModalStore } from '@/store/modalStore';
 import { useThemeStore } from '@/store/themeStore';
-import { Sun } from 'lucide-react';
 
 interface NavbarProps {
     // unused
@@ -88,10 +89,10 @@ export default function Navbar({ }: NavbarProps) {
             )}
         >
             <div className={cn(
-                "mx-auto w-full transition-all duration-500 rounded-full border shadow-2xl flex items-center justify-between px-10 py-3.5 hover:shadow-primary-100/50 hover:scale-[1.005]",
+                "mx-auto w-full transition-all duration-500 rounded-3xl border shadow-2xl flex items-center justify-between px-10 py-3.5 hover:shadow-primary-100/50 hover:scale-[1.005]",
                 scrolled
-                    ? "bg-white/95 backdrop-blur-xl border-gray-200"
-                    : "bg-white/80 backdrop-blur-lg border-white/40"
+                    ? "bg-white/95 backdrop-blur-xl border-slate-200"
+                    : "bg-white/70 backdrop-blur-md border-slate-200/50"
             )}>
                 {/* Section Gauche - Logo/Titre discret */}
                 <div className="flex items-center gap-2">
@@ -101,27 +102,32 @@ export default function Navbar({ }: NavbarProps) {
                     <span className="text-sm font-black text-gray-900 uppercase tracking-tighter">Tests Industriels</span>
                 </div>
 
-                {/* Section Centrale - Navigation Menu Rapide */}
+                {/* Section Centrale - Navigation Menu Rapide Dynamique (Basé sur les Permissions) */}
                 <nav className="hidden xl:flex items-center gap-8 bg-gray-100/50 px-6 py-2 rounded-full border border-gray-200/50">
-                    <button
-                        onClick={() => navigate(user?.personnel?.role?.nom_role === 'Technicien' ? '/technician/dashboard' : '/')}
-                        className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest"
-                    >
-                        Dashboard
-                    </button>
-                    {user?.personnel?.role?.nom_role !== 'Technicien' && (
-                        <>
-                            <button onClick={() => navigate('/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
-                            <button onClick={() => navigate('/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
-                            <button onClick={() => navigate('/planning-calendar')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Planning</button>
-                        </>
+                    <button onClick={() => navigate('/')} className="text-xs font-black text-primary-600 uppercase tracking-widest">Dashboard</button>
+
+                    {hasPermission(user, 'tests', 'read') && (
+                        <button onClick={() => navigate('/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Tests</button>
                     )}
-                    {user?.personnel?.role?.nom_role === 'Technicien' && (
-                        <>
-                            <button onClick={() => navigate('/technician/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Mes Tests</button>
-                            <button onClick={() => navigate('/technician/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Mes NC</button>
-                            <button onClick={() => navigate('/technician/rapports')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Rapports</button>
-                        </>
+
+                    {hasPermission(user, 'maintenance', 'read') && (
+                        <button onClick={() => navigate('/technician/tests')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Terrain</button>
+                    )}
+
+                    {hasPermission(user, 'expertise', 'read') && (
+                        <button onClick={() => navigate('/engineer/projets')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Ingénierie</button>
+                    )}
+
+                    {hasPermission(user, 'non_conformites', 'read') && (
+                        <button onClick={() => navigate('/non-conformites')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Qualité</button>
+                    )}
+
+                    {hasPermission(user, 'users', 'read') && (
+                        <button onClick={() => navigate('/users')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Équipe</button>
+                    )}
+
+                    {hasPermission(user, 'rapports', 'read') && (
+                        <button onClick={() => navigate('/reports')} className="text-xs font-black text-gray-600 hover:text-primary-600 transition-colors uppercase tracking-widest">Documents</button>
                     )}
                 </nav>
 
@@ -244,58 +250,64 @@ export default function Navbar({ }: NavbarProps) {
                         )}
                     </div>
 
-                    {/* 4. Smart Action Button */}
-                    <div className="relative hidden sm:block">
-                        <button
-                            onClick={() => toggleDropdown('actions')}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all font-bold text-sm shadow-lg shadow-gray-200"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Action
-                            <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-                        </button>
+                    {/* 4. Smart Action Button - Affiché si l'utilisateur a au moin un droit de création */}
+                    {(hasPermission(user, 'tests', 'create') ||
+                        hasPermission(user, 'non_conformites', 'create') ||
+                        hasPermission(user, 'rapports', 'create')) && (
+                            <div className="relative hidden sm:block">
+                                <button
+                                    onClick={() => toggleDropdown('actions')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all font-bold text-sm shadow-lg shadow-gray-200"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Action
+                                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                                </button>
 
-                        {activeDropdown === 'actions' && (
-                            <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 animate-in fade-in slide-in-from-top-2">
-                                <div className="grid grid-cols-1 gap-1">
-                                    {(user?.personnel?.role?.nom_role === 'Admin' || user?.personnel?.role?.nom_role === 'Ingénieur') && (
-                                        <button
-                                            onClick={() => {
-                                                setActiveDropdown(null);
-                                                openTestModal();
-                                            }}
-                                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
-                                        >
-                                            <FlaskConical className="h-4 w-4 text-primary-500" />
-                                            Nouveau Test
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            setActiveDropdown(null);
-                                            openNcModal();
-                                        }}
-                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
-                                    >
-                                        <AlertTriangle className="h-4 w-4 text-red-500" />
-                                        Déclarer une NC
-                                    </button>
-                                    {user?.personnel?.role?.nom_role !== 'Technicien' && (
-                                        <button
-                                            onClick={() => {
-                                                setActiveDropdown(null);
-                                                openReportModal();
-                                            }}
-                                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
-                                        >
-                                            <FileBarChart className="h-4 w-4 text-blue-500" />
-                                            Générer Rapport
-                                        </button>
-                                    )}
-                                </div>
+                                {activeDropdown === 'actions' && (
+                                    <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 animate-in fade-in slide-in-from-top-2">
+                                        <div className="grid grid-cols-1 gap-1">
+                                            {(hasPermission(user, 'tests', 'create')) && (
+                                                <button
+                                                    onClick={() => {
+                                                        setActiveDropdown(null);
+                                                        openTestModal();
+                                                    }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
+                                                >
+                                                    <FlaskConical className="h-4 w-4 text-primary-500" />
+                                                    Nouveau Test
+                                                </button>
+                                            )}
+                                            {(hasPermission(user, 'non_conformites', 'create')) && (
+                                                <button
+                                                    onClick={() => {
+                                                        setActiveDropdown(null);
+                                                        openNcModal();
+                                                    }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
+                                                >
+                                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                                    Déclarer une NC
+                                                </button>
+                                            )}
+                                            {(hasPermission(user, 'rapports', 'create')) && (
+                                                <button
+                                                    onClick={() => {
+                                                        setActiveDropdown(null);
+                                                        openReportModal();
+                                                    }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase text-gray-600 hover:bg-primary-50 hover:text-primary-700 transition-all text-left"
+                                                >
+                                                    <FileBarChart className="h-4 w-4 text-blue-500" />
+                                                    Générer Rapport
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-                    </div>
 
                     <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
 

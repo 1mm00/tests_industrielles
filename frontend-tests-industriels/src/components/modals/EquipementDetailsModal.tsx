@@ -3,8 +3,12 @@ import { X, Cpu, MapPin, Calendar, Factory, Activity, Info } from 'lucide-react'
 import { useModalStore } from '@/store/modalStore';
 import { equipementsService } from '@/services/equipementsService';
 import { cn } from '@/utils/helpers';
+import { useAuthStore } from '@/store/authStore';
+import { isLecteur } from '@/utils/permissions';
+import { Eye } from 'lucide-react';
 
 export default function EquipementDetailsModal() {
+    const { user } = useAuthStore();
     const { isEquipementDetailsModalOpen, closeEquipementDetailsModal, selectedEquipementId } = useModalStore();
 
     const { data: equipement, isLoading } = useQuery<any>({
@@ -37,8 +41,8 @@ export default function EquipementDetailsModal() {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px] animate-in fade-in duration-200">
+            <div className="bg-white/95 rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gradient-to-r from-white to-gray-50">
                     <div className="flex items-center gap-4">
@@ -235,12 +239,23 @@ export default function EquipementDetailsModal() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex items-center justify-end">
+                <div className="p-8 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                    {isLecteur(user) ? (
+                        <div className="flex items-center gap-3 px-6 py-3 bg-primary-50 border border-primary-100 rounded-2xl text-primary-600 font-black uppercase tracking-widest text-[10px]">
+                            <Eye className="h-5 w-5" />
+                            Mode Consultation Uniquement
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-gray-400">
+                            <Info className="h-4 w-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Actif Industriel Certifié</span>
+                        </div>
+                    )}
                     <button
                         onClick={closeEquipementDetailsModal}
                         className="px-6 py-3 bg-gray-900 text-white rounded-2xl hover:bg-gray-800 transition-all font-black text-xs uppercase tracking-widest"
                     >
-                        Fermer
+                        Fermer la fiche
                     </button>
                 </div>
             </div>

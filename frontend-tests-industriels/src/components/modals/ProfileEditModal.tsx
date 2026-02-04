@@ -91,8 +91,8 @@ export default function ProfileEditModal() {
     if (!isProfileEditModalOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300">
-            <div className="bg-white rounded-[3.5rem] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] w-full max-w-3xl overflow-hidden border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/10 backdrop-blur-[10px] animate-in fade-in duration-300">
+            <div className="bg-white/95 rounded-3xl shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] w-full max-w-3xl overflow-hidden border border-gray-100 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[90vh]">
 
                 {/* Left Side: Visual & Branding */}
                 <div className="md:w-1/3 bg-gray-900 p-10 flex flex-col justify-between relative overflow-hidden shrink-0">
