@@ -56,4 +56,11 @@ export const ncService = {
         const response = await api.put<ApiResponse<NonConformite>>(`/non-conformites/${id}`, data);
         return response.data.data;
     },
+
+    /**
+     * Supprimer une NC
+     */
+    async deleteNc(id: string): Promise<void> {
+        await api.delete(`/non-conformites/${id}`);
+    },
 };

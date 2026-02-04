@@ -44,7 +44,8 @@ function PortalDropdown({
     value,
     onChange,
     placeholder,
-    required = false
+    required = false,
+    error
 }: {
     label: string,
     icon: any,
@@ -52,7 +53,8 @@ function PortalDropdown({
     value: string,
     onChange: (val: string) => void,
     placeholder: string,
-    required?: boolean
+    required?: boolean,
+    error?: string
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +84,8 @@ function PortalDropdown({
                 onClick={toggle}
                 className={cn(
                     "w-full px-4.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-700 flex items-center justify-between cursor-pointer transition-all hover:bg-white hover:border-blue-200 shadow-sm",
-                    isOpen && "border-blue-500 ring-4 ring-blue-500/5 bg-white shadow-md"
+                    isOpen && "border-blue-500 ring-4 ring-blue-500/5 bg-white shadow-md",
+                    error && "border-rose-300 bg-rose-50/30 ring-4 ring-rose-500/5"
                 )}
             >
                 <span className={cn("truncate max-w-[90%]", !selectedOption && "text-slate-400 font-medium")}>
@@ -90,6 +93,7 @@ function PortalDropdown({
                 </span>
                 <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-300", isOpen && "rotate-180")} />
             </div>
+            {error && <p className="text-[9px] font-bold text-rose-500 ml-1.5 animate-in fade-in slide-in-from-top-1">{error}</p>}
 
             {isOpen && ReactDOM.createPortal(
                 <>
@@ -178,6 +182,7 @@ function TeamAvatarPicker({
                         >
                             {p.nom?.[0]}
                             <button
+                                type="button"
                                 onClick={() => onToggle(id)}
                                 className="absolute inset-0 bg-rose-500/95 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -187,6 +192,7 @@ function TeamAvatarPicker({
                     );
                 })}
                 <button
+                    type="button"
                     ref={buttonRef}
                     onClick={toggle}
                     className="h-8 w-8 rounded-full border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
@@ -278,6 +284,7 @@ export default function TestCreationModal() {
     });
 
     const [isLocalisationLinked, setIsLocalisationLinked] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
     const [systemNow, setSystemNow] = useState(new Date());
     useEffect(() => {
@@ -325,6 +332,9 @@ export default function TestCreationModal() {
             localisation: autoLocalisation || prev.localisation
         }));
 
+        if (validationErrors.equipement_id) setValidationErrors(prev => ({ ...prev, equipement_id: '' }));
+        if (autoLocalisation && validationErrors.localisation) setValidationErrors(prev => ({ ...prev, localisation: '' }));
+
         if (autoLocalisation) {
             setIsLocalisationLinked(true);
             toast.success(`Zone auto-remplie : ${autoLocalisation}`, {
@@ -358,16 +368,18 @@ export default function TestCreationModal() {
             const diff = differenceInMinutes(end, start);
             const isToday = form.date_test === todayStr;
             const isPast = isToday && start < startOfMinute(systemNow);
+            const isValid = diff >= 15 && !isPast && !!form.equipement_id && !!form.type_test_id && !!form.localisation;
             return {
                 diff,
                 isPast,
-                isValid: diff >= 15 && !isPast && !!form.equipement_id && !!form.type_test_id,
+                isValid,
+                isEndBeforeStart: diff <= 0,
                 label: diff > 0 ? (diff >= 60 ? `${Math.floor(diff / 60)}h ${diff % 60}m` : `${diff}min`) : '0min'
             };
         } catch {
-            return { diff: 0, isPast: false, isValid: false, label: 'Err' };
+            return { diff: 0, isPast: false, isValid: false, isEndBeforeStart: false, label: 'Err' };
         }
-    }, [form.heure_debut, form.heure_fin, form.date_test, todayStr, systemNow, form.equipement_id, form.type_test_id]);
+    }, [form.heure_debut, form.heure_fin, form.date_test, todayStr, systemNow, form.equipement_id, form.type_test_id, form.localisation]);
 
     const mutation = useMutation({
         mutationFn: (data: CreateTestData) =>
@@ -383,13 +395,31 @@ export default function TestCreationModal() {
 
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!timeAnalysis.isValid) {
-            toast.error("Veuillez vérifier les champs obligatoires et l'heure (future requis).");
+
+        const errors: Record<string, string> = {};
+
+        if (!form.equipement_id) errors.equipement_id = "L'équipement est obligatoire";
+        if (!form.type_test_id) errors.type_test_id = "Le type de contrôle est obligatoire";
+        if (!form.localisation) errors.localisation = "La zone est obligatoire";
+        if (timeAnalysis.isPast) errors.heure_debut = "L'heure ne peut pas être dans le passé";
+        if (timeAnalysis.isEndBeforeStart) errors.heure_fin = "L'heure de fin doit être après le début";
+
+        const responsableId = creationData?.current_user?.id_personnel || creationData?.current_user?.id || user?.id_personnel || user?.id;
+        if (!responsableId) errors.responsable = "Le responsable est requis";
+
+        if (Object.keys(errors).length > 0) {
+            setValidationErrors(errors);
+            toast.error("Veuillez remplir tous les champs obligatoires avant de valider", {
+                style: { borderRadius: '12px', fontWeight: 'bold', fontSize: '11px' }
+            });
             return;
         }
+
+        setValidationErrors({});
+
         const sanitized = {
             ...form,
-            responsable_test_id: creationData?.current_user?.id_personnel || creationData?.current_user?.id || user?.id_personnel || user?.id,
+            responsable_test_id: responsableId,
             heure_debut_planifiee: form.heure_debut,
             heure_fin_planifiee: form.heure_fin,
         };
@@ -425,7 +455,7 @@ export default function TestCreationModal() {
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[3px] mt-1.5">Industrial Excellence Framework</p>
                         </div>
                     </div>
-                    <button onClick={closeTestModal} className="h-10 w-10 flex items-center justify-center bg-white border border-slate-100 hover:bg-rose-50 hover:border-rose-100 rounded-xl transition-all shadow-sm group">
+                    <button type="button" onClick={closeTestModal} className="h-10 w-10 flex items-center justify-center bg-white border border-slate-100 hover:bg-rose-50 hover:border-rose-100 rounded-xl transition-all shadow-sm group">
                         <X className="h-4.5 w-4.5 text-slate-400 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                     <div className="absolute top-0 right-0 w-1/3 h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#2563eb 2px, transparent 0)', backgroundSize: '18px 18px' }} />
@@ -446,6 +476,7 @@ export default function TestCreationModal() {
                                     value={form.equipement_id}
                                     onChange={handleEquipementChange}
                                     required
+                                    error={validationErrors.equipement_id}
                                 />
                                 <PortalDropdown
                                     label="Type de Contrôle"
@@ -453,8 +484,12 @@ export default function TestCreationModal() {
                                     placeholder="Processus..."
                                     options={creationData?.types_tests?.map((t: any) => ({ value: t.id_type_test, label: t.libelle })) || []}
                                     value={form.type_test_id}
-                                    onChange={(v) => setForm(p => ({ ...p, type_test_id: v }))}
+                                    onChange={(v) => {
+                                        setForm(p => ({ ...p, type_test_id: v }));
+                                        if (validationErrors.type_test_id) setValidationErrors(prev => ({ ...prev, type_test_id: '' }));
+                                    }}
                                     required
+                                    error={validationErrors.type_test_id}
                                 />
                             </div>
 
@@ -482,23 +517,31 @@ export default function TestCreationModal() {
                                             onChange={(e) => setForm(p => ({ ...p, date_test: e.target.value }))}
                                         />
                                     </div>
-                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", timeAnalysis.isPast ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
+                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", (timeAnalysis.isPast || validationErrors.heure_debut) ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
                                         <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Start (T0)</span>
                                         <input
                                             type="time"
                                             className="w-full bg-transparent text-[12px] font-bold text-slate-800 outline-none"
                                             value={form.heure_debut}
-                                            onChange={(e) => setForm(p => ({ ...p, heure_debut: e.target.value }))}
+                                            onChange={(e) => {
+                                                setForm(p => ({ ...p, heure_debut: e.target.value }));
+                                                if (validationErrors.heure_debut) setValidationErrors(prev => ({ ...prev, heure_debut: '' }));
+                                            }}
                                         />
+                                        {validationErrors.heure_debut && <p className="text-[8px] font-bold text-rose-500 mt-1">{validationErrors.heure_debut}</p>}
                                     </div>
-                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", timeAnalysis.diff < 15 ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
+                                    <div className={cn("p-3 rounded-xl border transition-all shadow-sm", (timeAnalysis.isEndBeforeStart || validationErrors.heure_fin) ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
                                         <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">End (TF)</span>
                                         <input
                                             type="time"
                                             className="w-full bg-transparent text-[12px] font-bold text-slate-800 outline-none"
                                             value={form.heure_fin}
-                                            onChange={(e) => setForm(p => ({ ...p, heure_fin: e.target.value }))}
+                                            onChange={(e) => {
+                                                setForm(p => ({ ...p, heure_fin: e.target.value }));
+                                                if (validationErrors.heure_fin) setValidationErrors(prev => ({ ...prev, heure_fin: '' }));
+                                            }}
                                         />
+                                        {validationErrors.heure_fin && <p className="text-[8px] font-bold text-rose-500 mt-1">{validationErrors.heure_fin}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -510,11 +553,19 @@ export default function TestCreationModal() {
                                         {isLocalisationLinked && <span className="text-[8.5px] text-blue-600 font-black flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-full"><LinkIcon className="h-2.5 w-2.5" /> SYNC</span>}
                                     </label>
                                     <input
-                                        className="w-full px-4.5 py-2.5 bg-slate-50 shadow-sm border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-800 outline-none hover:bg-white focus:bg-white focus:border-blue-500 transition-all"
+                                        className={cn(
+                                            "w-full px-4.5 py-2.5 bg-slate-50 shadow-sm border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-800 outline-none hover:bg-white focus:bg-white focus:border-blue-500 transition-all",
+                                            validationErrors.localisation && "border-rose-300 bg-rose-50/20"
+                                        )}
                                         placeholder="Emplacement..."
                                         value={String(form.localisation || '')}
-                                        onChange={(e) => { setForm(p => ({ ...p, localisation: e.target.value })); setIsLocalisationLinked(false); }}
+                                        onChange={(e) => {
+                                            setForm(p => ({ ...p, localisation: e.target.value }));
+                                            setIsLocalisationLinked(false);
+                                            if (validationErrors.localisation) setValidationErrors(prev => ({ ...prev, localisation: '' }));
+                                        }}
                                     />
+                                    {validationErrors.localisation && <p className="text-[9px] font-bold text-rose-500 ml-1.5 mt-0.5">{validationErrors.localisation}</p>}
                                 </div>
                                 <PortalDropdown
                                     label="Instrumentation"
@@ -667,16 +718,25 @@ export default function TestCreationModal() {
                         </AnimatePresence>
                         <button
                             onClick={handleSubmit}
-                            disabled={!timeAnalysis.isValid || mutation.isPending}
+                            disabled={mutation.isPending}
                             className={cn(
                                 "group h-13 px-13 rounded-xl text-[11.5px] font-black uppercase tracking-[3.5px] flex items-center gap-3 transition-all duration-500 relative shadow-2xl overflow-hidden active:scale-[0.98]",
-                                !timeAnalysis.isValid || mutation.isPending
+                                mutation.isPending
                                     ? "bg-slate-100 text-slate-300 pointer-events-none grayscale"
                                     : "bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 ring-4 ring-blue-500/10"
                             )}
                         >
-                            {mutation.isPending ? "Sync..." : isEdit ? "Valider" : "Lancer Planification"}
-                            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                            {mutation.isPending ? (
+                                <>
+                                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Traitements...</span>
+                                </>
+                            ) : (
+                                <>
+                                    {isEdit ? "Valider" : "Lancer Planification"}
+                                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

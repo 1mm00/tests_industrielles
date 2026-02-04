@@ -14,6 +14,7 @@ import {
     Pencil,
     Trash2,
     FileDown,
+    FileText,
     Activity,
     ShieldCheck,
     Stethoscope,
@@ -373,36 +374,70 @@ export default function TestsPage() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-2">
-                                            <div className="flex items-center justify-end gap-1 group/actions">
-                                                {test.statut_test === 'PLANIFIE' && hasPermission(user, 'tests', 'update') && (
-                                                    <button onClick={() => openTestModal(test.id_test)} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier">
-                                                        <Pencil className="h-3.5 w-3.5" />
-                                                    </button>
-                                                )}
-                                                <button onClick={() => handleExportSinglePDF(test)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all" title="PDF">
-                                                    <FileDown className="h-3.5 w-3.5" />
-                                                </button>
-                                                {hasPermission(user, 'tests', 'delete') && (
-                                                    <button onClick={() => handleDeleteClick(test.id_test, test.numero_test)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
+                                            <div className="flex items-center justify-end gap-3 px-2 group/actions">
+                                                {/* Actions pour Tests Planifiés ou En Cours */}
+                                                {(test.statut_test === 'PLANIFIE' || test.statut_test === 'EN_COURS') && (
+                                                    <>
+                                                        {hasPermission(user, 'tests', 'update') && (
+                                                            <button
+                                                                onClick={() => openTestModal(test.id_test)}
+                                                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                                title="Modifier la planification"
+                                                            >
+                                                                <Pencil size={18} />
+                                                            </button>
+                                                        )}
+                                                        {hasPermission(user, 'tests', 'delete') && (
+                                                            <button
+                                                                onClick={() => handleDeleteClick(test.id_test, test.numero_test)}
+                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                                title="Annuler le test"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        )}
+
+                                                        {/* Raccourcis d'exécution (facultatif mais utile pour le workflow) */}
+                                                        <div className="w-px h-5 bg-gray-100 mx-1" />
+                                                        {test.statut_test === 'PLANIFIE' && !isLecteur(user) ? (
+                                                            <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95" title="Lancer le test">
+                                                                <Play className="h-3.5 w-3.5 fill-current" />
+                                                            </button>
+                                                        ) : test.statut_test === 'EN_COURS' && !isLecteur(user) ? (
+                                                            <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95" title="Saisir les mesures">
+                                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        ) : null}
+                                                    </>
                                                 )}
 
-                                                <div className="w-px h-5 bg-gray-100 mx-1" />
-
-                                                {(test.statut_test === 'PLANIFIE' && !isLecteur(user)) ? (
-                                                    <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95">
-                                                        <Play className="h-3.5 w-3.5 fill-current" />
-                                                    </button>
-                                                ) : (test.statut_test === 'EN_COURS' && !isLecteur(user)) ? (
-                                                    <button onClick={() => openExecutionModal(test.id_test)} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95">
-                                                        <CheckCircle2 className="h-3.5 w-3.5" />
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => openTestDetailsModal(test.id_test)} className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-black text-[9px] uppercase tracking-widest group">
-                                                        <Eye className="h-3 w-3 group-hover:text-primary-600" />
-                                                        <span className="hidden xl:inline">Détails</span>
-                                                    </button>
+                                                {/* Actions pour Tests Terminés */}
+                                                {(test.statut_test === 'TERMINE') && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openTestDetailsModal(test.id_test)}
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Consulter les mesures archivées"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleExportSinglePDF(test)}
+                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                            title="Récupérer le rapport PDF"
+                                                        >
+                                                            <FileText size={18} />
+                                                        </button>
+                                                        {hasPermission(user, 'tests', 'delete') && (
+                                                            <button
+                                                                onClick={() => handleDeleteClick(test.id_test, test.numero_test)}
+                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                                title="Gestion de l'historique (Supprimer)"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         </td>

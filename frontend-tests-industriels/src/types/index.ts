@@ -11,6 +11,7 @@ export interface User {
     matricule: string;
     nom: string;
     prenom: string;
+    nom_complet?: string;
     name?: string;
     email: string;
     telephone?: string;
@@ -32,7 +33,9 @@ export interface PersonnelData {
     cin: string;
     nom: string;
     prenom: string;
+    nom_complet?: string;
     email: string;
+    poste?: string;
     role?: RoleData;
 }
 
@@ -77,6 +80,7 @@ export interface TestIndustriel {
     taux_conformite_pct?: number;
     responsable_test_id?: string;
     equipe_test?: string[];
+    equipe_members?: PersonnelData[];
     observations_generales?: string;
     observations?: string; // Liaison Backend Clôture
     incidents_signales?: string;

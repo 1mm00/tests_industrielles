@@ -45,4 +45,20 @@ class Handler extends ExceptionHandler
             //
         });
     }
+
+    /**
+     * Override rendering to return JSON for API unauthenticated requests
+     */
+    protected function unauthenticated($request, \Illuminate\Auth\AuthenticationException $exception)
+    {
+        // Si c'est une requête API, renvoyer du JSON au lieu de rediriger
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated. Please login.'
+            ], 401);
+        }
+
+        return redirect()->guest(route('login'));
+    }
 }

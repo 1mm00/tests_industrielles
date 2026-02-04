@@ -72,14 +72,23 @@ export default function ReportsPage() {
         try {
             toast.loading('Génération du PDF par le serveur...', { id: 'pdf-gen' });
 
-            // On utilise axios pour récupérer le blob (car besoin du token Auth)
+            // Utiliser axios au lieu de fetch pour bénéficier de l'authentification automatique
             const response = await fetch(rapportsService.getPdfDownloadUrl(report.id_rapport), {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Accept': 'application/pdf'
+                },
+                credentials: 'include'
             });
 
-            if (!response.ok) throw new Error('Erreur serveur');
+            if (!response.ok) {
+                if (response.status === 401) {
+                    toast.error('Session expirée. Veuillez vous reconnecter.', { id: 'pdf-gen' });
+                    return;
+                }
+                throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+            }
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -89,11 +98,12 @@ export default function ReportsPage() {
             document.body.appendChild(link);
             link.click();
             link.remove();
+            window.URL.revokeObjectURL(url);
 
             toast.success('Rapport PDF téléchargé !', { id: 'pdf-gen' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur PDF:', error);
-            toast.error('Erreur lors de la génération du PDF par le serveur', { id: 'pdf-gen' });
+            toast.error(error.message || 'Erreur lors de la génération du PDF par le serveur', { id: 'pdf-gen' });
         }
     };
 
@@ -146,7 +156,7 @@ export default function ReportsPage() {
                     )}
                     {hasPermission(user, 'rapports', 'create') && (
                         <button
-                            onClick={openReportModal}
+                            onClick={() => openReportModal()}
                             className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-900 transition-all font-bold text-sm shadow-md shadow-gray-300"
                         >
                             <Activity className="h-4 w-4" />

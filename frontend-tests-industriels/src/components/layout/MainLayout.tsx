@@ -44,6 +44,7 @@ import MethodDesignerModal from '../modals/MethodDesignerModal';
 import ProfileEditModal from '../modals/ProfileEditModal';
 import TestReportGmailModal from '../modals/TestReportGmailModal';
 import TestDetailsModal from '../modals/TestDetailsModal';
+import NcDetailsModal from '../modals/NcDetailsModal';
 
 import { hasModuleAccess, hasPermission } from '@/utils/permissions';
 import { authService } from '@/services/authService';
@@ -446,6 +447,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <ProfileEditModal />
                 <TestReportGmailModal />
                 <TestDetailsModal />
+                <NcDetailsModal />
             </div>
         </div >
     );

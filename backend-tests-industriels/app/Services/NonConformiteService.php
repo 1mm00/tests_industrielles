@@ -138,7 +138,7 @@ class NonConformiteService
     public function getCreationData(): array
     {
         return [
-            'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement')->get(),
+            'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement', 'localisation_site', 'localisation_precise')->get(),
             'criticites' => \App\Models\NiveauCriticite::select('id_niveau_criticite', 'code_niveau', 'libelle')->orderBy('ordre_affichage')->get(),
             'personnels' => \App\Models\Personnel::select('id_personnel', 'nom', 'prenom')->get(),
             'tests' => \App\Models\TestIndustriel::select('id_test', 'numero_test')->orderBy('created_at', 'desc')->limit(50)->get(),

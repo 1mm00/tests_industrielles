@@ -50,6 +50,12 @@ class TestIndustrielService
     public function modifierTest(string $testId, array $data): TestIndustriel
     {
         $test = TestIndustriel::findOrFail($testId);
+        
+        // Sécurité : Un test terminé ne doit plus être modifié
+        if ($test->statut_test === TestStatutEnum::TERMINE) {
+            throw new \Exception("Intégrité des données : Un test déjà 'Terminé' ne peut plus être altéré.");
+        }
+
         $test->update($data);
         
         return $test->fresh();
@@ -60,15 +66,26 @@ class TestIndustrielService
      */
     public function getTestDetails(string $testId): TestIndustriel
     {
-        return TestIndustriel::with([
+        $test = TestIndustriel::with([
             'equipement', 
             'typeTest.checklistsControle', 
-            'responsable', 
+            'responsable.role', // Added role for better display
             'createur',
-            'instrument', // Relation belongsTo instrument_id
+            'instrument',
             'mesures',
             'nonConformites'
         ])->findOrFail($testId);
+
+        // Résolution de la cohorte (equipe_test)
+        if (!empty($test->equipe_test)) {
+            $test->equipe_members = \App\Models\Personnel::with('role')
+                ->whereIn('id_personnel', $test->equipe_test)
+                ->get();
+        } else {
+            $test->equipe_members = collect();
+        }
+        
+        return $test;
     }
 
     /**
@@ -156,6 +173,11 @@ class TestIndustrielService
     public function deleteTest(string $testId): bool
     {
         $test = TestIndustriel::findOrFail($testId);
+
+        // Optionnel : Vous pouvez empêcher la suppression des tests terminés pour archivage obligatoire
+        // if ($test->statut_test === TestStatutEnum::TERMINE) {
+        //     throw new \Exception("Suppression impossible : Le test est archivé car son statut est 'Terminé'.");
+        // }
         
         // Nettoyage des données liées (HasMany)
         // Ces tables existent et sont liées par test_id

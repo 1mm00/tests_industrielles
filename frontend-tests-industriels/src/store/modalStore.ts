@@ -4,6 +4,7 @@ interface ModalState {
     isTestModalOpen: boolean;
     isNcModalOpen: boolean;
     isNcEditModalOpen: boolean;
+    isNcDetailsModalOpen: boolean;
     isReportModalOpen: boolean;
     isUserModalOpen: boolean;
     isExecutionModalOpen: boolean;
@@ -30,6 +31,8 @@ interface ModalState {
     closeNcModal: () => void;
     openNcEditModal: (ncId: string) => void;
     closeNcEditModal: () => void;
+    openNcDetailsModal: (ncId: string) => void;
+    closeNcDetailsModal: () => void;
     openReportModal: (reportId?: string) => void;
     closeReportModal: () => void;
     openUserModal: (user?: any) => void;
@@ -62,6 +65,7 @@ export const useModalStore = create<ModalState>((set) => ({
     isTestModalOpen: false,
     isNcModalOpen: false,
     isNcEditModalOpen: false,
+    isNcDetailsModalOpen: false,
     isReportModalOpen: false,
     isUserModalOpen: false,
     isExecutionModalOpen: false,
@@ -88,6 +92,8 @@ export const useModalStore = create<ModalState>((set) => ({
     closeNcModal: () => set({ isNcModalOpen: false }),
     openNcEditModal: (ncId) => set({ isNcEditModalOpen: true, selectedNcId: ncId }),
     closeNcEditModal: () => set({ isNcEditModalOpen: false, selectedNcId: null }),
+    openNcDetailsModal: (ncId) => set({ isNcDetailsModalOpen: true, selectedNcId: ncId }),
+    closeNcDetailsModal: () => set({ isNcDetailsModalOpen: false, selectedNcId: null }),
     openReportModal: (reportId) => set({ isReportModalOpen: true, selectedReportId: reportId || null }),
     closeReportModal: () => set({ isReportModalOpen: false, selectedReportId: null }),
     openUserModal: (user = null) => set({ isUserModalOpen: true, selectedUser: user }),

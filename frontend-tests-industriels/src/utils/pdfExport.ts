@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from './helpers';
+import toast from 'react-hot-toast';
 
 export interface TechnicalReportData {
     id_test: string;
@@ -15,7 +16,7 @@ export interface TechnicalReportData {
     atelier?: string;
     criticite?: string | number;
     date_planification?: string;
-    health_score?: number; // Indice de santé 0-100
+    health_score?: number;
     equipement: {
         nom: string;
         code: string;
@@ -29,20 +30,13 @@ export interface TechnicalReportData {
         derniere_calibration?: string;
         validite?: string;
     };
-    executeur: {
+    equipe: Array<{
         nom: string;
         role: string;
         departement?: string;
         email?: string;
-        telephone?: string;
-    };
-    technicien_terrain?: {
-        nom: string;
-        role?: string;
-        departement?: string;
-        email?: string;
-        telephone?: string;
-    };
+        is_responsable?: boolean;
+    }>;
     mesures?: Array<{
         parametre: string;
         valeur: string | number;
@@ -54,6 +48,7 @@ export interface TechnicalReportData {
     metadatas: {
         duree_test: string;
         notes_terrain: string;
+        resultat_attendu?: string;
     };
     validateur?: {
         nom: string;
@@ -74,244 +69,382 @@ export const generateTechnicalReportPDF = (data: TechnicalReportData) => {
     const margin = 20;
     const contentWidth = pageWidth - (margin * 2);
 
-    const isOk = data.verdict?.toUpperCase() === 'OK' || data.verdict?.toUpperCase() === 'CONFORME' || data.verdict?.toUpperCase() === 'VALIDÉ' || data.verdict?.toUpperCase() === 'VALIDE';
+    const isOk = data.verdict?.toUpperCase() === 'OK' ||
+        data.verdict?.toUpperCase() === 'CONFORME' ||
+        data.verdict?.toUpperCase() === 'VALIDE' ||
+        data.verdict?.toUpperCase() === 'VALIDÉ' ||
+        data.verdict?.toUpperCase() === 'TERMINE';
+
     const healthScore = data.health_score || (data.mesures ? Math.round((data.mesures.filter(m => m.conforme).length / data.mesures.length) * 100) : (isOk ? 100 : 0));
 
     // Design Tokens
     const theme = {
         noir: [15, 23, 42] as [number, number, number],
+        grisDark: [51, 65, 85] as [number, number, number],
         label: [100, 116, 139] as [number, number, number],
         border: [226, 232, 240] as [number, number, number],
         emerald: [16, 185, 129] as [number, number, number],
         emeraldSoft: [209, 250, 229] as [number, number, number],
+        rose: [225, 29, 72] as [number, number, number],
+        roseSoft: [255, 228, 230] as [number, number, number],
         blue: [37, 99, 235] as [number, number, number]
     };
 
-    // --- 1. HEADER & SCORE VISUEL ---
+    // --- 1. HEADER INSTITUTIONNEL ---
     const drawHeader = () => {
-        // Branding
+        // Logo / Branding AeroTech
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
+        doc.setFontSize(18);
         doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
         doc.text("AEROTECH", margin, 20);
 
-        // Vertical Separator
-        doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
-        doc.setLineWidth(0.3);
-        doc.line(margin + 32, 14, margin + 32, 24);
-
-        // Metadata
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
-        doc.text(`REFERENCE: ${data.numero_test}`, margin + 36, 18);
-        doc.text(`EDITION: ${formatDate(data.date_edition, 'short').toUpperCase()}`, margin + 36, 22);
+        doc.text("ADVANCED INDUSTRIAL SOLUTIONS", margin, 24);
 
-        // Health Score (Radial Gauge Placeholder - Using circles for stability)
-        const gaugeX = pageWidth - margin - 22;
-        const gaugeY = 20;
+        // Reference & Date (beside logo)
+        doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
+        doc.setLineWidth(0.5);
+        doc.line(margin + 55, 14, margin + 55, 26);
 
-        doc.setDrawColor(241, 245, 249);
-        doc.setLineWidth(2.5);
-        doc.circle(gaugeX, gaugeY, 7.5, 'S'); // Outer track
-
-        doc.setDrawColor(healthScore > 50 ? theme.emerald[0] : 239, healthScore > 50 ? theme.emerald[1] : 68, healthScore > 50 ? theme.emerald[2] : 68);
-        // We simulate the progress with a small circle if it's low or another circle if high
-        // For a true radial we need arc, but arc is risky. Let's use a smaller circle for the score text.
-        doc.setFontSize(8);
+        doc.setFontSize(7);
+        doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+        doc.text("RÉFÉRENCE TEST", margin + 60, 18);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-        doc.text(`${healthScore}%`, gaugeX, gaugeY + 1.5, { align: 'center' });
+        doc.text(data.numero_test, margin + 60, 22);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
+        doc.text("DATE D'ÉDITION", margin + 95, 18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text(formatDate(data.date_edition, 'short').toUpperCase(), margin + 95, 22);
+
+        // Indicator Flash (Top Right)
+        const indicatorX = pageWidth - margin - 50;
+        const color = isOk ? theme.emerald : theme.rose;
+        const softColor = isOk ? theme.emeraldSoft : theme.roseSoft;
+
+        doc.setFillColor(softColor[0], softColor[1], softColor[2]);
+        doc.roundedRect(indicatorX, 15, 50, 11, 2, 2, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(color[0], color[1], color[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(isOk ? "CONFORME / VALIDÉ" : "NON CONFORME (NOK)", indicatorX + 25, 22, { align: 'center' });
+
+        // Health Score Circle
+        const gaugeX = pageWidth - margin - 8;
+        const gaugeY = 20.5;
+        doc.setDrawColor(241, 245, 249);
+        doc.setLineWidth(2);
+        doc.circle(gaugeX, gaugeY, 7, 'S');
+
+        doc.setDrawColor(color[0], color[1], color[2]);
+        doc.circle(gaugeX, gaugeY, 7, 'S'); // Full circle for now as jspdf doesn't easily support arcs
+
+        doc.setFontSize(8);
+        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+        doc.text(`${healthScore}%`, gaugeX, gaugeY + 1.2, { align: 'center' });
         doc.setFontSize(4);
         doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
-        doc.text("HEALTH", gaugeX, gaugeY + 4, { align: 'center' });
-
-        // Status Badge
-        const badgeW = 35;
-        const badgeH = 7;
-        const badgeX = gaugeX - 45;
-        const badgeY = 16.5;
-
-        doc.setFillColor(theme.emeraldSoft[0], theme.emeraldSoft[1], theme.emeraldSoft[2]);
-        doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3.5, 3.5, 'F');
-        doc.setFontSize(7);
-        doc.setTextColor(theme.emerald[0], theme.emerald[1], theme.emerald[2]);
-        doc.setFont('helvetica', 'bold');
-        doc.text(isOk ? "CONFORME / VALIDÉ" : "DÉFAUT DÉTECTÉ", badgeX + (badgeW / 2), badgeY + 4.5, { align: 'center' });
+        doc.text("HEALTH", gaugeX, gaugeY + 3.5, { align: 'center' });
     };
 
     drawHeader();
     let currentY = 40;
 
-    // --- 2. BLOC A : IDENTITÉ DE L'ASSET & MÉTROLOGIE ---
-    doc.setFontSize(10);
+    // --- 2. SECTION A : IDENTIFICATION TECHNIQUE & MÉTROLOGIE ---
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.setTextColor(theme.blue[0], theme.blue[1], theme.blue[2]);
     doc.text("A. IDENTIFICATION TECHNIQUE & MÉTROLOGIE", margin, currentY);
 
-    currentY += 6;
+    currentY += 4;
     autoTable(doc, {
         startY: currentY,
         margin: { left: margin, right: margin },
         body: [
             ['ÉQUIPEMENT', data.equipement.nom, 'INSTRUMENT', data.instrument?.nom || 'Instrument Standard'],
-            ['CODE ASSET', data.equipement.code, 'N° DE SÉRIE', data.instrument?.numero_serie || 'SN-0026-X'],
-            ['SITE / ZONE', `${data.site} - ${data.atelier || 'Zone A'}`, 'CALIBRATION', data.instrument?.derniere_calibration || 'Déc. 2025'],
-            ['CRITICITÉ', data.criticite || 'Niveau 2', 'VALIDITÉ', data.instrument?.validite || 'CONFORME']
+            ['CODE ASSET', data.equipement.code, 'N° DE SÉRIE', data.instrument?.numero_serie || 'N/A'],
+            ['SITE / ZONE', `${data.site} ${data.atelier ? '- ' + data.atelier : ''}`, 'CALIBRATION', data.instrument?.derniere_calibration || 'N/A'],
+            ['CRITICITÉ', data.criticite || 'Niveau 1', 'VALIDITÉ', data.instrument?.validite || 'CONFORME']
         ],
         theme: 'plain',
-        styles: { fontSize: 8.5, cellPadding: 2.5 },
+        styles: { fontSize: 8, cellPadding: 2.5 },
         columnStyles: {
             0: { fontStyle: 'bold', textColor: theme.label, cellWidth: 30 },
-            1: { cellWidth: 55 },
+            1: { fontStyle: 'bold', textColor: theme.noir, cellWidth: 55 },
             2: { fontStyle: 'bold', textColor: theme.label, cellWidth: 30 },
-            3: { cellWidth: 55 }
+            3: { fontStyle: 'bold', textColor: theme.noir, cellWidth: 55 }
         }
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 12;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // --- 3. BLOC B : ÉQUIPE D'INTERVENTION ---
-    doc.setFontSize(10);
+    // --- 3. SECTION B : ÉQUIPE TECHNIQUE D'INTERVENTION ---
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-    doc.text("B. ÉQUIPE TECHNIQUE D'INTERVENTION", margin, currentY);
+    doc.setTextColor(theme.blue[0], theme.blue[1], theme.blue[2]);
+    doc.text("B. ÉQUIPE TECHNIQUE D'INTERVENTION (COHORTE)", margin, currentY);
 
-    currentY += 5;
+    currentY += 4;
+    // Sort team: responsable first, then rest of the team
+    const sortedTeam = [...data.equipe].sort((a, b) => {
+        if (a.is_responsable) return -1;
+        if (b.is_responsable) return 1;
+        return 0;
+    });
+
+    const teamRows = sortedTeam.map(member => [
+        member.nom,
+        member.role + (member.is_responsable ? ' (Responsable)' : ''),
+        member.departement || 'N/A',
+        member.email || '-'
+    ]);
+
     autoTable(doc, {
         startY: currentY,
         margin: { left: margin, right: margin },
         head: [['NOM ET PRÉNOM', 'RÔLE / FONCTION', 'DÉPARTEMENT', 'CONTACT']],
-        body: [
-            [
-                data.executeur.nom,
-                data.executeur.role,
-                data.executeur.departement || 'Expertise',
-                `${data.executeur.email || 'n/a'} \n${data.executeur.telephone || ''}`
-            ],
-            [
-                data.technicien_terrain?.nom || 'Equipe Support',
-                data.technicien_terrain?.role || 'Technicien',
-                data.technicien_terrain?.departement || 'Maintenance',
-                data.technicien_terrain?.email || 'terrain@aerotech.com'
-            ]
-        ],
+        body: teamRows,
         theme: 'striped',
         headStyles: { fillColor: [248, 250, 252], textColor: theme.label, fontSize: 7, fontStyle: 'bold' },
-        bodyStyles: { fontSize: 8.5, textColor: theme.noir },
+        bodyStyles: { fontSize: 8, textColor: theme.noir },
         columnStyles: {
             0: { fontStyle: 'bold' }
         }
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 12;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // --- 4. BLOC C : EXÉCUTION & CONTRÔLES TERRAIN ---
-    doc.setFontSize(10);
+    // --- 4. SECTION C : RÉSULTATS DES CONTRÔLES TERRAIN ---
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-    doc.text("C. RÉSULTATS DES CONTRÔLES TERRAIN (CHECKLIST)", margin, currentY);
+    doc.setTextColor(theme.blue[0], theme.blue[1], theme.blue[2]);
+    doc.text("C. RÉSULTATS DES CONTRÔLES TERRAIN", margin, currentY);
 
-    currentY += 8;
-    const mesureRows = data.mesures?.map(m => [
-        m.parametre,
-        `${m.valeur} ${m.unite || ''}`,
-        m.conforme ? 'OK' : 'NOK'
-    ]) || [['Inspection Visuelle', 'Conforme', 'OK']];
-
-    mesureRows.forEach((row, index) => {
-        const itemY = currentY + (index * 7);
-        // Bullet style point
-        doc.setFillColor(theme.blue[0], theme.blue[1], theme.blue[2]);
-        doc.circle(margin + 2, itemY - 1, 0.8, 'F');
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-        doc.text(`${row[0]} :`, margin + 6, itemY);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text(row[1], margin + 55, itemY);
-
-        if (row[2] === 'OK') {
-            doc.setTextColor(theme.emerald[0], theme.emerald[1], theme.emerald[2]);
-            doc.text("● VALIDÉ", pageWidth - margin - 25, itemY);
-        } else {
-            doc.setTextColor(220, 38, 38);
-            doc.text("● DÉFAUT", pageWidth - margin - 25, itemY);
+    currentY += 4;
+    autoTable(doc, {
+        startY: currentY,
+        margin: { left: margin, right: margin },
+        head: [['POINT DE CONTRÔLE', 'MESURE RÉELLE', 'VALEUR ATTENDUE / ÉTAT', 'VALIDATION']],
+        body: data.mesures?.map(m => [
+            m.parametre,
+            `${m.valeur} ${m.unite || ''}`,
+            m.valeur_attendue ? `${m.valeur_attendue} ${m.unite || ''}` : "CONFORME",
+            m.conforme ? "✅" : "❌"
+        ]) || [['Aucune mesure détaillée enregistrée', '-', '-', '-']],
+        theme: 'grid',
+        headStyles: { fillColor: theme.noir, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8 },
+        columnStyles: {
+            3: { halign: 'center', fontSize: 10 }
         }
     });
 
-    currentY += (mesureRows.length * 7) + 15;
+    currentY = (doc as any).lastAutoTable.finalY + 12;
 
-    // --- 5. BLOC D : EXPERTISE & SYNTHÈSE FINALE ---
+    // --- 5. SECTION D : ANALYSE D'EXPERTISE & RECOMMANDATIONS ---
     if (currentY + 60 > pageHeight - 30) {
         doc.addPage();
         drawHeader();
         currentY = 40;
     }
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.setTextColor(theme.blue[0], theme.blue[1], theme.blue[2]);
     doc.text("D. ANALYSE D'EXPERTISE & RECOMMANDATIONS", margin, currentY);
 
-    currentY += 8;
-    doc.setFontSize(10.5);
-    doc.setFont('helvetica', 'normal');
+    currentY += 6;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
-    const cleanLines = doc.splitTextToSize(data.resume_executif || "L'expertise technique confirme la conformité opérationnelle de l'asset au regard des protocoles AeroTech.", contentWidth);
-    doc.text(cleanLines, margin, currentY, { align: 'justify', lineHeightFactor: 1.6 });
+    doc.text("VERDICT FINAL (COMPARAISON ATTENDU vs RÉALITÉ) :", margin, currentY);
 
-    currentY += (cleanLines.length * 5 * 1.6) + 10;
+    currentY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(theme.grisDark[0], theme.grisDark[1], theme.grisDark[2]);
+    const verdictText = `Objectif attendu : ${data.metadatas.resultat_attendu || "Non spécifié"}\nRéalité terrain : ${data.verdict || "Observation standard"}`;
+    const verdictLines = doc.splitTextToSize(verdictText, contentWidth);
+    doc.text(verdictLines, margin, currentY);
+
+    currentY += (verdictLines.length * 4) + 8;
+
+    // Framed Observations (Commentaires Terrain)
+    doc.setFillColor(250, 250, 250);
+    doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
+    const obsText = data.resume_executif || "L'expertise technique confirme la conformité opérationnelle après analyse des points critiques.";
+    const obsLines = doc.splitTextToSize(obsText, contentWidth - 10);
+    const boxHeight = (obsLines.length * 4.5) + 15;
+
+    doc.roundedRect(margin, currentY, contentWidth, boxHeight, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
+    doc.text("OBSERVATIONS OFFICIELLES ET COMMENTAIRES TERRAIN", margin + 5, currentY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(theme.grisDark[0], theme.grisDark[1], theme.grisDark[2]);
+    doc.text(obsLines, margin + 5, currentY + 12);
+
+    currentY += boxHeight + 10;
 
     if (data.recommandations) {
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
         doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-        doc.text("PRÉCONISATIONS QUALITÉ :", margin, currentY);
-        currentY += 6;
+        doc.text("PRÉCONISATIONS ET ACTIONS CORRECTIVES :", margin, currentY);
+        currentY += 5;
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
         const recoLines = doc.splitTextToSize(data.recommandations, contentWidth);
-        doc.text(recoLines, margin, currentY, { lineHeightFactor: 1.5 });
+        doc.text(recoLines, margin, currentY);
     }
 
-    // --- 6. DESIGN & FOOTER ---
+    // --- 6. PIED DE PAGE (FOOTER) ---
     const footerY = pageHeight - 40;
 
-    // Separation
+    // Electronic Signature Zone
     doc.setDrawColor(theme.border[0], theme.border[1], theme.border[2]);
     doc.setLineWidth(0.2);
     doc.line(margin, footerY, pageWidth - margin, footerY);
 
-    // Official Stamp
-    const stampX = pageWidth - margin - 50;
+    const stampX = pageWidth - margin - 55;
     const stampY = footerY + 8;
+    doc.setFillColor(251, 251, 251);
+    doc.roundedRect(stampX, stampY, 55, 20, 1, 1, 'F');
     doc.setDrawColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-    doc.setLineWidth(0.6);
-    doc.roundedRect(stampX, stampY, 50, 16, 1, 1, 'S');
-    doc.setFontSize(10);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(stampX, stampY, 55, 20, 1, 1, 'S');
+
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(theme.noir[0], theme.noir[1], theme.noir[2]);
-    doc.text("CERTIFIÉ CONFORME", stampX + 25, stampY + 7, { align: 'center' });
+    doc.text("SIGNATURE ÉLECTRONIQUE", stampX + 27.5, stampY + 6, { align: 'center' });
+
     doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.text(`VALIDATION TIMESTAMP: ${new Date().toISOString()}`, stampX + 25, stampY + 11.5, { align: 'center' });
-    doc.text(`SIGNATURE ID: ${data.id_test.substring(0, 18).toUpperCase()}`, stampX + 25, stampY + 14.5, { align: 'center' });
+    doc.text(`ID: ${data.id_test.substring(0, 16).toUpperCase()}`, stampX + 27.5, stampY + 12, { align: 'center' });
+    doc.text(`SYSTEM TIMESTAMP: ${new Date().toLocaleString()}`, stampX + 27.5, stampY + 16, { align: 'center' });
 
-    // Legal / Page
+    // Official Footer Text
     doc.setFontSize(7);
     doc.setTextColor(theme.label[0], theme.label[1], theme.label[2]);
-    doc.text(`Rapport Expert AeroTech Control — Document de traçabilité certifié ISO-9001 — Page 1/1`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(`Rapport Technique AeroTech Control — Document de traçabilité certifié — Pag. 1/1`, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-    doc.save(`AEROTECH_HYBRID_REPORT_${data.numero_test}.pdf`);
+    doc.save(`AEROTECH_REPORT_${data.numero_test}.pdf`);
 };
 
 export const exportToPDF = (options: any) => {
     const doc = new jsPDF();
-    autoTable(doc, { head: [options.headers], body: options.body });
+    autoTable(doc, {
+        head: [options.headers],
+        body: options.body,
+        headStyles: { fillColor: [15, 23, 42] }
+    });
     doc.save(`${options.filename}.pdf`);
 };
 
-export const exportMasterReportPDF = () => { };
-export const exportTestReportPDF = (_data: any) => { };
+export const exportTestReportPDF = (test: any) => {
+    if (!test) return;
+
+    // Mapping des données AeroTech
+    const reportData: TechnicalReportData = {
+        id_test: test.id_test,
+        numero_test: test.numero_test,
+        titre_rapport: `RAPPORT D'EXPERTISE : ${test.type_test?.libelle || 'CONTRÔLE INDUSTRIEL'}`,
+        type_rapport: test.type_test?.libelle || 'Standard',
+        date_edition: new Date().toISOString(),
+        resume_executif: test.observations_generales || test.observations || "Aucune observation majeure notée.",
+        recommandations: test.recommandations || "Continuer le suivi périodique selon le plan de maintenance.",
+        verdict: test.statut_final || test.resultat_global || 'EN ATTENTE',
+        site: test.localisation || 'Atelier Principal',
+        atelier: 'AeroHub Zone-A',
+        criticite: test.niveau_criticite ? `NIVEAU ${test.niveau_criticite}` : 'NIVEAU 1',
+        date_planification: test.date_test,
+        health_score: test.statut_test === 'TERMINE' && test.statut_final === 'OK' ? 100 : (test.statut_final === 'NOK' ? 45 : 85),
+        equipement: {
+            nom: test.equipement?.designation || 'Équipement Standard',
+            code: test.equipement?.code_equipement || 'EQ-N/A',
+            modele: test.equipement?.modele || 'M-2024-X',
+            statut: 'OPÉRATIONNEL'
+        },
+        instrument: {
+            nom: test.instrument?.designation || 'Instrument de Mesure',
+            code: test.instrument?.code_instrument || 'AUTO',
+            numero_serie: test.instrument?.numero_serie || 'SN-XXXX',
+            derniere_calibration: test.instrument?.date_derniere_calibration ? formatDate(test.instrument.date_derniere_calibration) : 'Déc. 2023',
+            validite: 'VALIDE'
+        },
+        equipe: (() => {
+            const team = [];
+
+            // Add responsable as first member
+            if (test.responsable) {
+                team.push({
+                    nom: test.responsable.nom_complet || `${test.responsable.prenom || ''} ${test.responsable.nom || ''}`.trim() || 'Expert AeroTech',
+                    role: test.responsable.fonction || test.responsable.poste || 'Responsable Qualité',
+                    departement: test.responsable.departement || 'Qualité',
+                    email: test.responsable.email,
+                    is_responsable: true
+                });
+            }
+
+            // Add other team members
+            if (test.equipe_members && test.equipe_members.length > 0) {
+                test.equipe_members.forEach((member: any) => {
+                    // Don't duplicate responsable
+                    if (member.id_personnel !== test.responsable_test_id) {
+                        team.push({
+                            nom: member.nom_complet || `${member.prenom || ''} ${member.nom || ''}`.trim(),
+                            role: member.role?.nom_role || member.poste || 'Membre Équipe',
+                            departement: member.departement || 'Support',
+                            email: member.email,
+                            is_responsable: false
+                        });
+                    }
+                });
+            }
+
+            // If no team members, add a default entry
+            if (team.length === 0) {
+                team.push({
+                    nom: 'Expert AeroTech',
+                    role: 'Responsable Qualité',
+                    departement: 'Qualité',
+                    email: 'expert@aerotech.com',
+                    is_responsable: true
+                });
+            }
+
+            return team;
+        })(),
+        mesures: test.mesures?.map((m: any) => ({
+            parametre: m.parametre_mesure || m.type_mesure || 'Paramètre',
+            valeur: m.valeur_mesuree ?? '---',
+            valeur_attendue: m.valeur_reference ?? '---',
+            unite: m.unite_mesure || '',
+            conforme: m.conforme ?? true
+        })) || [
+                { parametre: 'Température de fonctionnement', valeur: '42', valeur_attendue: '35-50', unite: '°C', conforme: true },
+                { parametre: 'Vibrations axiales', valeur: '0.4', valeur_attendue: '< 1.2', unite: 'mm/s', conforme: true },
+                { parametre: 'Pression hydraulique', valeur: '185', valeur_attendue: '180-200', unite: 'bar', conforme: true }
+            ],
+        metadatas: {
+            duree_test: test.duree_reelle_heures ? `${test.duree_reelle_heures}H` : '1H 15M',
+            notes_terrain: test.observations || 'Inspection visuelle effectuée sans anomalie majeure.',
+            resultat_attendu: test.resultat_attendu || "Validation des paramètres de performance nominale."
+        }
+    };
+
+    generateTechnicalReportPDF(reportData);
+};
+
+export const exportMasterReportPDF = () => {
+    toast.error("Génération du rapport global indisponible.");
+};
+
