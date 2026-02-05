@@ -11,7 +11,9 @@ import {
     ShieldCheck,
     AlertCircle,
     MapPin,
-    Cpu
+    Cpu,
+    ChevronRight,
+    Search as SearchIcon
 } from 'lucide-react';
 import { equipementsService, EquipementFilters } from '@/services/equipementsService';
 import { cn } from '@/utils/helpers';
@@ -48,58 +50,58 @@ export default function EquipementsPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['equipements'] });
             queryClient.invalidateQueries({ queryKey: ['equipement-stats'] });
+            toast.success('Équipement archivé avec succès');
         },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
+        }
     });
 
     const handleDelete = (equipement: any) => {
         toast((t) => (
-            <div className="flex flex-col gap-3 p-1">
+            <div className="flex flex-col gap-4 p-1 min-w-[280px]">
                 <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                    <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
                         <Trash2 className="h-5 w-5" />
                     </div>
                     <div>
-                        <p className="font-black text-gray-900 text-[13px] uppercase tracking-tight">Supprimer l'actif ?</p>
+                        <p className="text-sm font-black text-gray-900 uppercase">Supprimer l'actif ?</p>
                         <p className="text-[10px] text-gray-500 font-bold">{equipement.code_equipement}</p>
                     </div>
                 </div>
 
-                <p className="text-[10px] text-gray-500 leading-relaxed font-medium bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                    Cette action est irréversible et supprimera l'historique des tests associés.
+                <p className="text-xs text-gray-500 leading-relaxed font-medium bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    Cette action supprimera définitivement l'équipement. L'historique des tests et interventions sera conservé pour traçabilité.
                 </p>
 
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end pt-2">
                     <button
                         onClick={() => toast.dismiss(t.id)}
-                        className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900"
+                        className="px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 transition-colors"
                     >
                         Annuler
                     </button>
                     <button
-                        onClick={() => {
+                        onClick={async () => {
                             toast.dismiss(t.id);
-                            toast.promise(
-                                deleteMutation.mutateAsync(equipement.id_equipement),
-                                {
-                                    loading: 'Suppression...',
-                                    success: 'Équipement supprimé',
-                                    error: 'Erreur suppression',
-                                }
-                            );
+                            deleteMutation.mutate(equipement.id_equipement);
                         }}
-                        className="px-4 py-1.5 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 active:scale-95"
+                        className="px-5 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 transition-all active:scale-95"
                     >
                         Confirmer
                     </button>
                 </div>
             </div>
         ), {
-            duration: 8000,
+            duration: 6000,
             position: 'top-center',
             style: {
-                borderRadius: '20px',
-                padding: '16px',
-            }
+                borderRadius: '24px',
+                background: '#fff',
+                padding: '20px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+                border: '1px solid #fee2e2'
+            },
         });
     };
 
@@ -134,91 +136,118 @@ export default function EquipementsPage() {
     };
 
     return (
-        <div className="space-y-4">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-6 animate-in fade-in duration-700 pb-12">
+
+            {/* 1. Header Area */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-lg font-black text-gray-900 uppercase tracking-tight">Parc Équipements</h1>
-                    <p className="text-xs text-gray-500 font-bold italic">Inventaire technique et suivi opérationnel</p>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                        <Cpu className="h-7 w-7 text-blue-600" />
+                        Parc Équipements
+                    </h1>
+                    <p className="text-sm text-slate-500 font-medium italic">Inventaire technique et pilotage de la flotte industrielle</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {hasPermission(user, 'rapports', 'export') && (
                         <button
                             onClick={handleExportPDF}
-                            className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-bold text-[10px] uppercase tracking-widest shadow-sm"
+                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95"
                         >
-                            <Download className="h-3.5 w-3.5 text-primary-600" />
-                            <span className="hidden sm:inline">Exporter PDF</span>
+                            <Download className="h-4 w-4 text-blue-600" />
+                            <span className="hidden sm:inline">Export PDF</span>
                         </button>
                     )}
                     {hasPermission(user, 'equipements', 'create') && (
                         <button
                             onClick={openEquipementCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-black transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 active:scale-95"
+                            className="flex items-center gap-2.5 px-6 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all font-black text-[11px] uppercase tracking-widest shadow-xl shadow-slate-200 active:scale-95 group"
                         >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Ajouter un actif</span>
+                            <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-500" />
+                            Ajouter un Actif
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 border border-gray-100">
-                        <Cpu className="h-5 w-5" />
+            {/* 2. KPI Cards Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                            <Cpu className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Actifs</p>
+                            <h3 className="text-2xl font-black text-slate-900 mt-0.5">{stats?.total || 0}</h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Actifs</p>
-                        <h3 className="text-base font-black text-gray-900">{stats?.total || 0}</h3>
-                    </div>
-                </div>
-                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-emerald-500">
-                    <div className="h-9 w-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
-                        <ShieldCheck className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">En Service</p>
-                        <h3 className="text-base font-black text-emerald-600">{stats?.en_service || 0}</h3>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
+                        <div className="h-full bg-slate-400 rounded-r-full" style={{ width: '100%' }}></div>
                     </div>
                 </div>
-                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-amber-500">
-                    <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
-                        <Settings className="h-5 w-5" />
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                            <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En Service</p>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">{stats?.en_service || 0}</h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Maintenance</p>
-                        <h3 className="text-base font-black text-amber-600">{stats?.en_maintenance || 0}</h3>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
+                        <div className="h-full bg-emerald-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_service / stats.total) * 100 : 0}%` }}></div>
                     </div>
                 </div>
-                <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3 border-l-4 border-l-rose-500">
-                    <div className="h-9 w-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
-                        <AlertCircle className="h-5 w-5" />
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+                            <Settings className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Maintenance</p>
+                            <h3 className="text-2xl font-black text-amber-600 mt-0.5">{stats?.en_maintenance || 0}</h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Critiques</p>
-                        <h3 className="text-base font-black text-rose-600">{stats?.critiques || 0}</h3>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
+                        <div className="h-full bg-amber-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_maintenance / stats.total) * 100 : 0}%` }}></div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+                            <AlertCircle className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critiques</p>
+                            <h3 className="text-2xl font-black text-rose-600 mt-0.5">{stats?.critiques || 0}</h3>
+                        </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
+                        <div className="h-full bg-rose-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.critiques / stats.total) * 100 : 0}%` }}></div>
                     </div>
                 </div>
             </div>
 
-            {/* Filters Bar */}
-            <div className="p-3 bg-white shadow-sm border border-gray-100 rounded-2xl flex flex-col md:flex-row gap-3 items-center">
+            {/* 3. Filters Bar */}
+            <div className="p-3 bg-white shadow-sm border border-slate-100 rounded-2xl flex flex-col md:flex-row gap-3 items-center">
                 <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Chercher (code, désigne, modèle...)"
-                        className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 outline-none transition-all font-medium"
+                        placeholder="Chercher par code, désignation, modèle..."
+                        className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[12.5px] font-bold focus:bg-white focus:ring-4 focus:ring-blue-500/5 outline-none transition-all placeholder:text-slate-300 placeholder:italic"
                         value={filters.search}
                         onChange={handleSearch}
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Filter className="h-3.5 w-3.5 text-gray-400" />
+                    <Filter className="h-4 w-4 text-slate-400" />
                     <select
-                        className="flex-1 md:w-44 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 outline-none transition-all font-bold text-gray-600 uppercase tracking-tight"
+                        className="flex-1 md:w-48 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest outline-none focus:bg-white transition-all"
                         value={filters.statut}
                         onChange={handleStatusFilter}
                     >
@@ -230,111 +259,131 @@ export default function EquipementsPage() {
                 </div>
             </div>
 
-            {/* Main Table */}
-            <div className="bg-white shadow-xl shadow-slate-200/50 rounded-3xl border border-gray-100 overflow-hidden">
+            {/* 4. Main Table */}
+            <div className="bg-white shadow-2xl shadow-slate-200/50 rounded-[2.5rem] border border-slate-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Actif / ID</th>
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Catégorie</th>
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px]">Localisation</th>
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-center">Criticité</th>
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-center">Statut</th>
-                                <th className="px-4 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[2px] text-right">Actions</th>
+                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Actif / ID</th>
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Catégorie</th>
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Localisation</th>
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Criticité</th>
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Statut</th>
+                                <th className="px-7 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-slate-50">
                             {isLoading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-4 py-5"><div className="h-6 bg-gray-50 rounded-lg w-full" /></td>
+                                        <td colSpan={6} className="px-7 py-6"><div className="h-8 bg-slate-50 rounded-xl w-full" /></td>
                                     </tr>
                                 ))
                             ) : data?.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-2 opacity-40">
-                                            <Cpu className="h-10 w-10 text-gray-400" />
-                                            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Aucun actif répertorié</p>
+                                    <td colSpan={6} className="px-7 py-20 text-center">
+                                        <div className="flex flex-col items-center gap-4 opacity-30">
+                                            <Cpu className="h-16 w-16 text-slate-300" />
+                                            <p className="text-slate-500 font-black uppercase tracking-[3px] text-xs">Aucun actif identifié</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
                                 data?.data.map((eq: any) => (
-                                    <tr key={eq.id_equipement} className="hover:bg-blue-50/20 transition-all group border-b border-gray-50 last:border-0 border-l-4 border-l-transparent hover:border-l-primary-500">
-                                        <td className="px-4 py-2">
+                                    <tr key={eq.id_equipement} className="hover:bg-slate-50/50 transition-all group border-l-4 border-l-transparent hover:border-l-blue-500">
+                                        <td className="px-7 py-5">
                                             <div className="flex flex-col">
-                                                <span className="text-[11px] font-black text-primary-600 bg-primary-50 px-2 py-0.5 rounded border border-primary-100 w-fit">
-                                                    {eq.code_equipement}
-                                                </span>
-                                                <span className="text-xs font-black text-gray-800 mt-1">{eq.designation}</span>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{eq.code_equipement}</span>
+                                                <span className="text-[13px] font-black text-slate-800 capitalize mt-0.5">{eq.designation}</span>
+                                                <p className="text-[10px] text-slate-400 font-medium line-clamp-1 italic mt-1">{eq.sous_categorie || 'Sans sous-catégorie'}</p>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-2">
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-black text-gray-700">{eq.categorie_equipement}</span>
-                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{eq.sous_categorie || '-'}</span>
-                                            </div>
+                                        <td className="px-7 py-5">
+                                            <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[9px] font-black uppercase tracking-tight">
+                                                {eq.categorie_equipement}
+                                            </span>
                                         </td>
-                                        <td className="px-4 py-2">
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <MapPin className="h-3 w-3 text-gray-400" />
+                                        <td className="px-7 py-5">
+                                            <div className="flex items-center gap-3 text-slate-600">
+                                                <MapPin className="h-4 w-4 text-slate-300" />
                                                 <div className="flex flex-col">
-                                                    <span className="text-[11px] font-bold">{eq.localisation_site}</span>
-                                                    <span className="text-[9px] text-gray-400 font-medium italic">{eq.localisation_precise}</span>
+                                                    <span className="text-[11px] font-bold text-slate-700">{eq.localisation_site}</span>
+                                                    <span className="text-[9px] text-slate-400 font-medium italic">{eq.localisation_precise}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-2 text-center">
-                                            <span className={cn(
-                                                "inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-sm",
-                                                eq.niveau_criticite >= 4 ? "bg-rose-50 text-rose-600 border-rose-100" :
-                                                    eq.niveau_criticite === 3 ? "bg-amber-50 text-amber-600 border-amber-100" :
-                                                        "bg-blue-50 text-blue-600 border-blue-100"
-                                            )}>
-                                                Lv.{eq.niveau_criticite}
-                                            </span>
+                                        <td className="px-7 py-5 text-center">
+                                            <div className="flex items-center justify-center -space-x-1.5">
+                                                {[1, 2, 3, 4, 5].map(n => (
+                                                    <div
+                                                        key={n}
+                                                        className={cn(
+                                                            "w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-black transition-all",
+                                                            n <= (eq.niveau_criticite || 1)
+                                                                ? cn(
+                                                                    "text-white shadow-sm z-10",
+                                                                    eq.niveau_criticite >= 4 ? "bg-rose-500" :
+                                                                        eq.niveau_criticite === 3 ? "bg-amber-500" : "bg-blue-500"
+                                                                )
+                                                                : "bg-slate-100 text-slate-300 z-0"
+                                                        )}
+                                                    >
+                                                        {n}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-2 text-center">
-                                            <span className={cn(
-                                                "inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-sm",
-                                                eq.statut_operationnel === 'EN_SERVICE' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                                                    eq.statut_operationnel === 'MAINTENANCE' ? "bg-amber-50 text-amber-700 border-amber-100" :
-                                                        "bg-rose-50 text-rose-600 border-rose-100"
-                                            )}>
-                                                {eq.statut_operationnel.replace('_', ' ')}
-                                            </span>
+                                        <td className="px-7 py-5 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className={cn(
+                                                    "h-2 w-2 rounded-full",
+                                                    eq.statut_operationnel === 'EN_SERVICE' ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" :
+                                                        eq.statut_operationnel === 'MAINTENANCE' ? "bg-amber-500 shadow-[0_0_8px_#f59e0b]" :
+                                                            "bg-rose-500 shadow-[0_0_8px_#f43f5e]"
+                                                )} />
+                                                <span className={cn(
+                                                    "text-[10px] font-black uppercase tracking-widest",
+                                                    eq.statut_operationnel === 'EN_SERVICE' ? "text-emerald-600" :
+                                                        eq.statut_operationnel === 'MAINTENANCE' ? "text-amber-600" :
+                                                            "text-rose-600"
+                                                )}>
+                                                    {eq.statut_operationnel.replace('_', ' ')}
+                                                </span>
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <div className="flex items-center justify-end gap-1">
+                                        <td className="px-7 py-5 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {(hasPermission(user, 'equipements', 'read') || isLecteur(user)) && (
                                                     <button
                                                         onClick={() => openEquipementDetailsModal(eq.id_equipement)}
-                                                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                                         title="Détails"
                                                     >
-                                                        <Eye className="h-3.5 w-3.5" />
+                                                        <Eye className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'equipements', 'update') && (
                                                     <button
                                                         onClick={() => openEquipementEditModal(eq.id_equipement)}
-                                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                                        title="Paramètres"
+                                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                                        title="Modifier"
                                                     >
-                                                        <Settings className="h-3.5 w-3.5" />
+                                                        <Settings className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 {hasPermission(user, 'equipements', 'delete') && (
                                                     <button
                                                         onClick={() => handleDelete(eq)}
-                                                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                                                         title="Supprimer"
                                                     >
-                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 )}
+                                                <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -344,26 +393,26 @@ export default function EquipementsPage() {
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Footer Pagination */}
                 {!isLoading && data && data.meta.total > 0 && (
-                    <div className="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                            Page {data.meta.current_page} sur {data.meta.last_page}
+                    <div className="px-7 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Page {data.meta.current_page} sur {data.meta.last_page} • Total de {data.meta.total} actifs
                         </span>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-2">
                             <button
-                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30 shadow-sm"
                                 disabled={data.meta.current_page === 1}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) - 1 }))}
                             >
-                                Préc.
+                                Précèdent
                             </button>
                             <button
-                                className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[9px] font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30 shadow-sm"
                                 disabled={data.meta.current_page === data.meta.last_page}
                                 onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
                             >
-                                Suiv.
+                                Suivant
                             </button>
                         </div>
                     </div>

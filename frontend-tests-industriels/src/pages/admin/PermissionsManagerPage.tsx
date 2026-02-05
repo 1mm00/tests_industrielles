@@ -14,25 +14,43 @@ import {
     Info,
     LayoutDashboard,
     Microscope,
-    Calendar
+    Calendar,
+    Shield,
+    User,
+    BookOpen,
+    Cpu,
+    Database,
+    FileCheck,
+    Zap,
+    ChevronRight,
+    Circle,
+    Fingerprint
 } from 'lucide-react';
 import { usersService } from '@/services/usersService';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const RESOURCES = [
-    { id: 'dashboards', label: 'Tableaux de Bord', icon: LayoutDashboard, desc: 'Accès aux synthèses et overview' },
-    { id: 'tests', label: 'Gestion des Tests', icon: FlaskConical, desc: 'Contrôles et interventions industrielles' },
-    { id: 'non_conformites', label: 'Non-Conformités', icon: AlertTriangle, desc: 'Gestion des écarts et plans d\'action' },
-    { id: 'equipements', label: 'Parc Équipements', icon: Settings, desc: 'Configuration et suivi des machines' },
-    { id: 'rapports', label: 'Centre de Rapports', icon: FileText, desc: 'Génération et archivage de documents' },
-    { id: 'personnel', label: 'Gestion Personnel', icon: Users, desc: 'Comptes utilisateurs et RH' },
-    { id: 'instruments', label: 'Métrologie', icon: Activity, desc: 'Instruments de mesure et calibration' },
-    { id: 'expertise', label: 'Ingénierie & Expertise', icon: Microscope, desc: 'Protocoles avancés et orchestration' },
-    { id: 'maintenance', label: 'Zone Technique', icon: Activity, desc: 'Exécution terrain et maintenance' },
-    { id: 'planning', label: 'Planning & Calendrier', icon: Calendar, desc: 'Interventions et rendez-vous' },
-    { id: 'users', label: 'Permissions & Rôles', icon: ShieldCheck, desc: 'Configuration de la sécurité système' },
+    { id: 'dashboards', label: 'Tableaux de Bord', icon: LayoutDashboard, desc: 'Accès aux synthèses et overview', boxColor: 'bg-indigo-50 text-indigo-600' },
+    { id: 'tests', label: 'Gestion des Tests', icon: FlaskConical, desc: 'Contrôles et interventions industrielles', boxColor: 'bg-blue-50 text-blue-600' },
+    { id: 'non_conformites', label: 'Non-Conformités', icon: AlertTriangle, desc: 'Gestion des écarts et plans d\'action', boxColor: 'bg-amber-50 text-amber-600' },
+    { id: 'equipements', label: 'Parc Équipements', icon: Database, desc: 'Configuration et suivi des machines', boxColor: 'bg-indigo-50 text-indigo-600' },
+    { id: 'rapports', label: 'Centre de Rapports', icon: FileCheck, desc: 'Génération et archivage de documents', boxColor: 'bg-indigo-50 text-indigo-600' },
+    { id: 'personnel', label: 'Gestion Personnel', icon: Users, desc: 'Comptes utilisateurs et RH', boxColor: 'bg-slate-50 text-slate-600' },
+    { id: 'instruments', label: 'Métrologie', icon: Activity, desc: 'Instruments de mesure et calibration', boxColor: 'bg-emerald-50 text-emerald-600' },
+    { id: 'expertise', label: 'Ingénierie & Expertise', icon: Microscope, desc: 'Protocoles avancés et orchestration', boxColor: 'bg-indigo-50 text-indigo-600' },
+    { id: 'maintenance', label: 'Zone Technique', icon: Activity, desc: 'Exécution terrain et maintenance', boxColor: 'bg-rose-50 text-rose-600' },
+    { id: 'planning', label: 'Planning & Calendrier', icon: Calendar, desc: 'Interventions et rendez-vous', boxColor: 'bg-indigo-50 text-indigo-600' },
+    { id: 'users', label: 'Permissions & Rôles', icon: ShieldCheck, desc: 'Configuration de la sécurité système', boxColor: 'bg-slate-900 text-white' },
 ];
+
+const ROLE_CONFIG: Record<string, { icon: any, color: string }> = {
+    'Admin': { icon: Shield, color: 'text-indigo-600' },
+    'Technicien': { icon: User, color: 'text-blue-600' },
+    'Lecteur': { icon: BookOpen, color: 'text-slate-600' },
+    'Ingénieur': { icon: Cpu, color: 'text-indigo-600' },
+};
 
 /**
  * Configuration de la pertinence des ressources par rôle.
@@ -117,92 +135,140 @@ export default function PermissionsManagerPage() {
     const filteredResources = RESOURCES.filter(res => {
         if (!selectedRole) return true;
         const allowed = ROLE_RESOURCES_RELEVANCE[selectedRole.nom_role];
-        // Si le rôle n'est pas dans notre config de pertinence, on affiche tout par défaut
         if (!allowed) return true;
         return allowed.includes(res.id);
     });
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex flex-col items-center justify-center p-20">
+                <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-slate-400 font-bold animate-pulse uppercase tracking-[0.2em] text-[10px]">Calcul de la matrice d'accès...</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                <div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3 text-gray-900">
-                        <ShieldCheck className="h-8 w-8 text-indigo-600" />
-                        Matrice des Access
-                    </h1>
-                    <p className="text-gray-500 font-medium italic text-sm mt-1">Configurez les droits d'accès par rôle métier</p>
+        <div className="space-y-6 animate-in fade-in duration-700 pb-20">
+
+            {/* 1. Header Area & Role Selector */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12">
+                <div className="flex items-center gap-5">
+                    <div className="h-14 w-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-slate-200 group hover:rotate-6 transition-transform">
+                        <ShieldCheck className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                            Matrice des Access
+                        </h1>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2">
+                            <Fingerprint className="h-3 w-3 text-indigo-500" />
+                            Gouvernance et privilèges de la sécurité industrielle
+                        </p>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-2xl border border-gray-200 shadow-inner">
-                    {roles?.map((role: any) => (
-                        <button
-                            key={role.id_role}
-                            onClick={() => setSelectedRoleId(role.id_role)}
-                            className={cn(
-                                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                                (selectedRoleId === role.id_role || (!selectedRoleId && roles[0].id_role === role.id_role))
-                                    ? "bg-white text-indigo-600 shadow-sm border border-gray-200"
-                                    : "text-gray-400 hover:text-gray-600"
-                            )}
-                        >
-                            {role.nom_role}
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-3 p-2 bg-white/50 backdrop-blur-md rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                    {roles?.map((role: any) => {
+                        const config = ROLE_CONFIG[role.nom_role] || { icon: Shield, color: 'text-slate-600' };
+                        const isActive = selectedRoleId === role.id_role || (!selectedRoleId && roles[0].id_role === role.id_role);
+                        return (
+                            <button
+                                key={role.id_role}
+                                onClick={() => setSelectedRoleId(role.id_role)}
+                                className={cn(
+                                    "relative px-6 py-3 rounded-2xl flex items-center gap-3 transition-all duration-500 active:scale-95 group",
+                                    isActive
+                                        ? "bg-slate-900 text-white shadow-2xl shadow-slate-300"
+                                        : "hover:bg-slate-50 text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <config.icon className={cn("h-4 w-4 transition-colors", isActive ? "text-white" : "text-slate-400")} />
+                                <span className="text-[11px] font-black uppercase tracking-widest">{role.nom_role}</span>
+
+                                <AnimatePresence>
+                                    {isActive && (
+                                        <motion.span
+                                            initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            className="absolute -top-2 -right-1 bg-gradient-to-r from-amber-400 to-yellow-500 text-[7px] font-black text-white px-2 py-0.5 rounded-full border border-white shadow-lg uppercase tracking-widest"
+                                        >
+                                            Rôle Actif
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
             {/* Warning for Admin */}
-            {selectedRole?.nom_role === 'Admin' && (
-                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-4 mb-6">
-                    <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
-                        <Info className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-black text-amber-900 uppercase">Attention : Rôle Super-Administrateur</p>
-                        <p className="text-[10px] text-amber-700 font-medium mt-1">
-                            Le rôle Admin possède des privilèges absolus par défaut. Les permissions affichées ici sont indicatives
-                            car le système bypass toutes les restrictions pour ce rôle.
-                        </p>
-                    </div>
-                </div>
-            )}
+            <AnimatePresence mode="wait">
+                {selectedRole?.nom_role === 'Admin' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="p-5 bg-amber-50/50 backdrop-blur-md border border-amber-100/50 rounded-[2rem] flex items-start gap-5 mb-8 overflow-hidden relative"
+                    >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full blur-3xl -mr-12 -mt-12" />
+                        <div className="h-12 w-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm shrink-0">
+                            <Info className="h-6 w-6" />
+                        </div>
+                        <div className="relative z-10">
+                            <p className="text-xs font-black text-amber-900 uppercase tracking-widest flex items-center gap-2">
+                                <Zap className="h-3 w-3 fill-current" />
+                                Rôle Super-Administrateur Détecté
+                            </p>
+                            <p className="text-[10px] text-amber-700/80 font-bold uppercase tracking-tight mt-1 leading-relaxed">
+                                Le rôle Admin possède des privilèges absolus bypassant toute restriction.
+                                Les switches ci-dessous sont verrouillés sur "Actif" pour préserver l'intégrité du système racine.
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* Matrix Table */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+            {/* 2. Matrix Table Content */}
+            <div className="bg-white/70 backdrop-blur-xl rounded-[3rem] border border-slate-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.05)] overflow-hidden">
+                <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-none">
                         <thead>
-                            <tr className="bg-gray-50/50">
-                                <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-r border-gray-50">
-                                    Modules & Ressources
+                            <tr className="bg-slate-50/50">
+                                <th className="px-10 py-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                                    Modules & Ressources Infrastructure
                                 </th>
                                 {ACTIONS.map(action => (
-                                    <th key={action.id} className="px-6 py-6 text-center">
-                                        <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{action.label}</p>
+                                    <th key={action.id} className="px-6 py-8 text-center min-w-[120px]">
+                                        <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">{action.label}</p>
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredResources.map((res) => (
-                                <tr key={res.id} className="group hover:bg-indigo-50/30 transition-colors">
-                                    <td className="px-8 py-6 border-r border-gray-50">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 group-hover:bg-white group-hover:border-indigo-100 transition-colors">
-                                                <res.icon className="h-6 w-6 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                        <tbody className="divide-y divide-slate-50">
+                            {filteredResources.map((res, idx) => (
+                                <motion.tr
+                                    initial={{ opacity: 0, x: -10 }}
+                                    whileInView={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.03 }}
+                                    key={res.id}
+                                    className="group hover:bg-slate-50/80 transition-all duration-300"
+                                >
+                                    <td className="px-10 py-6">
+                                        <div className="flex items-center gap-5">
+                                            <div className={cn(
+                                                "h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                                res.boxColor
+                                            )}>
+                                                <res.icon className="h-6 w-6" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-black text-gray-900 uppercase tracking-tighter">{res.label}</p>
-                                                <p className="text-[10px] text-gray-400 font-medium italic">{res.desc}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-[13px] font-black text-slate-900 uppercase tracking-tight">{res.label}</p>
+                                                    <ChevronRight className="h-3 w-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0" />
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight italic mt-0.5 opacity-60 leading-none">{res.desc}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -216,55 +282,99 @@ export default function PermissionsManagerPage() {
                                                     onClick={() => !isAdmin && togglePermission(res.id, action.id)}
                                                     disabled={isAdmin || updateMutation.isPending}
                                                     className={cn(
-                                                        "h-10 w-10 mx-auto rounded-full flex items-center justify-center transition-all border-2",
-                                                        active
-                                                            ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100"
-                                                            : "bg-white border-gray-100 text-gray-200 hover:border-gray-300 hover:text-gray-300"
+                                                        "relative h-12 w-12 mx-auto rounded-full flex items-center justify-center transition-all duration-500 active:scale-90",
+                                                        isAdmin ? "cursor-not-allowed" : "cursor-pointer"
                                                     )}
                                                 >
-                                                    {active ? <Check className="h-5 w-5 stroke-[4]" /> : <X className="h-5 w-5" />}
+                                                    {active ? (
+                                                        <div className="relative group/check">
+                                                            <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full scale-150 animate-pulse" />
+                                                            <div className="relative h-10 w-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] border-2 border-emerald-400 group-hover/check:scale-110 transition-transform">
+                                                                <Check className="h-5 w-5 text-white stroke-[4]" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-10 w-10 bg-slate-50 rounded-full flex items-center justify-center border-2 border-slate-100 hover:border-slate-300 transition-all hover:bg-white group/circle">
+                                                            <Circle className="h-4 w-4 text-slate-200 group-hover/circle:text-slate-400" />
+                                                        </div>
+                                                    )}
                                                 </button>
                                             </td>
                                         );
                                     })}
-                                </tr>
+                                </motion.tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Matrice Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                <div className="p-6 bg-indigo-900 text-white rounded-3xl shadow-xl shadow-indigo-100">
-                    <div className="flex items-center gap-3 mb-4">
-                        <Users className="h-6 w-6 text-indigo-300" />
-                        <h3 className="text-sm font-black uppercase tracking-widest">Utilisateurs Affectés</h3>
+            {/* 3. Status Footer Section */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-12">
+
+                {/* Affected Users Card */}
+                <div className="md:col-span-12 lg:col-span-7 p-10 bg-indigo-950/95 backdrop-blur-xl text-white rounded-[3rem] shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:scale-150 transition-transform duration-1000" />
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl -ml-16 -mb-16" />
+
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 h-full">
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-5">
+                                <div className="h-14 w-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 shadow-lg">
+                                    <Users className="h-7 w-7 text-indigo-300" />
+                                </div>
+                                <h3 className="text-lg font-black uppercase tracking-widest">Utilisateurs Affectés</h3>
+                            </div>
+                            <div className="flex items-baseline gap-4 mt-2">
+                                <span className="text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-400">
+                                    {selectedRole?.personnels_count || 0}
+                                </span>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-black text-indigo-300 uppercase tracking-[0.2em]">Salariés Actifs</span>
+                                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Sur ce profil métier</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="md:max-w-xs">
+                            <p className="text-sm font-medium text-indigo-100/70 italic leading-relaxed">
+                                "Tous les analystes et experts affectés à ce node héritent instantanément des privilèges de sécurité définis dans cette matrice logicielle."
+                            </p>
+                            <div className="mt-4 flex items-center gap-2">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-none">Propagation temps réel active</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-black">{selectedRole?.personnels_count || 0}</span>
-                        <span className="text-xs font-bold text-indigo-300 uppercase">Salariés actifs</span>
-                    </div>
-                    <p className="text-[10px] text-indigo-200 font-medium mt-4 italic">
-                        Tous ces utilisateurs héritent instantanément des règles définies dans cette matrice.
-                    </p>
                 </div>
 
-                <div className="p-6 bg-white border border-gray-100 rounded-3xl shadow-sm flex flex-col justify-between">
+                {/* Security Principle Card */}
+                <div className="md:col-span-12 lg:col-span-5 p-10 bg-white border border-slate-100 rounded-[3rem] shadow-xl shadow-slate-200/50 flex flex-col justify-between relative overflow-hidden group border-l-[12px] border-l-indigo-600">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
+
                     <div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <AlertCircle className="h-6 w-6 text-indigo-600" />
-                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Principe de Sécurité</h3>
+                        <div className="flex items-center gap-5 mb-8">
+                            <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+                                <AlertCircle className="h-6 w-6" />
+                            </div>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Principe de Sécurité OS</h3>
                         </div>
-                        <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                            Les modifications portées à cette matrice sont journalisées. Un rôle sans aucune permission cochée
-                            ne pourra pas voir le module associé dans la barre de navigation latérale.
+                        <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase tracking-tight opacity-70">
+                            Les modifications portées à cette matrice sont journalisées électroniquement.
+                            Un rôle sans aucune permission ne pourra pas visualiser les modules dans l'interface de pilotage.
                         </p>
                     </div>
-                    <div className="mt-6 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Synchronisation Backend Active
+
+                    <div className="mt-10 pt-8 border-t border-slate-50 flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Connectivité Core</span>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-black text-emerald-600 uppercase tracking-widest shadow-sm">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Synchronisation Backend OK
+                            </div>
+                        </div>
                     </div>
+
+                    <ChevronRight className="absolute bottom-6 right-6 h-10 w-10 text-slate-100 group-hover:text-indigo-100 group-hover:translate-x-2 transition-all duration-700" />
                 </div>
             </div>
         </div>

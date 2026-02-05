@@ -9,7 +9,11 @@ import {
     ShieldAlert,
     Layers,
     ChevronRight,
-    TrendingUp
+    TrendingUp,
+    Zap,
+    Target,
+    Clock,
+    BarChart3
 } from 'lucide-react';
 import { ncService } from '@/services/ncService';
 import { useNavigate } from 'react-router-dom';
@@ -28,10 +32,10 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }: StatCardProps) => {
     const colorMap = {
-        blue: '#2E5BFF',
-        orange: '#FFAB00',
-        emerald: '#00C853',
-        sky: '#0EA5E9'
+        blue: '#6366f1',
+        orange: '#f59e0b',
+        emerald: '#10b981',
+        sky: '#0ea5e9'
     };
 
     const sparklineOptions: any = {
@@ -53,32 +57,32 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }: StatCard
     return (
         <motion.div
             whileHover={{ y: -3 }}
-            className="relative bg-white/70 backdrop-blur-md rounded-[22px] border border-slate-200 shadow-sm p-4 overflow-hidden h-full group"
+            className="relative bg-white/70 backdrop-blur-md rounded-[28px] border border-slate-100 shadow-sm p-5 overflow-hidden h-full group transition-all"
         >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50/50 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-primary-50/50 transition-colors" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50/50 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-indigo-50/50 transition-colors" />
 
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-3">
+            <div className="relative z-10 text-left">
+                <div className="flex justify-between items-start mb-4 text-left">
                     <div className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-xl shadow-md transition-transform group-hover:scale-110",
-                        color === 'blue' ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white" :
-                            color === 'orange' ? "bg-gradient-to-br from-orange-400 to-red-500 text-white" :
-                                color === 'emerald' ? "bg-gradient-to-br from-emerald-400 to-teal-600 text-white" :
-                                    "bg-gradient-to-br from-sky-400 to-blue-500 text-white"
+                        "flex h-11 w-11 items-center justify-center rounded-2xl shadow-xl transition-transform group-hover:scale-110",
+                        color === 'blue' ? "bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-indigo-200" :
+                            color === 'orange' ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-200" :
+                                color === 'emerald' ? "bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-emerald-200" :
+                                    "bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-sky-200"
                     )}>
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-6 w-6" />
                     </div>
                 </div>
 
-                <div className="space-y-0.5">
-                    <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{title}</h3>
-                    <div className="flex items-end gap-2">
-                        <span className="text-xl font-black text-slate-900 tracking-tight">{value}</span>
+                <div className="space-y-0.5 text-left">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h3>
+                    <div className="flex items-end gap-2 text-left">
+                        <span className="text-2xl font-black text-slate-900 tracking-tight">{value}</span>
                     </div>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{subtitle}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight italic opacity-75">{subtitle}</p>
                 </div>
 
-                <div className="mt-3 h-10">
+                <div className="mt-4 h-12">
                     <ReactApexChart
                         options={sparklineOptions}
                         series={[{ data: trend }]}
@@ -100,8 +104,9 @@ export default function NonConformitesStatsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex flex-col items-center justify-center p-20">
+                <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-slate-400 font-bold animate-pulse uppercase tracking-[0.2em] text-[10px]">Collecte des données analytiques...</p>
             </div>
         );
     }
@@ -117,10 +122,10 @@ export default function NonConformitesStatsPage() {
         chart: {
             toolbar: { show: false },
             zoom: { enabled: false },
-            fontFamily: 'Inter, sans-serif'
+            fontFamily: 'Outfit, Inter, sans-serif'
         },
         dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 3, colors: ['#2E5BFF'] },
+        stroke: { curve: 'smooth', width: 4, colors: ['#6366f1'] },
         fill: {
             type: 'gradient',
             gradient: {
@@ -129,8 +134,8 @@ export default function NonConformitesStatsPage() {
                 opacityTo: 0,
                 stops: [0, 90, 100],
                 colorStops: [
-                    { offset: 0, color: '#2E5BFF', opacity: 0.4 },
-                    { offset: 100, color: '#2E5BFF', opacity: 0 },
+                    { offset: 0, color: '#6366f1', opacity: 0.4 },
+                    { offset: 100, color: '#6366f1', opacity: 0 },
                 ]
             }
         },
@@ -140,8 +145,8 @@ export default function NonConformitesStatsPage() {
             axisBorder: { show: false },
             axisTicks: { show: false }
         },
-        yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 600 } } },
-        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+        yaxis: { labels: { style: { colors: '#94a3b8', fontWeight: 900, fontSize: '10px' } } },
+        grid: { borderColor: '#f8fafc', strokeDashArray: 4 },
         tooltip: { theme: 'light' }
     };
 
@@ -150,33 +155,33 @@ export default function NonConformitesStatsPage() {
         chart: { type: 'radialBar', sparkline: { enabled: true } },
         plotOptions: {
             radialBar: {
-                startAngle: -90,
-                endAngle: 90,
+                startAngle: -100,
+                endAngle: 100,
                 track: {
                     background: "#f1f5f9",
-                    strokeWidth: '97%',
+                    strokeWidth: '95%',
                     margin: 5,
                 },
                 dataLabels: {
                     name: { show: false },
                     value: {
-                        offsetY: -2,
-                        fontSize: '22px',
+                        offsetY: 0,
+                        fontSize: '28px',
                         fontWeight: '900',
-                        color: '#1e293b',
+                        color: '#0f172a',
                         formatter: (val: number) => `${val}%`
                     }
                 }
             }
         },
-        colors: ['#00C853'],
+        colors: ['#10b981'],
         fill: {
             type: 'gradient',
             gradient: {
                 shade: 'dark',
                 type: 'horizontal',
                 shadeIntensity: 0.5,
-                gradientToColors: ['#2E5BFF'],
+                gradientToColors: ['#6366f1'],
                 inverseColors: true,
                 opacityFrom: 1,
                 opacityTo: 1,
@@ -189,165 +194,180 @@ export default function NonConformitesStatsPage() {
     const resolutionRate = summary.total > 0 ? Math.round((summary.cloturees / summary.total) * 100) : 0;
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
+        <div className="space-y-6 animate-in fade-in duration-700 pb-12">
+
+            {/* 1. Header Area */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate(-1)}
-                        className="h-10 w-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm group"
+                        className="h-11 w-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-90 group"
                     >
-                        <ArrowLeft className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                        <ArrowLeft className="h-5 w-5 text-slate-400 group-hover:text-white transition-colors" />
                     </button>
                     <div>
-                        <div className="flex items-center gap-2.5 mb-1">
-                            <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-md shadow-indigo-100">
-                                <Activity className="h-5 w-5" />
-                            </div>
-                            <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight">STATISTIQUES NON-CONFORMITÉS</h1>
-                        </div>
-                        <p className="text-xs text-slate-500 font-bold italic">Analyse analytique des écarts et performances qualité</p>
+                        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                            <Activity className="h-7 w-7 text-indigo-600" />
+                            Intelligence Qualité
+                        </h1>
+                        <p className="text-sm text-slate-500 font-medium italic">Audit analytique des performances et flux correctifs</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="px-4 py-2 bg-white/70 backdrop-blur-md border border-slate-200 rounded-2xl shadow-sm flex items-center gap-3">
+                        <Clock className="h-4 w-4 text-indigo-600" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
                     </div>
                 </div>
             </div>
 
-            {/* KPI Cards Grid */}
+            {/* 2. KPI Section */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    title="Total Déclaré"
+                    title="Volume Global"
                     value={summary.total}
-                    subtitle="Volume global NC"
+                    subtitle="Défauts enregistrés"
                     icon={FileText}
                     color="blue"
                     trend={[12, 18, 15, 22, 28, 25, 32, 40]}
                 />
                 <StatCard
-                    title="En Attente"
+                    title="Urgences Actives"
                     value={summary.ouvertes}
-                    subtitle="Urgences identifiées"
+                    subtitle="Actions en attente"
                     icon={AlertCircle}
                     color="orange"
                     trend={[8, 12, 10, 14, 12, 18, 15, 10]}
                 />
                 <StatCard
-                    title="En Résolution"
+                    title="Traitement Node"
                     value={summary.en_cours}
-                    subtitle="Actions en cours"
+                    subtitle="Flux en résolution"
                     icon={Settings}
                     color="sky"
                     trend={[5, 8, 12, 10, 15, 12, 18, 20]}
                 />
                 <StatCard
-                    title="Clôturées"
+                    title="Archive Clôture"
                     value={summary.cloturees}
-                    subtitle="Ecarts résolus"
+                    subtitle="Ecarts neutralisés"
                     icon={CheckCircle}
                     color="emerald"
                     trend={[10, 15, 18, 25, 28, 35, 40, 45]}
                 />
             </div>
 
-            {/* Top Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* 3. Main Data Visualization */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
                 {/* Tendance Chart */}
-                <div className="lg:col-span-8 bg-white/70 backdrop-blur-md p-6 rounded-[30px] border border-slate-100 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                                <TrendingUp className="h-4 w-4" />
+                <div className="lg:col-span-8 bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50">
+                    <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <TrendingUp className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Tendance des NC (30 Jours)</h3>
-                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Évolution temporelle des déclarations</p>
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Index de Déclaration</h3>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Analyse temporelle sur 30 jours glissants</p>
                             </div>
                         </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                            Live Feed
+                        </div>
                     </div>
-                    <div className="h-[280px]">
+                    <div className="h-[320px]">
                         <ReactApexChart
                             options={areaChartOptions}
-                            series={[{ name: 'Déclarations', data: trendData }]}
+                            series={[{ name: 'Volume NC', data: trendData }]}
                             type="area"
                             height="100%"
                         />
                     </div>
                 </div>
 
-                {/* Status Distribution (Radial) */}
-                <div className="lg:col-span-4 bg-white/70 backdrop-blur-md p-6 rounded-[30px] border border-slate-100 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                            <CheckCircle className="h-4 w-4" />
+                {/* Resolution Radial */}
+                <div className="lg:col-span-4 bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 flex flex-col justify-between">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+                            <Target className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Performance Résolution</h3>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Taux de clôture global</p>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Node Efficiency</h3>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Taux de résolution global</p>
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center relative">
+                    <div className="flex-1 flex flex-col items-center justify-center relative py-6">
                         <ReactApexChart
                             options={radialOptions}
                             series={[resolutionRate]}
                             type="radialBar"
-                            height={240}
+                            height={280}
+                            width="100%"
                         />
-                        <div className="mt-4 text-center">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 text-center">Efficacité Qualité</p>
-                            <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-100 uppercase tracking-widest">
-                                Stable
-                            </span>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-8 text-center mt-6">
+                            <div className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100 uppercase tracking-widest inline-block shadow-sm">
+                                {resolutionRate > 80 ? 'Haute Performance' : 'Optimisation Requise'}
+                            </div>
                         </div>
+                    </div>
+
+                    <div className="mt-6 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rapport hebdo</span>
+                            <span className="text-xs font-black text-slate-900">+4.2% ce mois</span>
+                        </div>
+                        <Zap className="h-5 w-5 text-amber-500 fill-current" />
                     </div>
                 </div>
             </div>
 
-            {/* Bottom Analysis Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Criticality Analysis - Neon Horizontal Progress Bars */}
-                <div className="bg-white/70 backdrop-blur-md p-6 rounded-[30px] border border-slate-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
-                            <ShieldAlert className="h-4 w-4" />
+            {/* 4. Secondary Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {/* Risk Breakdown */}
+                <div className="bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div className="flex items-center gap-4 mb-10">
+                        <div className="h-10 w-10 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm">
+                            <ShieldAlert className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Analyse par Criticité</h3>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Poids des risques sur la production</p>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Matrice de Criticité</h3>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Classification des risques industriels</p>
                         </div>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-6">
                         {stats?.by_criticite?.map((item: any, idx: number) => {
                             const percentage = summary.total > 0 ? (item.count / summary.total) * 100 : 0;
-                            const isNeon = item.label === 'Vital' || item.label === 'Critique' || item.label === 'NC4' || item.label === 'NC3';
+                            const isDanger = item.label === 'Vital' || item.label === 'Critique' || item.label === 'NC4' || item.label === 'NC3';
 
                             return (
-                                <div key={idx} className="space-y-2">
+                                <div key={idx} className="space-y-2.5">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className={cn(
-                                                "w-1.5 h-1.5 rounded-full",
-                                                item.label === 'Mineur' || item.label === 'NC1' ? 'bg-emerald-400' :
-                                                    item.label === 'Moyen' || item.label === 'NC2' ? 'bg-amber-400' :
-                                                        'bg-rose-500'
+                                        <div className="flex items-center gap-2.5">
+                                            <div className={cn(
+                                                "w-2 h-2 rounded-full",
+                                                isDanger ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-slate-300'
                                             )} />
-                                            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{item.label}</span>
+                                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{item.label}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-black text-slate-900">{item.count}</span>
-                                            <span className="text-[8px] font-bold text-slate-400 uppercase">{Math.round(percentage)}%</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-black text-slate-900">{item.count}</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase">{Math.round(percentage)}%</span>
                                         </div>
                                     </div>
-                                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                    <div className="h-2.5 bg-slate-50 rounded-full overflow-hidden shadow-inner border border-slate-100">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${percentage}%` }}
-                                            transition={{ duration: 1, delay: idx * 0.1 }}
+                                            transition={{ duration: 1, delay: idx * 0.1, ease: "easeOut" }}
                                             className={cn(
-                                                "h-full rounded-full transition-all",
-                                                isNeon && "animate-pulse",
-                                                item.label === 'Mineur' || item.label === 'NC1' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]' :
-                                                    item.label === 'Moyen' || item.label === 'NC2' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]' :
-                                                        'bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
+                                                "h-full rounded-full transition-all duration-1000",
+                                                item.label === 'Mineur' || item.label === 'NC1' ? 'bg-emerald-400' :
+                                                    item.label === 'Moyen' || item.label === 'NC2' ? 'bg-amber-400' :
+                                                        'bg-gradient-to-r from-rose-500 to-red-600'
                                             )}
                                         />
                                     </div>
@@ -357,41 +377,44 @@ export default function NonConformitesStatsPage() {
                     </div>
                 </div>
 
-                {/* Top Types - Sleek List */}
-                <div className="bg-white/70 backdrop-blur-md p-6 rounded-[30px] border border-slate-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                            <Layers className="h-4 w-4" />
+                {/* Typology Registry */}
+                <div className="bg-white/70 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
+                            <Layers className="h-5 w-5" />
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Typologie des Défauts</h3>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Top des occurrences par catégorie</p>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Registry Typologique</h3>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Segmentation analytique des défauts</p>
                         </div>
                     </div>
 
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-slate-50 mt-6">
                         {stats?.by_type?.map((type: any, idx: number) => (
                             <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
                                 key={idx}
-                                className="py-3 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 -mx-2 px-2 rounded-xl transition-all"
+                                className="py-4 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 -mx-3 px-3 rounded-2xl transition-all"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                                        <Layers className="h-4 w-4" />
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all shadow-sm">
+                                        <BarChart3 className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <p className="text-[10.5px] font-black text-slate-800 uppercase tracking-tight">{type.type_nc}</p>
-                                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Catégorie Qualité</p>
+                                        <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{type.type_nc}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic opacity-60">Protocole Qualité Standard</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="px-2.5 py-1 bg-slate-100 rounded-md text-[10px] font-black text-slate-600">
-                                        {type.count}
-                                    </span>
-                                    <ChevronRight className="h-3.5 w-3.5 text-slate-200 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+                                <div className="flex items-center gap-4">
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-sm font-black text-slate-900 tracking-tighter">
+                                            {String(type.count).padStart(2, '0')}
+                                        </span>
+                                        <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-1.5 py-0.5 rounded-md mt-1">Occurrence</span>
+                                    </div>
+                                    <ChevronRight className="h-4 w-4 text-slate-200 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                                 </div>
                             </motion.div>
                         ))}

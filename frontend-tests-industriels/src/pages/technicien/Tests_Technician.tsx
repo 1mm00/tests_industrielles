@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     FlaskConical,
@@ -9,7 +9,11 @@ import {
     ClipboardList,
     Activity,
     Thermometer,
-    FileText
+    FileText,
+    TrendingUp,
+    ShieldAlert,
+    Target,
+    Layers
 } from 'lucide-react';
 import { testsService, TestFilters } from '@/services/testsService';
 import { formatDate, getCriticalityColor, cn } from '@/utils/helpers';
@@ -28,152 +32,202 @@ export default function Tests_Technician() {
 
     const { openExecutionModal, openTestGmailModal, openTestDetailsModal } = useModalStore();
 
+    const stats = useMemo(() => {
+        const items = tests?.data || [];
+        return {
+            total: items.length,
+            inProgress: items.filter((t: any) => t.statut_test === 'EN_COURS').length,
+            completed: items.filter((t: any) => t.statut_test === 'TERMINE').length,
+            critical: items.filter((t: any) => t.niveau_criticite >= 4).length
+        };
+    }, [tests]);
+
     const handleExecute = (testId: string) => {
         openExecutionModal(testId);
     };
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
-                        <div className="p-2 bg-primary-100 text-primary-600 rounded-xl">
-                            <ClipboardList size={24} />
-                        </div>
-                        Orchestration des Tests
-                    </h1>
-                    <p className="text-gray-500 mt-1">Exécutez vos missions de contrôle et mesures</p>
-                </div>
+        <div className="space-y-6 animate-in fade-in duration-700 pb-12">
 
-                <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100">
-                    <button
-                        onClick={() => setFilters(f => ({ ...f, statut: 'PLANIFIE' }))}
-                        className={cn(
-                            "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'PLANIFIE' ? "bg-primary-100 text-primary-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
-                        )}
-                    >
-                        À Faire
-                    </button>
-                    <button
-                        onClick={() => setFilters(f => ({ ...f, statut: 'EN_COURS' }))}
-                        className={cn(
-                            "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'EN_COURS' ? "bg-amber-100 text-amber-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
-                        )}
-                    >
-                        En Cours
-                    </button>
-                    <button
-                        onClick={() => setFilters(f => ({ ...f, statut: 'TERMINE' }))}
-                        className={cn(
-                            "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                            filters.statut === 'TERMINE' ? "bg-emerald-100 text-emerald-700 shadow-sm" : "text-gray-400 hover:bg-gray-50"
-                        )}
-                    >
-                        Terminés
-                    </button>
+            {/* 1. Header Area */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                        <ClipboardList className="h-7 w-7 text-indigo-600" />
+                        Missions Terrain
+                    </h1>
+                    <p className="text-sm text-slate-500 font-medium italic">Exécution des protocoles de mesures et validation industrielle</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white p-1.5 rounded-[1.5rem] shadow-sm border border-slate-100">
+                    {[
+                        { id: 'PLANIFIE', label: 'À Faire' },
+                        { id: 'EN_COURS', label: 'En Cours' },
+                        { id: 'TERMINE', label: 'Terminés' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setFilters(f => ({ ...f, statut: tab.id }))}
+                            className={cn(
+                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                filters.statut === tab.id
+                                    ? "bg-slate-900 text-white shadow-lg"
+                                    : "text-slate-400 hover:bg-slate-50"
+                            )}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* List */}
+            {/* 2. KPI Cards Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                            <Layers className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Missions</p>
+                            <h3 className="text-2xl font-black text-slate-900 mt-0.5">{stats.total}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                            <TrendingUp className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En Exécution</p>
+                            <h3 className="text-2xl font-black text-blue-600 mt-0.5">{stats.inProgress}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+                            <ShieldAlert className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critiques</p>
+                            <h3 className="text-2xl font-black text-rose-600 mt-0.5">{stats.critical}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                            <Target className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Complétées</p>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">{stats.completed}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. List Layout */}
             <div className="grid grid-cols-1 gap-4">
                 {isLoading ? (
                     Array(3).fill(0).map((_, i) => (
-                        <div key={i} className="h-32 bg-gray-100 rounded-[2rem] animate-pulse" />
+                        <div key={i} className="h-40 bg-white rounded-[2rem] border border-slate-100 animate-pulse" />
                     ))
                 ) : tests?.data.length === 0 ? (
-                    <div className="bg-white rounded-[2/rem] p-12 text-center border-2 border-dashed border-gray-200">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FlaskConical className="text-gray-300" size={32} />
+                    <div className="bg-white p-20 rounded-[2.5rem] border border-slate-100 text-center">
+                        <div className="flex flex-col items-center gap-4 opacity-30">
+                            <FlaskConical className="h-16 w-16 text-slate-300" />
+                            <p className="text-slate-500 font-black uppercase tracking-[3px] text-xs">Aucune mission disponible</p>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900">Aucun test trouvé</h3>
-                        <p className="text-gray-500">Aucune mission correspondante à ce statut.</p>
                     </div>
                 ) : (
                     tests?.data.map((test) => (
                         <div
                             key={test.id_test}
-                            className="group bg-white rounded-[2rem] p-1 border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary-100 transition-all duration-300"
+                            className="group bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 relative overflow-hidden"
                         >
-                            <div className="p-5 flex flex-col lg:flex-row lg:items-center gap-6">
-                                {/* Visual Indicator */}
+                            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
+                                {/* Activity Icon */}
                                 <div className={cn(
-                                    "hidden lg:flex w-16 h-16 rounded-2xl items-center justify-center shrink-0",
-                                    test.statut_test === 'PLANIFIE' ? "bg-blue-50 text-blue-600" :
-                                        test.statut_test === 'EN_COURS' ? "bg-yellow-50 text-yellow-600" : "bg-green-50 text-green-600"
+                                    "h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 border shadow-sm",
+                                    test.statut_test === 'PLANIFIE' ? "bg-slate-50 border-slate-100 text-slate-400" :
+                                        test.statut_test === 'EN_COURS' ? "bg-blue-50 border-blue-100 text-blue-600" :
+                                            "bg-emerald-50 border-emerald-100 text-emerald-600"
                                 )}>
-                                    <Activity size={32} className={test.statut_test === 'EN_COURS' ? 'animate-pulse' : ''} />
+                                    <Activity size={28} className={test.statut_test === 'EN_COURS' ? 'animate-pulse' : ''} />
                                 </div>
 
-                                {/* Info */}
+                                {/* Info Block */}
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-2 mb-2">
                                         <span className={cn(
-                                            "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
-                                            getCriticalityColor(test.niveau_criticite)
+                                            "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                                            test.niveau_criticite >= 4 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-slate-50 text-slate-400 border-slate-100"
                                         )}>
-                                            Priorité {test.niveau_criticite}
+                                            Nv.{test.niveau_criticite}
                                         </span>
-                                        <span className="text-gray-400 text-xs font-medium">•</span>
-                                        <span className="text-gray-500 text-xs font-bold">{test.type_test?.libelle || 'Test standard'}</span>
+                                        <span className="text-slate-300">•</span>
+                                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{test.type_test?.libelle || 'Protocole Standard'}</span>
                                     </div>
-                                    <h3 className="text-lg font-black text-gray-900 truncate group-hover:text-primary-600 transition-colors">
-                                        {test.equipement?.designation || 'Équipement inconnu'}
+                                    <h3 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors capitalize">
+                                        {test.equipement?.designation || 'Équipement non spécifié'}
                                     </h3>
-                                    <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500 font-medium">
-                                        <div className="flex items-center gap-1.5">
-                                            <Clock size={16} />
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-4 opacity-70">
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                                            <Clock size={16} className="text-slate-300" />
                                             {formatDate(test.date_test)}
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <Thermometer size={16} />
-                                            {test.equipement?.numero_serie}
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                                            <Thermometer size={16} className="text-slate-300" />
+                                            S/N: {test.equipement?.numero_serie}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-2 lg:border-l lg:pl-6 border-gray-100">
+                                {/* Actions Block */}
+                                <div className="flex items-center gap-3 lg:border-l lg:pl-8 border-slate-50 pt-4 lg:pt-0">
                                     {test.statut_test === 'TERMINE' ? (
                                         <button
                                             onClick={() => openTestDetailsModal(test.id_test)}
-                                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-50 text-emerald-600 font-bold text-sm border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95"
+                                            className="h-12 px-6 rounded-2xl bg-emerald-50 text-emerald-600 font-black text-[11px] uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-all flex items-center gap-2"
                                         >
-                                            <CheckCircle2 size={18} />
-                                            Voir Rapport
+                                            <CheckCircle2 size={16} />
+                                            Rapport
                                         </button>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            {/* Bouton spécifique si le temps est écoulé */}
                                             {test.heure_fin && new Date(test.heure_fin) < new Date() ? (
                                                 <button
                                                     onClick={() => openTestGmailModal(test.id_test)}
-                                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-orange-500 text-white font-black text-sm transition-all active:scale-95 shadow-lg shadow-orange-200 hover:bg-orange-600 animate-in fade-in zoom-in duration-300"
+                                                    className="h-12 px-6 rounded-2xl bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest shadow-lg shadow-slate-200 hover:bg-indigo-600 transition-all flex items-center gap-2"
                                                 >
-                                                    <FileText size={18} />
-                                                    Finaliser le Rapport
+                                                    <FileText size={16} />
+                                                    Finaliser
                                                 </button>
                                             ) : (
                                                 <button
                                                     onClick={() => handleExecute(test.id_test)}
                                                     className={cn(
-                                                        "flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 border",
+                                                        "h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-sm border flex items-center gap-2",
                                                         test.statut_test === 'EN_COURS'
-                                                            ? "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100"
-                                                            : "bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-100"
+                                                            ? "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+                                                            : "bg-slate-50 text-slate-600 border-slate-100 hover:bg-white"
                                                     )}
                                                 >
                                                     {test.statut_test === 'EN_COURS' ? 'Reprendre' : 'Démarrer'}
-                                                    <Play size={18} />
+                                                    <Play size={16} />
                                                 </button>
                                             )}
                                         </div>
                                     )}
                                     <button
                                         onClick={() => openTestDetailsModal(test.id_test)}
-                                        className="p-3 rounded-2xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all active:scale-95"
+                                        className="h-12 w-12 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all flex items-center justify-center active:scale-95"
                                     >
                                         <ChevronRight size={20} />
                                     </button>

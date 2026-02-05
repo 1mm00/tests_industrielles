@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     FileBarChart,
-    Search,
-    Filter,
     Download,
     Eye,
     Clock,
-    BarChart3,
-    FileText
+    FileText,
+    Search as SearchIcon,
+    TrendingUp,
+    ShieldCheck
 } from 'lucide-react';
 import { rapportsService, RapportTest } from '@/services/rapportsService';
 import { formatDate } from '@/utils/helpers';
 import toast from 'react-hot-toast';
-import { exportMasterReportPDF } from '@/utils/pdfExport';
+import { generateTechnicalReportPDF } from '@/utils/pdfExport';
 
 export default function Rapports_Technician() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,11 +26,23 @@ export default function Rapports_Technician() {
 
     const reports = rapportsData?.data || [];
 
+    const stats = useMemo(() => {
+        return {
+            total: rapportsData?.total || 0,
+            valides: reports.filter((r: any) => r.statut?.includes('VALIDE')).length,
+            recent: reports.filter((r: any) => {
+                const date = new Date(r.date_edition);
+                const now = new Date();
+                return (now.getTime() - date.getTime()) < (7 * 24 * 60 * 60 * 1000); // last 7 days
+            }).length
+        };
+    }, [rapportsData, reports]);
+
     const handleDownloadReport = async (id: string, numero: string) => {
         const loadingToast = toast.loading(`Génération du rapport ${numero}...`);
         try {
             const masterData = await rapportsService.getMasterReportData(id);
-            exportMasterReportPDF(masterData);
+            generateTechnicalReportPDF(masterData);
             toast.success('Rapport prêt !', { id: loadingToast });
         } catch (error) {
             console.error(error);
@@ -39,113 +51,156 @@ export default function Rapports_Technician() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-                <div className="relative z-10">
-                    <h1 className="text-3xl font-black mb-2 flex items-center gap-3">
-                        <FileBarChart size={36} className="text-indigo-400" />
-                        Centre de Documentation
+        <div className="space-y-6 animate-in fade-in duration-700 pb-12">
+
+            {/* 1. Header Area */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                        <FileBarChart className="h-7 w-7 text-indigo-600" />
+                        Centre Documentation
                     </h1>
-                    <p className="text-indigo-100/70 font-medium max-w-xl">
-                        Accédez aux rapports de tests validés, synthèses de maintenance et indicateurs de performance.
-                    </p>
+                    <p className="text-sm text-slate-500 font-medium italic">Accès aux rapports certifiés et synthèses techniques</p>
                 </div>
-
-                <div className="absolute top-[-20%] right-[-10%] opacity-10 rotate-12">
-                    <BarChart3 size={400} />
-                </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <div className="relative">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Filtrer par titre ou type de rapport..."
-                        className="w-full pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-[1.5rem] shadow-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                        placeholder="Filtrer par titre ou n°..."
+                        className="w-full sm:w-64 pl-11 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-[12.5px] font-bold focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <button className="p-4 bg-white border border-gray-100 text-gray-600 rounded-[1.5rem] shadow-sm hover:bg-gray-50 transition-colors">
-                    <Filter size={20} />
-                </button>
             </div>
 
+            {/* 2. KPI Cards Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                            <FileText className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documents</p>
+                            <h3 className="text-2xl font-black text-slate-900 mt-0.5">{stats.total}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                            <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rapports Validés</p>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">{stats.valides}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                            <TrendingUp className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nouveautés (7j)</p>
+                            <h3 className="text-2xl font-black text-blue-600 mt-0.5">{stats.recent}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                            <Clock className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Archivage</p>
+                            <h3 className="text-2xl font-black text-slate-900 mt-0.5">Automatique</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. List Layout */}
             <div className="grid grid-cols-1 gap-4">
                 {isLoading ? (
                     Array(5).fill(0).map((_, i) => (
-                        <div key={i} className="h-24 bg-white rounded-3xl animate-pulse border border-gray-100" />
+                        <div key={i} className="h-28 bg-white rounded-3xl border border-slate-100 animate-pulse" />
                     ))
-                ) : reports?.map((report: RapportTest) => (
-                    <div
-                        key={report.id_rapport}
-                        className="group bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:shadow-lg transition-all flex flex-col md:flex-row md:items-center gap-6"
-                    >
-                        <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                            <FileText size={28} />
+                ) : reports?.length === 0 ? (
+                    <div className="bg-white p-20 rounded-[2.5rem] border border-slate-100 text-center">
+                        <div className="flex flex-col items-center gap-4 opacity-30">
+                            <FileBarChart className="h-16 w-16 text-slate-300" />
+                            <p className="text-slate-500 font-black uppercase tracking-[3px] text-xs">Aucun document archivé</p>
                         </div>
-
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                                <span className="px-2 py-0.5 bg-gray-100 text-indigo-700 rounded-md text-[10px] font-black uppercase tracking-widest border border-indigo-50">
-                                    {report.type_rapport}
-                                </span>
-                                <span className="text-xs font-bold text-gray-400 flex items-center gap-1">
-                                    <Clock size={12} />
-                                    {formatDate(report.date_edition)}
-                                </span>
+                    </div>
+                ) : (
+                    reports?.map((report: RapportTest) => (
+                        <div
+                            key={report.id_rapport}
+                            className="group bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-200/20 transition-all duration-500 flex flex-col md:flex-row md:items-center gap-6 relative overflow-hidden"
+                        >
+                            <div className="h-14 w-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
+                                <FileText size={28} />
                             </div>
-                            <h3 className="text-lg font-black text-gray-900 leading-tight">
-                                {report.numero_rapport} - {report.test?.equipement?.designation || 'Rapport de Test'}
-                            </h3>
-                        </div>
 
-                        <div className="flex items-center gap-3 md:border-l md:pl-6 border-gray-100">
-                            <button
-                                onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 text-gray-700 rounded-xl font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-all group/btn"
-                            >
-                                <Eye size={18} className="group-hover/btn:scale-110 transition-transform" />
-                                Lire
-                            </button>
-                            <button
-                                onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
-                                className="p-2.5 text-gray-400 hover:text-indigo-600 transition-colors"
-                            >
-                                <Download size={20} />
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200">
+                                        {report.type_rapport}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5 capitalize">
+                                        <Clock size={12} className="text-slate-300" />
+                                        Édité le {formatDate(report.date_edition)}
+                                    </span>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                                    {report.numero_rapport} • {report.test?.equipement?.designation || 'Rapport Technique'}
+                                </h3>
+                            </div>
 
-                {!isLoading && reports?.length === 0 && (
-                    <div className="text-center py-20 bg-white rounded-[2.5rem] border border-gray-100 border-dashed">
-                        <FileBarChart size={48} className="text-gray-200 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-gray-900">Aucun rapport disponible</h3>
-                        <p className="text-gray-500">Ajustez vos filtres de recherche.</p>
-                    </div>
+                            <div className="flex items-center gap-3 md:border-l md:pl-6 border-slate-50">
+                                <button
+                                    onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
+                                    className="h-11 px-6 bg-slate-50 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-2 group/btn shadow-sm"
+                                >
+                                    <Eye size={16} className="group-hover/btn:scale-110 transition-transform" />
+                                    Consulter
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadReport(report.id_rapport, report.numero_rapport)}
+                                    className="h-11 w-11 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                >
+                                    <Download size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    ))
                 )}
             </div>
 
-            {/* Pagination Controls */}
+            {/* Pagination */}
             {!isLoading && rapportsData?.last_page > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 bg-white rounded-3xl border border-gray-100">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        Page {rapportsData.current_page} sur {rapportsData.last_page}
+                <div className="flex items-center justify-between px-7 py-4 bg-white rounded-[2rem] border border-slate-100 shadow-sm">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Page {rapportsData.current_page} sur {rapportsData.last_page} • {rapportsData.total} Rapports
                     </span>
                     <div className="flex gap-2">
                         <button
                             disabled={page === 1}
                             onClick={() => setPage(p => p - 1)}
-                            className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                            className="px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white border border-transparent hover:border-slate-100 transition-all disabled:opacity-30"
                         >
                             Précédent
                         </button>
                         <button
                             disabled={page === rapportsData.last_page}
                             onClick={() => setPage(p => p + 1)}
-                            className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                            className="px-4 py-2 bg-slate-50 text-slate-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white border border-transparent hover:border-slate-100 transition-all disabled:opacity-30"
                         >
                             Suivant
                         </button>
