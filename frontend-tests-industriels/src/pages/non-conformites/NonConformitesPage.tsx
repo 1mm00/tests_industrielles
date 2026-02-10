@@ -13,7 +13,6 @@ import {
     MapPin,
     Calendar,
     Trash2,
-    FileDown,
     Activity,
     Target,
     Zap,
@@ -25,7 +24,7 @@ import {
 import { ncService, NcFilters } from '@/services/ncService';
 import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
-import { exportToPDF } from '@/utils/pdfExport';
+
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission, isLecteur } from '@/utils/permissions';
 
@@ -59,27 +58,7 @@ export default function NonConformitesPage() {
         setFilters(prev => ({ ...prev, statut: e.target.value, page: 1 }));
     };
 
-    const handleExportPDF = () => {
-        if (!data?.data) return;
 
-        const headers = ["ID NC", "Description", "Type", "Équipement / Test", "Date Détection", "Statut"];
-        const body = data.data.map((nc: any) => [
-            nc.numero_nc,
-            nc.description,
-            nc.type_nc,
-            `${nc.equipement?.designation || 'N/A'} \n(${nc.test?.numero_test || 'NC Directe'})`,
-            formatDate(nc.date_detection),
-            nc.statut
-        ]);
-
-        exportToPDF({
-            title: "Rapport des Non-Conformités Industrielles",
-            filename: "liste_nc",
-            headers: headers,
-            body: body,
-            orientation: 'l'
-        });
-    };
 
     const handleDeleteClick = (id: string, numero: string) => {
         toast((t) => (
@@ -162,15 +141,7 @@ export default function NonConformitesPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {hasPermission(user, 'rapports', 'export') && (
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2.5 px-4 py-3 bg-white text-slate-600 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
-                        >
-                            <FileDown className="h-4 w-4 text-rose-600" />
-                            <span className="hidden sm:inline">Export Registry</span>
-                        </button>
-                    )}
+
                     {hasPermission(user, 'non_conformites', 'create') && (
                         <button
                             onClick={openNcModal}

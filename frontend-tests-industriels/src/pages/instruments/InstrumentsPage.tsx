@@ -4,7 +4,7 @@ import {
     Thermometer,
     Search,
     Filter,
-    Download,
+
     Plus,
     Eye,
     Calendar,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { instrumentsService, InstrumentFilters } from '@/services/instrumentsService';
 import { formatDate, cn } from '@/utils/helpers';
-import { exportToPDF } from '@/utils/pdfExport';
+
 import { useModalStore } from '@/store/modalStore';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission, isLecteur } from '@/utils/permissions';
@@ -119,27 +119,7 @@ export default function InstrumentsPage() {
         setFilters(prev => ({ ...prev, calibration_filter: e.target.value as any, page: 1 }));
     };
 
-    const handleExportPDF = () => {
-        if (!data?.data) return;
 
-        const headers = ["Code", "Désignation", "Métrologie", "Dernière Calib.", "Prochaine Calib.", "Statut"];
-        const body = data.data.map((inst: any) => [
-            inst.code_instrument,
-            inst.designation,
-            `${inst.categorie_mesure}\n(${inst.plage_mesure_min} - ${inst.plage_mesure_max} ${inst.unite_mesure})`,
-            formatDate(inst.date_derniere_calibration),
-            formatDate(inst.date_prochaine_calibration),
-            inst.statut.replace('_', ' ')
-        ]);
-
-        exportToPDF({
-            title: "Inventaire du Parc Instruments de Mesure",
-            filename: "liste_instruments",
-            headers: headers,
-            body: body,
-            orientation: 'l'
-        });
-    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-700 pb-12">
@@ -154,15 +134,7 @@ export default function InstrumentsPage() {
                     <p className="text-sm text-slate-500 font-medium italic">Certification et précision des instruments de mesure</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {hasPermission(user, 'rapports', 'export') && (
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95"
-                        >
-                            <Download className="h-4 w-4 text-indigo-600" />
-                            <span className="hidden sm:inline">Export PDF</span>
-                        </button>
-                    )}
+
                     {hasPermission(user, 'instruments', 'create') && (
                         <button
                             onClick={openInstrumentCreateModal}

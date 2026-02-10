@@ -13,7 +13,6 @@ import {
     MapPin,
     Pencil,
     Trash2,
-    FileDown,
     FileText,
     Activity,
     ShieldCheck,
@@ -27,7 +26,7 @@ import {
 import { testsService, TestFilters } from '@/services/testsService';
 import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
-import { exportToPDF, exportTestReportPDF } from '@/utils/pdfExport';
+import { exportTestReportPDF } from '@/utils/pdfExport';
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission, isLecteur } from '@/utils/permissions';
 
@@ -55,27 +54,7 @@ export default function TestsPage() {
         setFilters(prev => ({ ...prev, statut: e.target.value, page: 1 }));
     };
 
-    const handleExportPDF = () => {
-        if (!data?.data) return;
 
-        const headers = ["ID Test", "Type de Test", "Équipement", "Date Prévue", "Criticité", "Statut"];
-        const body = data.data.map(test => [
-            test.numero_test,
-            test.type_test?.libelle || 'N/A',
-            `${test.equipement?.designation} (${test.equipement?.code_equipement})`,
-            formatDate(test.date_test),
-            `Niveau ${test.niveau_criticite || 1}`,
-            test.statut_test
-        ]);
-
-        exportToPDF({
-            title: "Rapport d'Exportation des Tests Industriels",
-            filename: "liste_tests_complet",
-            headers: headers,
-            body: body,
-            orientation: 'l'
-        });
-    };
 
     const handleExportSinglePDF = (test: any) => {
         exportTestReportPDF(test);
@@ -160,15 +139,7 @@ export default function TestsPage() {
                     <p className="text-sm text-slate-500 font-medium italic">Suivi analytique et orchestration des contrôles industriels</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {hasPermission(user, 'rapports', 'export') && (
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2.5 px-4 py-3 bg-white text-slate-600 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
-                        >
-                            <FileDown className="h-4 w-4 text-indigo-600" />
-                            <span className="hidden sm:inline">Exporter Registry</span>
-                        </button>
-                    )}
+
                     {hasPermission(user, 'tests', 'create') && (
                         <button
                             onClick={() => openTestModal()}

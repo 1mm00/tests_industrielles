@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { rapportsService, type RapportTest } from '@/services/rapportsService';
 import { formatDate, cn } from '@/utils/helpers';
-import { exportToPDF } from '@/utils/pdfExport';
+
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission } from '@/utils/permissions';
 import { useModalStore } from '@/store/modalStore';
@@ -52,27 +52,7 @@ export default function ReportsPage() {
 
     const reports = rapportsData?.data || [];
 
-    const handleExportPDF = () => {
-        if (!reports) return;
 
-        const headers = ["ID Rapport", "Type", "Test Associé", "Date Édition", "Rédacteur", "Statut"];
-        const body = reports.map((report: RapportTest) => [
-            report.numero_rapport,
-            report.type_rapport,
-            `${report.test?.numero_test || 'N/A'} \n(${report.test?.equipement?.designation || 'N/A'})`,
-            formatDate(report.date_edition),
-            report.redacteur ? `${report.redacteur.nom_complet}` : 'N/A',
-            report.statut
-        ]);
-
-        exportToPDF({
-            title: "Registre des Rapports de Tests Industriels",
-            filename: "liste_rapports",
-            headers: headers,
-            body: body,
-            orientation: 'l'
-        });
-    };
 
     const handleDownloadReport = async (report: RapportTest) => {
         if (report.statut === 'BROUILLON') {
@@ -89,7 +69,7 @@ export default function ReportsPage() {
             const response = await fetch(rapportsService.getPdfDownloadUrl(report.id_rapport), {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
                     'Accept': 'application/pdf'
                 },
                 credentials: 'include'
@@ -133,15 +113,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-slate-500 font-medium italic">Génération et archivage des documents de certification technique</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {hasPermission(user, 'rapports', 'export') && (
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95"
-                        >
-                            <Download className="h-4 w-4 text-indigo-600" />
-                            <span className="hidden sm:inline">Registre CSV/PDF</span>
-                        </button>
-                    )}
+
                     {hasPermission(user, 'rapports', 'create') && (
                         <button
                             onClick={() => openReportModal()}

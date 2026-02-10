@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Search,
     Filter,
-    Download,
+
     Plus,
     Eye,
     Settings,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { equipementsService, EquipementFilters } from '@/services/equipementsService';
 import { cn } from '@/utils/helpers';
-import { exportToPDF } from '@/utils/pdfExport';
+
 import { useAuthStore } from '@/store/authStore';
 import { hasPermission, isLecteur } from '@/utils/permissions';
 import { useModalStore } from '@/store/modalStore';
@@ -113,27 +113,7 @@ export default function EquipementsPage() {
         setFilters(prev => ({ ...prev, statut: e.target.value, page: 1 }));
     };
 
-    const handleExportPDF = () => {
-        if (!data?.data) return;
 
-        const headers = ["Code", "Désignation", "Catégorie", "Localisation", "Criticité", "Statut"];
-        const body = data.data.map((eq: any) => [
-            eq.code_equipement,
-            eq.designation,
-            eq.categorie_equipement,
-            `${eq.localisation_site} (${eq.localisation_precise})`,
-            `Niveau ${eq.niveau_criticite}`,
-            eq.statut_operationnel.replace('_', ' ')
-        ]);
-
-        exportToPDF({
-            title: "Inventaire du Parc Équipements Industriels",
-            filename: "liste_equipements",
-            headers: headers,
-            body: body,
-            orientation: 'l'
-        });
-    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-700 pb-12">
@@ -148,15 +128,7 @@ export default function EquipementsPage() {
                     <p className="text-sm text-slate-500 font-medium italic">Inventaire technique et pilotage de la flotte industrielle</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {hasPermission(user, 'rapports', 'export') && (
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-2.5 px-5 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all font-black text-[11px] uppercase tracking-widest shadow-sm active:scale-95"
-                        >
-                            <Download className="h-4 w-4 text-blue-600" />
-                            <span className="hidden sm:inline">Export PDF</span>
-                        </button>
-                    )}
+
                     {hasPermission(user, 'equipements', 'create') && (
                         <button
                             onClick={openEquipementCreateModal}

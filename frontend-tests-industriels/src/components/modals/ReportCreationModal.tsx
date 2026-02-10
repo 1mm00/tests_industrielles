@@ -143,7 +143,7 @@ export default function ReportCreationModal() {
 
             const response = await fetch(rapportsService.getPdfDownloadUrl(id), {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 }
             });
 
