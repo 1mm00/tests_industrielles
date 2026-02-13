@@ -131,6 +131,9 @@ class TestIndustrielController extends Controller
         ]);
 
         try {
+            $test = \App\Models\TestIndustriel::findOrFail($id);
+            $this->authorize('update', $test);
+
             $test = $this->testService->modifierTest($id, $validated);
             
             return response()->json([
@@ -194,10 +197,16 @@ class TestIndustrielController extends Controller
     /**
      * POST /api/v1/tests/{id}/terminer
      */
-    public function terminer(string $id): JsonResponse
+    public function terminer(Request $request, string $id): JsonResponse
     {
+        $validated = $request->validate([
+            'resultat_final' => 'nullable|in:OK,NOK',
+            'observations' => 'nullable|string',
+            'date_cloture' => 'nullable|string',
+        ]);
+
         try {
-            $test = $this->testService->terminerTest($id);
+            $test = $this->testService->terminerTest($id, $validated);
 
             return response()->json([
                 'success' => true,
@@ -270,5 +279,27 @@ class TestIndustrielController extends Controller
             'success' => true,
             'data' => $tests
         ], 200);
+    }
+
+    /**
+     * POST /api/v1/tests/{id}/valider
+     */
+    public function valider(string $id): JsonResponse
+    {
+        try {
+            $test = TestIndustriel::findOrFail($id);
+            $test->verrouiller();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test certifié et verrouillé avec succès',
+                'data' => $test
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la certification: ' . $e->getMessage()
+            ], 400);
+        }
     }
 }

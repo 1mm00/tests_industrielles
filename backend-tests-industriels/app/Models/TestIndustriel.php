@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
+use App\Traits\HasAuditLog;
+
 class TestIndustriel extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasAuditLog;
 
     protected $table = 'tests_industriels';
     protected $primaryKey = 'id_test';
@@ -46,6 +48,7 @@ class TestIndustriel extends Model
         'heure_debut_planifiee',
         'heure_fin_planifiee',
         'created_by',
+        'est_verrouille',
     ];
 
     protected $casts = [
@@ -63,6 +66,7 @@ class TestIndustriel extends Model
         'equipe_test' => 'array', // JSONB array of UUIDs
         'arret_production_requis' => 'boolean',
         'duree_arret_heures' => 'decimal:2',
+        'est_verrouille' => 'boolean',
     ];
 
     /**
@@ -75,6 +79,12 @@ class TestIndustriel extends Model
         static::creating(function ($test) {
             if (empty($test->numero_test)) {
                 $test->numero_test = static::genererNumeroTest();
+            }
+        });
+
+        static::deleting(function ($test) {
+            if ($test->est_verrouille) {
+                throw new \Exception("Impossible de supprimer un test verrouillé.");
             }
         });
     }
@@ -245,8 +255,17 @@ class TestIndustriel extends Model
         // Calcul taux conformité
         $this->taux_conformite_pct = $this->calculerTauxConformite();
         
-        // Détermination résultat global
-        if ($this->taux_conformite_pct >= 95) {
+        // Détermination résultat global (Règle du Point d'Arrêt)
+        $hasCriticalFailure = $this->mesures()
+            ->where('criticite', '>=', 4)
+            ->where('conforme', false)
+            ->exists();
+
+        if ($hasCriticalFailure) {
+            $this->resultat_global = TestResultatEnum::NON_CONFORME;
+            $this->incidents_signales = ($this->incidents_signales ? $this->incidents_signales . "\n" : "") . 
+                "[AUTO] Échec sur point critique (N4/N5). Arrêt de validation automatique.";
+        } elseif ($this->taux_conformite_pct >= 95) {
             $this->resultat_global = TestResultatEnum::CONFORME;
         } elseif ($this->taux_conformite_pct >= 70) {
             $this->resultat_global = TestResultatEnum::PARTIEL;
@@ -264,7 +283,68 @@ class TestIndustriel extends Model
 
     protected function genererNonConformiteAutomatique(): void
     {
-        // Logique de génération auto NC (implémentée dans NonConformiteService)
-        // Pour l'instant, placeholder
+        // Vérification: Ne pas créer de doublons
+        $ncExistante = NonConformite::where('test_id', $this->id_test)
+            ->where('type_nc', 'AUTO_TEST_NOK')
+            ->exists();
+        
+        if ($ncExistante) {
+            return; // Une NC auto existe déjà pour ce test
+        }
+
+        // Mapping de la criticité du test vers la criticité NC
+        // Test criticité 1-2 -> NC Mineure (NC1)
+        // Test criticité 3 -> NC Majeure (NC3)
+        // Test criticité 4 -> NC Critique (NC4)
+        $codeCriticiteNc = match($this->niveau_criticite) {
+            1, 2 => 'NC1', // Mineure
+            3 => 'NC3',    // Majeure
+            4 => 'NC4',    // Critique
+            default => 'NC2' // Moyenne par défaut
+        };
+
+        $niveauCriticite = NiveauCriticite::where('code_niveau', $codeCriticiteNc)->first();
+
+        if (!$niveauCriticite) {
+            // Fallback si le seeder n'a pas été exécuté
+            $niveauCriticite = NiveauCriticite::first();
+        }
+
+        // Génération du numéro NC
+        $prefix = 'NC-' . now()->format('Ymd');
+        $count = NonConformite::where('numero_nc', 'like', "{$prefix}%")->count();
+        $numeroNc = $prefix . '-' . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+
+        // Construction de la description automatique
+        $description = "Non-conformité détectée automatiquement suite au test {$this->numero_test}.\n\n";
+        $description .= "**Équipement testé**: {$this->equipement->designation}\n";
+        $description .= "**Type de test**: {$this->typeTest->libelle}\n";
+        $description .= "**Taux de conformité mesuré**: {$this->taux_conformite_pct}%\n\n";
+        
+        if ($this->observations_generales) {
+            $description .= "**Observations terrain**:\n{$this->observations_generales}\n\n";
+        }
+
+        $description .= "Cette fiche NC a été créée en brouillon et nécessite une analyse détaillée par le responsable qualité.";
+
+        // Création de la NC en brouillon
+        NonConformite::create([
+            'numero_nc' => $numeroNc,
+            'test_id' => $this->id_test,
+            'equipement_id' => $this->equipement_id,
+            'criticite_id' => $niveauCriticite?->id_niveau_criticite,
+            'type_nc' => 'AUTO_TEST_NOK',
+            'description' => $description,
+            'impact_potentiel' => "Impact lié à l'échec du test de criticité niveau {$this->niveau_criticite}",
+            'date_detection' => now(),
+            'detecteur_id' => $this->responsable_test_id ?? $this->created_by,
+            'statut' => 'OUVERTE',
+        ]);
+    }
+
+    public function verrouiller(): void
+    {
+        $this->est_verrouille = true;
+        $this->save();
     }
 }

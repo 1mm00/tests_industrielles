@@ -9,12 +9,23 @@ export interface UserPersonnel {
     prenom: string;
     email: string;
     telephone?: string;
-    poste: string;
-    departement?: string;
+    poste_id: string;
+    departement_id?: string;
     actif: boolean;
     date_embauche?: string;
     nom_complet?: string;
+    departement?: {
+        id_departement: string;
+        libelle: string;
+        code_departement: string;
+    };
+    poste_rel?: {
+        id_poste: string;
+        libelle: string;
+        code_poste: string;
+    };
     role?: {
+        id_role: string;
         nom_role: string;
     };
 }

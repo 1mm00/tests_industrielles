@@ -5,6 +5,7 @@ export interface NcFilters {
     search?: string;
     statut?: string;
     criticite_id?: string;
+    is_archived?: boolean;
     page?: number;
     per_page?: number;
 }
@@ -62,5 +63,47 @@ export const ncService = {
      */
     async deleteNc(id: string): Promise<void> {
         await api.delete(`/non-conformites/${id}`);
+    },
+
+    /**
+     * Enregistrer l'analyse des causes racines
+     */
+    async analyserNc(id: string, data: any): Promise<void> {
+        await api.post(`/non-conformites/${id}/analyser`, data);
+    },
+
+    /**
+     * Créer un plan d'actions correctives
+     */
+    async createPlanAction(id: string, data: any): Promise<void> {
+        await api.post(`/non-conformites/${id}/plan-action`, data);
+    },
+
+    /**
+     * Clôturer officiellement une NC (vérification pré-requis + verrouillage)
+     */
+    async cloturerNc(id: string, commentaires: string): Promise<NonConformite> {
+        const response = await api.post<ApiResponse<NonConformite>>(`/v1/non-conformites/${id}/cloturer`, {
+            commentaires_cloture: commentaires
+        });
+        return response.data.data;
+    },
+
+    /**
+     * Réouvrir une NC clôturée
+     */
+    async reouvrirNc(id: string, motif: string): Promise<NonConformite> {
+        const response = await api.post<ApiResponse<NonConformite>>(`/v1/non-conformites/${id}/reouvrir`, {
+            motif_reouverture: motif
+        });
+        return response.data.data;
+    },
+
+    /**
+     * Archiver ou désarchiver une NC
+     */
+    async archiveNc(id: string): Promise<NonConformite> {
+        const response = await api.post<ApiResponse<NonConformite>>(`/v1/non-conformites/${id}/archive`);
+        return response.data.data;
     },
 };

@@ -4,30 +4,23 @@ import {
     UserPlus,
     ShieldCheck,
     UserMinus,
-    Search,
     Filter,
     Mail,
     Phone,
     Briefcase,
     Building2,
-    CheckCircle,
-    XCircle,
-    MoreHorizontal,
     Edit2,
     Trash2,
     Download,
     ChevronRight,
     Search as SearchIcon,
     UserCheck,
-    Cpu,
-    Zap,
     Fingerprint
 } from 'lucide-react';
 import { usersService, type UserPersonnel } from '@/services/usersService';
 import { cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
 import { exportToPDF } from '@/utils/pdfExport';
-import { formatDate } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
@@ -118,8 +111,8 @@ export default function UsersPage() {
             u.matricule,
             `${u.nom} ${u.prenom}`,
             u.email,
-            u.poste,
-            u.departement || "N/A",
+            u.poste_rel?.libelle || "N/A",
+            u.departement?.libelle || "N/A",
             u.actif ? "ACTIF" : "INACTIF"
         ]);
 
@@ -316,11 +309,11 @@ export default function UsersPage() {
                                             <div className="flex flex-col">
                                                 <div className="flex items-center gap-2 text-[12px] font-black text-slate-700">
                                                     <Briefcase className="h-4 w-4 text-slate-300" />
-                                                    {user.poste}
+                                                    {user.poste_rel?.libelle || "Non Assigné"}
                                                 </div>
                                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
                                                     <Building2 className="h-3 w-3 opacity-50" />
-                                                    {user.departement || "Infrastructure Core"}
+                                                    {user.departement?.libelle || "Infrastructure Core"}
                                                 </span>
                                             </div>
                                         </td>

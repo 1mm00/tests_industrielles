@@ -17,31 +17,29 @@ class TestIndustrielService
      */
     public function creerTest(array $data): TestIndustriel
     {
+        // Validation des conflits d'horaires pour l'équipement
+        if (isset($data['equipement_id']) && isset($data['date_test']) && isset($data['heure_debut_planifiee'])) {
+            $conflict = TestIndustriel::where('equipement_id', $data['equipement_id'])
+                ->where('date_test', $data['date_test'])
+                ->where(function ($query) use ($data) {
+                    $hStart = $data['heure_debut_planifiee'];
+                    $hEnd = $data['heure_fin_planifiee'] ?? $hStart;
+                    $query->whereBetween('heure_debut_planifiee', [$hStart, $hEnd])
+                        ->orWhereBetween('heure_fin_planifiee', [$hStart, $hEnd]);
+                })
+                ->where('statut_test', '!=', TestStatutEnum::ANNULE)
+                ->exists();
+
+            if ($conflict) {
+                throw new \Exception("Conflit de planification : l'équipement est déjà réservé pour ce créneau.");
+            }
+        }
+
         // Le numero_test sera généré automatiquement via le boot() du model
         $test = TestIndustriel::create($data);
         
-        // Génération automatique des lignes de mesures à partir de la checklist dès la création (planification)
-        $test->load(['typeTest.checklistsControle.items', 'instrument']);
-        $checklist = $test->typeTest->checklistsControle->first();
-        if ($checklist && $checklist->items->count() > 0) {
-            foreach ($checklist->items as $item) {
-                \App\Models\Mesure::create([
-                    'test_id' => $test->id_test,
-                    'instrument_id' => $test->instrument_id,
-                    'parametre_mesure' => $item->libelle,
-                    'type_mesure' => $item->type_verif ?? 'TECHNIQUE',
-                    'valeur_reference' => $item->valeur_reference,
-                    'unite_mesure' => $test->instrument?->unite_mesure ?? '',
-                    'tolerance_min' => $item->tolerance,
-                    'tolerance_max' => $item->tolerance,
-                    'conforme' => null, // En attente de saisie
-                    'operateur_id' => auth()->id() ?? $test->responsable_test_id,
-                    'timestamp_mesure' => now(),
-                ]);
-            }
-        }
-        
-        return $test->fresh(['mesures', 'instrument']);
+        // Les mesures seront créées au fur et à mesure par le technicien via AcquisitionStream
+        return $test->fresh(['instrument']);
     }
 
     /**
@@ -50,10 +48,39 @@ class TestIndustrielService
     public function modifierTest(string $testId, array $data): TestIndustriel
     {
         $test = TestIndustriel::findOrFail($testId);
+
+        if ($test->est_verrouille) {
+            throw new \Exception("Accès refusé : Ce test est verrouillé car un rapport officiel a été validé.");
+        }
         
         // Sécurité : Un test terminé ne doit plus être modifié
         if ($test->statut_test === TestStatutEnum::TERMINE) {
             throw new \Exception("Intégrité des données : Un test déjà 'Terminé' ne peut plus être altéré.");
+        }
+
+        // Validation des conflits d'horaires pour l'équipement (si modifié)
+        if ((isset($data['equipement_id']) || isset($data['date_test']) || isset($data['heure_debut_planifiee']))) {
+            $eqId = $data['equipement_id'] ?? $test->equipement_id;
+            $date = $data['date_test'] ?? $test->date_test;
+            $hStart = $data['heure_debut_planifiee'] ?? $test->heure_debut_planifiee;
+            $hEnd = $data['heure_fin_planifiee'] ?? $test->heure_fin_planifiee;
+
+            if ($hStart) {
+                $conflict = TestIndustriel::where('equipement_id', $eqId)
+                    ->where('date_test', $date)
+                    ->where('id_test', '!=', $testId)
+                    ->where(function ($query) use ($hStart, $hEnd) {
+                        $end = $hEnd ?? $hStart;
+                        $query->whereBetween('heure_debut_planifiee', [$hStart, $end])
+                            ->orWhereBetween('heure_fin_planifiee', [$hStart, $end]);
+                    })
+                    ->where('statut_test', '!=', TestStatutEnum::ANNULE)
+                    ->exists();
+
+                if ($conflict) {
+                    throw new \Exception("Conflit de planification : l'équipement est déjà réservé pour ce créneau.");
+                }
+            }
         }
 
         $test->update($data);
@@ -68,12 +95,12 @@ class TestIndustrielService
     {
         $test = TestIndustriel::with([
             'equipement', 
-            'typeTest.checklistsControle', 
-            'responsable.role', // Added role for better display
+            'typeTest.checklistsControle.items', 
+            'responsable.role', 
             'createur',
             'instrument',
-            'mesures',
-            'nonConformites'
+            'nonConformites',
+            'rapports'
         ])->findOrFail($testId);
 
         // Résolution de la cohorte (equipe_test)
@@ -112,28 +139,7 @@ class TestIndustrielService
             }
         }
         
-        // Sécurité : Si aucune mesure n'a été générée à la création, on tente de les générer maintenant
-        if ($test->mesures()->count() === 0) {
-            $checklist = $test->typeTest->checklistsControle->first();
-            // Si une checklist existe, on génère les mesures, sinon on laisse le test démarrer vide
-            if ($checklist && $checklist->items->count() > 0) {
-                foreach ($checklist->items as $item) {
-                    \App\Models\Mesure::create([
-                        'test_id' => $test->id_test,
-                        'instrument_id' => $test->instrument_id,
-                        'parametre_mesure' => $item->libelle,
-                        'type_mesure' => $item->type_verif ?? 'TECHNIQUE',
-                        'valeur_reference' => $item->valeur_reference,
-                        'unite_mesure' => $test->instrument?->unite_mesure ?? '',
-                        'tolerance_min' => $item->tolerance,
-                        'tolerance_max' => $item->tolerance,
-                        'conforme' => null,
-                        'operateur_id' => auth()->id() ?? $test->responsable_test_id,
-                        'timestamp_mesure' => now(),
-                    ]);
-                }
-            }
-        }
+        // Les mesures seront générées atomiquement par le technicien via le formulaire dynamique
         
         $test->demarrer();
         
@@ -143,15 +149,24 @@ class TestIndustrielService
     /**
      * Terminer un test avec calculs automatiques
      */
-    public function terminerTest(string $testId): TestIndustriel
+    public function terminerTest(string $testId, array $data = []): TestIndustriel
     {
         $test = TestIndustriel::findOrFail($testId);
         
         if ($test->statut_test !== TestStatutEnum::EN_COURS) {
             throw new \Exception("Le test doit être 'En cours' pour être terminé.");
         }
+
+        // Application des saisies manuelles finales
+        if (isset($data['resultat_final'])) {
+            $test->statut_final = $data['resultat_final'];
+        }
+
+        if (isset($data['observations'])) {
+            $test->observations_generales = $data['observations'];
+        }
         
-        $test->terminer(); // Logique dans le model
+        $test->terminer(); // Exécute aussi les calculs automatiques
         
         return $test->fresh();
     }
@@ -173,6 +188,10 @@ class TestIndustrielService
     public function deleteTest(string $testId): bool
     {
         $test = TestIndustriel::findOrFail($testId);
+
+        if ($test->est_verrouille) {
+            throw new \Exception("Suppression impossible : Le test est verrouillé et fait partie des archives certifiées.");
+        }
 
         // Optionnel : Vous pouvez empêcher la suppression des tests terminés pour archivage obligatoire
         // if ($test->statut_test === TestStatutEnum::TERMINE) {
@@ -446,24 +465,24 @@ class TestIndustrielService
                 $currentUser->load('personnel.role');
                 
                 // Si l'utilisateur a un personnel associé
-                if ($currentUser->personnel) {
+                if ($currentUser->id_personnel) {
                     $currentUserData = [
                         'id' => $currentUser->id,
-                        'id_personnel' => $currentUser->personnel->id_personnel,
-                        'nom' => $currentUser->personnel->nom ?? '',
-                        'prenom' => $currentUser->personnel->prenom ?? '',
-                        'fonction' => $currentUser->personnel->poste ?? 'Responsable',
-                        'role' => optional($currentUser->personnel->role)->nom_role ?? 'Ingénieur',
+                        'id_personnel' => $currentUser->id_personnel,
+                        'nom' => $currentUser->personnel?->nom ?? $currentUser->name,
+                        'prenom' => $currentUser->personnel?->prenom ?? '',
+                        'fonction' => $currentUser->personnel?->poste ?? 'Workflow Manager',
+                        'role' => optional($currentUser->personnel?->role)->nom_role ?? 'Ingénieur',
                     ];
                 } else {
                     // Sinon, utiliser les données de base de l'utilisateur
                     $currentUserData = [
                         'id' => $currentUser->id,
-                        'id_personnel' => $currentUser->id,
+                        'id_personnel' => null, // On ne peut pas mettre d'ID entier ici car c'est un UUID en base
                         'nom' => $currentUser->name ?? '',
                         'prenom' => '',
-                        'fonction' => 'Workflow Manager',
-                        'role' => 'Ingénieur',
+                        'fonction' => 'Utilisateur sans Personnel',
+                        'role' => 'Utilisateur',
                     ];
                 }
             } catch (\Exception $e) {
@@ -482,7 +501,7 @@ class TestIndustrielService
 
         return [
             'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement', 'localisation_site')->get(),
-            'types_tests' => \App\Models\TypeTest::select('id_type_test', 'libelle', 'code_type', 'description', 'frequence_recommandee', 'niveau_criticite_defaut', 'equipements_eligibles', 'actif')->orderBy('libelle')->get(),
+            'types_tests' => \App\Models\TypeTest::select('id_type_test', 'libelle', 'code_type', 'description', 'frequence_recommandee', 'niveau_criticite_defaut', 'equipements_eligibles', 'instruments_eligibles', 'actif')->orderBy('libelle')->get(),
             'instruments' => \App\Models\InstrumentMesure::select('id_instrument', 'designation', 'numero_serie', 'type_instrument', 'statut')->orderBy('designation')->get(),
             'phases' => \App\Models\PhaseTest::select('id_phase', 'nom_phase')->orderBy('ordre_execution')->get(),
             'personnels' => $personnels,
@@ -500,6 +519,20 @@ class TestIndustrielService
             ->whereYear('date_test', $year)
             ->with(['equipement', 'typeTest', 'responsable'])
             ->orderBy('date_test', 'asc')
+            ->get();
+    }
+
+    /**
+     * Analyse d'Audit : Extraire les tests selon des critères environnementaux complexes (JSONB)
+     * Exemple : Trouver tous les tests effectués dans des conditions de chaleur critique (> 30°C)
+     */
+    public function getAuditDataByEnvironmentalConditions(float $tempMin, float $humMax): Collection
+    {
+        return TestIndustriel::query()
+            ->with(['equipement', 'mesures'])
+            // Utilisation de la syntaxe fléchée pour interroger les données structurées JSON
+            ->where('conditions_environnementales->temp', '>=', $tempMin)
+            ->where('conditions_environnementales->hum', '<=', $humMax)
             ->get();
     }
 }

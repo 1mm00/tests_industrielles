@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -252,7 +252,10 @@ function DetectorAvatarPicker({
 export default function NcCreationModal() {
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
-    const { isNcModalOpen, closeNcModal } = useModalStore();
+    const { isNcModalOpen, closeNcModal, isNcEditModalOpen, closeNcEditModal, selectedNcId } = useModalStore();
+
+    const isOpen = isNcModalOpen || isNcEditModalOpen;
+    const isEditMode = isNcEditModalOpen && !!selectedNcId;
 
     const [form, setForm] = useState({
         test_id: '',
@@ -270,11 +273,52 @@ export default function NcCreationModal() {
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
     const [isZoneLinked, setIsZoneLinked] = useState(false);
 
+    // Récupérer les données de la NC si en mode édition
+    const { data: existingNc } = useQuery({
+        queryKey: ['non-conformite', selectedNcId],
+        queryFn: () => ncService.getNc(selectedNcId!),
+        enabled: isEditMode,
+    });
+
     const { data: creationData } = useQuery({
         queryKey: ['nc-creation-data'],
         queryFn: () => ncService.getCreationData(),
-        enabled: isNcModalOpen,
+        enabled: isOpen,
     });
+
+    // Pré-remplir le formulaire en mode édition
+    useEffect(() => {
+        if (isEditMode && existingNc) {
+            const data = existingNc as any;
+            setForm({
+                test_id: data.test_id || '',
+                equipement_id: data.equipement_id || '',
+                criticite_id: data.criticite_id || data.niveau_criticite_id || '',
+                type_nc: data.type_nc || '',
+                description: data.description || '',
+                impact_potentiel: data.impact_potentiel || '',
+                date_detection: data.date_detection?.split('T')[0] || new Date().toISOString().split('T')[0],
+                detecteur_id: data.detecteur_id || '',
+                co_detecteurs: data.co_detecteurs || [],
+                zone_detection: data.zone_detection || data.equipement?.localisation_site || '',
+            });
+        } else if (!isEditMode) {
+            // Réinitialiser le formulaire en mode création
+            setForm({
+                test_id: '',
+                equipement_id: '',
+                criticite_id: '',
+                type_nc: '',
+                description: '',
+                impact_potentiel: '',
+                date_detection: new Date().toISOString().split('T')[0],
+                detecteur_id: '',
+                co_detecteurs: [],
+                zone_detection: '',
+            });
+        }
+    }, [isEditMode, existingNc]);
+
 
     // Smart Sync Logic: Equipement → Zone de Détection
     const handleEquipementChange = (id: string) => {
@@ -301,15 +345,33 @@ export default function NcCreationModal() {
     };
 
     const createMutation = useMutation({
-        mutationFn: (data: any) => ncService.createNc(data),
+        mutationFn: (data: any) => {
+            if (isEditMode && selectedNcId) {
+                return ncService.updateNc(selectedNcId, data);
+            }
+            return ncService.createNc(data);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['non-conformites'] });
             queryClient.invalidateQueries({ queryKey: ['nc-stats'] });
-            closeNcModal();
-            toast.success('Non-conformité déclarée avec succès !', {
-                icon: '🚨',
-                style: { borderRadius: '12px', fontWeight: 'bold' }
-            });
+            if (isEditMode) {
+                queryClient.invalidateQueries({ queryKey: ['non-conformite', selectedNcId] });
+            }
+
+            if (isEditMode) {
+                closeNcEditModal();
+                toast.success('Non-conformité mise à jour avec succès !', {
+                    icon: '✅',
+                    style: { borderRadius: '12px', fontWeight: 'bold' }
+                });
+            } else {
+                closeNcModal();
+                toast.success('Non-conformité déclarée avec succès !', {
+                    icon: '🚨',
+                    style: { borderRadius: '12px', fontWeight: 'bold' }
+                });
+            }
+
             setForm({
                 test_id: '',
                 equipement_id: '',
@@ -325,7 +387,8 @@ export default function NcCreationModal() {
         },
         onError: (error: any) => {
             console.error('Erreur NC:', error.response?.data);
-            toast.error(`Erreur: ${error.response?.data?.message || 'Échec de la déclaration'}`, {
+            const message = isEditMode ? 'Échec de la mise à jour' : 'Échec de la déclaration';
+            toast.error(`Erreur: ${error.response?.data?.message || message}`, {
                 style: { borderRadius: '12px', fontWeight: 'bold' }
             });
         }
@@ -367,7 +430,15 @@ export default function NcCreationModal() {
         createMutation.mutate(sanitized);
     };
 
-    if (!isNcModalOpen) return null;
+    if (!isOpen) return null;
+
+    const handleClose = () => {
+        if (isEditMode) {
+            closeNcEditModal();
+        } else {
+            closeNcModal();
+        }
+    };
 
     const ncTypes = [
         { value: 'DIMENSIONNEL', label: 'Écart Dimensionnel' },
@@ -394,12 +465,14 @@ export default function NcCreationModal() {
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-                                DÉCLARATION NC
+                                {isEditMode ? 'MODIFICATION NC' : 'DÉCLARATION NC'}
                             </h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[3px] mt-1.5">Non-Conformity Report System</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[3px] mt-1.5">
+                                {isEditMode ? 'Edit Non-Conformity Report' : 'Non-Conformity Report System'}
+                            </p>
                         </div>
                     </div>
-                    <button type="button" onClick={closeNcModal} className="h-10 w-10 flex items-center justify-center bg-white border border-slate-100 hover:bg-rose-50 hover:border-rose-100 rounded-xl transition-all shadow-sm group">
+                    <button type="button" onClick={handleClose} className="h-10 w-10 flex items-center justify-center bg-white border border-slate-100 hover:bg-rose-50 hover:border-rose-100 rounded-xl transition-all shadow-sm group">
                         <X className="h-4.5 w-4.5 text-slate-400 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                     <div className="absolute top-0 right-0 w-1/3 h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ef4444 2px, transparent 0)', backgroundSize: '18px 18px' }} />
@@ -593,8 +666,8 @@ export default function NcCreationModal() {
                 </form>
 
                 <div className="px-9 py-5 bg-white border-t border-slate-50 flex items-center justify-between">
-                    <button type="button" onClick={closeNcModal} className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] hover:text-slate-900 transition-all">
-                        Abandonner
+                    <button type="button" onClick={handleClose} className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] hover:text-slate-900 transition-all">
+                        {isEditMode ? 'Annuler' : 'Abandonner'}
                     </button>
                     <div className="flex items-center gap-7">
                         {!isFormValid && (
@@ -620,11 +693,11 @@ export default function NcCreationModal() {
                             {createMutation.isPending ? (
                                 <>
                                     <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    <span>Déclaration...</span>
+                                    <span>{isEditMode ? 'Enregistrement...' : 'Déclaration...'}</span>
                                 </>
                             ) : (
                                 <>
-                                    Déclarer la NC
+                                    {isEditMode ? 'Enregistrer les modifications' : 'Déclarer la NC'}
                                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
                                 </>
                             )}

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    Search,
     Filter,
 
     Plus,
@@ -169,7 +168,7 @@ export default function EquipementsPage() {
                         </div>
                     </div>
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
-                        <div className="h-full bg-emerald-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_service / stats.total) * 100 : 0}%` }}></div>
+                        <div className="h-full bg-emerald-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_service / stats.total) * 100 : 0}% ` }}></div>
                     </div>
                 </div>
 
@@ -184,7 +183,7 @@ export default function EquipementsPage() {
                         </div>
                     </div>
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
-                        <div className="h-full bg-amber-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_maintenance / stats.total) * 100 : 0}%` }}></div>
+                        <div className="h-full bg-amber-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.en_maintenance / stats.total) * 100 : 0}% ` }}></div>
                     </div>
                 </div>
 
@@ -199,7 +198,7 @@ export default function EquipementsPage() {
                         </div>
                     </div>
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-50">
-                        <div className="h-full bg-rose-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.critiques / stats.total) * 100 : 0}%` }}></div>
+                        <div className="h-full bg-rose-500 rounded-r-full" style={{ width: `${stats?.total ? (stats.critiques / stats.total) * 100 : 0}% ` }}></div>
                     </div>
                 </div>
             </div>

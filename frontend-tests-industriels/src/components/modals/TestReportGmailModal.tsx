@@ -60,15 +60,22 @@ export default function TestReportGmailModal() {
             executeur_id?: string,
             nom_executeur?: string
         }) => testsService.finishTest(selectedTestId!, data),
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['tests'] });
             queryClient.invalidateQueries({ queryKey: ['test', selectedTestId] });
             queryClient.invalidateQueries({ queryKey: ['tests-technician'] });
 
-            toast.success('Résultat final enregistré en base de données', {
-                icon: '💾',
-                duration: 4000
-            });
+            if (variables.resultat_final === 'NOK') {
+                toast.success('Résultat NOK enregistré. Une fiche NC a été créée automatiquement.', {
+                    icon: '⚠️',
+                    duration: 5000
+                });
+            } else {
+                toast.success('Résultat final enregistré en base de données', {
+                    icon: '💾',
+                    duration: 4000
+                });
+            }
 
             closeTestGmailModal();
             resetForm();

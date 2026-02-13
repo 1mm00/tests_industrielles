@@ -12,7 +12,7 @@ class PersonnelService
      */
     public function getAllPersonnel(): Collection
     {
-        return Personnel::orderBy('nom', 'asc')->get();
+        return Personnel::with(['role', 'departement', 'posteRel'])->orderBy('nom', 'asc')->get();
     }
 
     /**
@@ -20,11 +20,12 @@ class PersonnelService
      */
     public function getPersonnelStats(): array
     {
-        $personnel = Personnel::with('role')->whereNotNull('departement')->get();
-        $grouped = $personnel->groupBy('departement');
+        $personnel = Personnel::with(['role', 'departement'])->get();
+        $grouped = $personnel->groupBy('departement_id');
 
         $byDepartement = [];
-        foreach ($grouped as $deptName => $users) {
+        foreach ($grouped as $deptId => $users) {
+            $deptName = $users->first()->departement->libelle ?? 'Non Assigné';
             $byDepartement[] = [
                 'departement' => $deptName,
                 'count' => $users->count(),

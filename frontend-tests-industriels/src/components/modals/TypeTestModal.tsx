@@ -4,20 +4,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
-    Save,
-    AlertCircle,
+    ChevronDown,
+    Clock,
     Info,
     Layers,
     Activity,
-    Settings,
     ClipboardList,
-    Clock,
     CornerDownRight,
-    Search,
-    ChevronDown,
-    Zap,
-    ArrowRight,
-    Search as SearchIcon
+    Search as SearchIcon,
+    Settings,
+    ArrowRight
 } from 'lucide-react';
 import { typeTestsService } from '@/services/typeTestsService';
 import { useModalStore } from '@/store/modalStore';
@@ -134,6 +130,7 @@ export default function TypeTestModal() {
         duree_estimee_jours: '',
         frequence_recommandee: '',
         equipements_eligibles: [] as string[],
+        instruments_eligibles: [] as string[],
         actif: true,
     });
 
@@ -162,6 +159,7 @@ export default function TypeTestModal() {
                 duree_estimee_jours: typeTestData.duree_estimee_jours?.toString() || '',
                 frequence_recommandee: typeTestData.frequence_recommandee || '',
                 equipements_eligibles: typeTestData.equipements_eligibles || [],
+                instruments_eligibles: typeTestData.instruments_eligibles || [],
                 actif: typeTestData.actif,
             });
         } else {
@@ -175,6 +173,7 @@ export default function TypeTestModal() {
                 duree_estimee_jours: '',
                 frequence_recommandee: '',
                 equipements_eligibles: [],
+                instruments_eligibles: [],
                 actif: true,
             });
         }
@@ -464,6 +463,83 @@ export default function TypeTestModal() {
                                                                     onClick={() => {
                                                                         const newEligibles = form.equipements_eligibles.filter(id => id !== eqId);
                                                                         setForm({ ...form, equipements_eligibles: newEligibles });
+                                                                    }}
+                                                                    className="p-1.5 opacity-0 group-hover/tag:opacity-100 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Instrument Selection (New) */}
+                                        <div className="p-7 bg-white border border-slate-100 rounded-[30px] shadow-sm flex flex-col h-full max-h-[480px]">
+                                            <div className="flex items-center justify-between gap-4 mb-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                                                        <Activity size={18} />
+                                                    </div>
+                                                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Instrumentation</h3>
+                                                </div>
+                                                <div className="h-6 w-6 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[10px] font-black">
+                                                    {form.instruments_eligibles.length}
+                                                </div>
+                                            </div>
+
+                                            <div className="relative mb-5">
+                                                <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                                <select
+                                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest appearance-none outline-none focus:ring-4 focus:ring-emerald-500/5 focus:bg-white transition-all shadow-sm"
+                                                    onChange={(e) => {
+                                                        const selectedId = e.target.value;
+                                                        if (selectedId && !form.instruments_eligibles.includes(selectedId)) {
+                                                            setForm({ ...form, instruments_eligibles: [...form.instruments_eligibles, selectedId] });
+                                                        }
+                                                        e.target.value = "";
+                                                    }}
+                                                >
+                                                    <option value="">Ajouter un instrument...</option>
+                                                    {creationData?.instruments?.map((ins: any) => (
+                                                        <option
+                                                            key={ins.id_instrument}
+                                                            value={ins.id_instrument}
+                                                            disabled={form.instruments_eligibles.includes(ins.id_instrument)}
+                                                        >
+                                                            [{ins.numero_serie}] {ins.designation}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="flex-1 overflow-y-auto scrollbar-hide space-y-2 pr-1">
+                                                {form.instruments_eligibles.length === 0 ? (
+                                                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                        <Activity className="h-7 w-7 text-slate-300 mb-3" />
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed max-w-[150px]">
+                                                            Instrumentation libre. Aucune restriction sur le matériel de mesure.
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    form.instruments_eligibles.map(insId => {
+                                                        const ins = creationData?.instruments?.find((i: any) => i.id_instrument === insId);
+                                                        if (!ins) return null;
+                                                        return (
+                                                            <div
+                                                                key={insId}
+                                                                className="group/tag flex items-center justify-between gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-xl hover:bg-white hover:border-emerald-200 transition-all shadow-sm"
+                                                            >
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-[10px] font-black text-slate-800 truncate">{ins.designation}</span>
+                                                                    <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-tighter">N° {ins.numero_serie}</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newEligibles = form.instruments_eligibles.filter(id => id !== insId);
+                                                                        setForm({ ...form, instruments_eligibles: newEligibles });
                                                                     }}
                                                                     className="p-1.5 opacity-0 group-hover/tag:opacity-100 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-sm"
                                                                 >

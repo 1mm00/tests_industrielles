@@ -29,6 +29,7 @@ export interface CreateTestData {
     arret_production_requis?: boolean;
     instrument_id?: string | null;
     statut_final?: 'OK' | 'NOK' | null;
+    statut_test?: string | null;
     resultat_attendu?: string | null;
 }
 
@@ -78,7 +79,7 @@ export const testsService = {
      * Démarrer un test
      */
     async startTest(id: string): Promise<TestIndustriel> {
-        const response = await api.post<ApiResponse<TestIndustriel>>(`/tests/${id}/start`);
+        const response = await api.post<ApiResponse<TestIndustriel>>(`/v1/tests/${id}/demarrer`);
         return response.data.data;
     },
 
@@ -92,7 +93,7 @@ export const testsService = {
         executeur_id?: string;
         nom_executeur?: string;
     }): Promise<TestIndustriel> {
-        const response = await api.post<ApiResponse<TestIndustriel>>(`/tests/${id}/finish`, {
+        const response = await api.post<ApiResponse<TestIndustriel>>(`/v1/tests/${id}/terminer`, {
             ...data,
             statut_test: 'TERMINE'
         });
@@ -112,6 +113,14 @@ export const testsService = {
      */
     async cancelTest(id: string, motif: string): Promise<TestIndustriel> {
         const response = await api.post<ApiResponse<TestIndustriel>>(`/tests/${id}/cancel`, { motif });
+        return response.data.data;
+    },
+
+    /**
+     * Certifier et verrouiller un test (Immuable)
+     */
+    async certifyTest(id: string): Promise<TestIndustriel> {
+        const response = await api.post<ApiResponse<TestIndustriel>>(`/v1/tests/${id}/valider`);
         return response.data.data;
     },
 

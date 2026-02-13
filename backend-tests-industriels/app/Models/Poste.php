@@ -7,19 +7,42 @@ use Illuminate\Database\Eloquent\Model;
 
 class Poste extends Model
 {
-    use HasFactory;
+    use HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+    protected $table = 'postes';
+    protected $primaryKey = 'id_poste';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
+        'code_poste',
         'libelle',
         'categorie',
-        'niveau_requis',
         'description',
+        'role_id',
         'actif',
     ];
 
     protected $casts = [
+        'role_id' => 'string',
         'actif' => 'boolean',
     ];
+
+    /**
+     * Relation avec le rôle associé
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id', 'id_role');
+    }
+
+    /**
+     * Relation avec le personnel à ce poste
+     */
+    public function personnels()
+    {
+        return $this->hasMany(Personnel::class, 'poste_id', 'id_poste');
+    }
 
     /**
      * Scope pour les postes actifs

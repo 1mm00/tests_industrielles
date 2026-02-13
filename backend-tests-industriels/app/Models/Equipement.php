@@ -7,9 +7,30 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\HasAuditLog;
+
 class Equipement extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasAuditLog;
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($equipement) {
+            if ($equipement->testsIndustriels()->exists()) {
+                throw new \Exception("Action bloquée : Cet équipement possède un historique de tests industriels et ne peut être supprimé.");
+            }
+
+            if ($equipement->nonConformites()->exists()) {
+                throw new \Exception("Action bloquée : Des non-conformités sont liées à cet équipement.");
+            }
+
+            if (\App\Models\Maintenance::where('equipement_id', $equipement->id_equipement)->exists()) {
+                throw new \Exception("Action bloquée : Des rapports de maintenance sont associés à cet équipement.");
+            }
+        });
+    }
 
     protected $table = 'equipements';
     protected $primaryKey = 'id_equipement';

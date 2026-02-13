@@ -306,6 +306,17 @@ export default function InstrumentsPage() {
                                                     <Calendar className="h-3.5 w-3.5" />
                                                     Prochaine: {formatDate(inst.date_prochaine_calibration)}
                                                 </div>
+                                                {inst.jours_avant_calibration !== null && (
+                                                    <div className={cn(
+                                                        "mt-1.5 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest w-fit border",
+                                                        inst.jours_avant_calibration < 0 ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                                            inst.jours_avant_calibration <= 30 ? "bg-amber-50 text-amber-600 border-amber-100 animate-pulse" :
+                                                                "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                                    )}>
+                                                        {inst.jours_avant_calibration < 0 ? `Échue (J${inst.jours_avant_calibration})` :
+                                                            inst.jours_avant_calibration === 0 ? "Aujourd'hui" : `J-${inst.jours_avant_calibration}`}
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-7 py-5 text-center">

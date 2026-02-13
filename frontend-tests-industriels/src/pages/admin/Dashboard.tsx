@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
     FlaskConical,
     AlertTriangle,
-    AlertOctagon,
     UserCheck,
     Target,
     Activity,
@@ -14,10 +13,12 @@ import {
     ShieldAlert,
     Cpu,
     Calendar,
-    ArrowUpRight
+    ArrowUpRight,
+    ArrowDownRight
 } from 'lucide-react';
 import { testsService } from '@/services/testsService';
 import { usersService } from '@/services/usersService';
+import { useKpis } from '@/hooks/useKpis';
 import api from '@/config/api';
 import { formatNumber, cn, formatDate } from '@/utils/helpers';
 import IndustrialChart from '@/components/dashboard/IndustrialChart';
@@ -33,9 +34,11 @@ interface StatCardProps {
     icon: any;
     color: string;
     trend: number[];
+    variation?: number;
 }
 
-const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }: StatCardProps) => {
+const StatCard = ({ title, value, subtitle, icon: Icon, color, trend, variation }: StatCardProps) => {
+    const isPositive = (variation || 0) >= 0;
     const sparklineOptions: any = {
         chart: { sparkline: { enabled: true }, animations: { enabled: true } },
         stroke: { curve: 'smooth', width: 2.5 },
@@ -70,10 +73,15 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }: StatCard
                     )}>
                         <Icon className="h-6 w-6" />
                     </div>
-                    <div className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center gap-1">
-                        <ArrowUpRight className="h-3 w-3" />
-                        +12.5%
-                    </div>
+                    {variation !== undefined && (
+                        <div className={cn(
+                            "text-[10px] font-black px-2.5 py-1 rounded-lg border flex items-center gap-1",
+                            isPositive ? "text-emerald-500 bg-emerald-50 border-emerald-100" : "text-rose-500 bg-rose-50 border-rose-100"
+                        )}>
+                            {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                            {isPositive ? '+' : ''}{variation}%
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-1">
@@ -103,12 +111,14 @@ export default function DashboardPage() {
         queryFn: () => testsService.getTestsStats(),
     });
 
+    const { data: kpiData, loading: isKpisLoading } = useKpis();
+
     const { data: userStats, isLoading: isUsersLoading } = useQuery({
         queryKey: ['users-stats'],
         queryFn: () => usersService.getUserStats(),
     });
 
-    const isLoading = isTestsLoading || isUsersLoading;
+    const isLoading = isTestsLoading || isUsersLoading || isKpisLoading;
 
     if (isLoading) {
         return (
@@ -182,7 +192,8 @@ export default function DashboardPage() {
                     subtitle="Activité terrain live"
                     icon={Activity}
                     color="blue"
-                    trend={[30, 40, 35, 50, 49, 60, 70, 91]}
+                    trend={kpiData?.tendances.map(t => t.total) || [30, 40, 35, 50, 49, 60, 70, 91]}
+                    variation={kpiData?.total_tests.variation_pct}
                 />
                 <StatCard
                     title="NC Ouvertes"
@@ -191,6 +202,7 @@ export default function DashboardPage() {
                     icon={ShieldAlert}
                     color="orange"
                     trend={[10, 15, 8, 12, 18, 14, 10, 5]}
+                    variation={kpiData?.non_conformites.variation}
                 />
                 <StatCard
                     title="Engineers Node"
@@ -206,7 +218,8 @@ export default function DashboardPage() {
                     subtitle="Indice de conformité"
                     icon={Target}
                     color="emerald"
-                    trend={[85, 88, 87, 89, 92, 90, 93, 94]}
+                    trend={kpiData?.tendances.map(t => t.taux_reussite) || [85, 88, 87, 89, 92, 90, 93, 94]}
+                    variation={kpiData?.taux_reussite.variation}
                 />
             </div>
 

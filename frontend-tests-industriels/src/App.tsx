@@ -21,6 +21,8 @@ import ReportsPage from '@/pages/reporting/ReportsPage';
 import UsersPage from '@/pages/admin/Users';
 import PermissionsManagerPage from '@/pages/admin/PermissionsManagerPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
+import ReportingPage from '@/pages/ReportingPage';
+import MissionControlPage from './pages/planning/MissionControlPage';
 
 import Dashboard_Engineer from '@/pages/ingenieur/Dashboard_Engineer';
 import Analyses_Engineer from '@/pages/ingenieur/Analyses_Engineer';
@@ -32,6 +34,9 @@ import NonConformites_Technician from '@/pages/technicien/NonConformites_Technic
 import Equipements_Technician from '@/pages/technicien/Equipements_Technician';
 import Rapports_Technician from '@/pages/technicien/Rapports_Technician';
 import Dashboard_Reader from '@/pages/lecteur/Dashboard_Reader';
+import AuditLogsPage from '@/pages/admin/AuditLogsPage';
+import SystemSettingsPage from '@/pages/admin/SystemSettingsPage';
+import MaintenancePage from '@/pages/equipements/MaintenancePage';
 import { Toaster } from 'react-hot-toast';
 
 // Créer le Query Client pour React Query
@@ -270,6 +275,17 @@ function App() {
 
 
                     <Route
+                        path="/equipements/maintenance"
+                        element={
+                            <PermissionRoute resource="equipements" action="read">
+                                <MainLayout>
+                                    <MaintenancePage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
                         path="/equipements"
                         element={
                             <PermissionRoute resource="equipements" action="read">
@@ -358,11 +374,44 @@ function App() {
                     />
 
                     <Route
+                        path="/mission-control"
+                        element={
+                            <PermissionRoute resource="rapports" action="read">
+                                <MainLayout>
+                                    <MissionControlPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/kpis"
+                        element={
+                            <PermissionRoute resource="rapports" action="read">
+                                <MainLayout>
+                                    <ReportingPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
                         path="/users"
                         element={
                             <PermissionRoute resource="personnel" action="read">
                                 <MainLayout>
                                     <UsersPage />
+                                </MainLayout>
+                            </PermissionRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/audit-logs"
+                        element={
+                            <PermissionRoute resource="personnel" action="read">
+                                <MainLayout>
+                                    <AuditLogsPage />
                                 </MainLayout>
                             </PermissionRoute>
                         }
@@ -391,31 +440,15 @@ function App() {
                     />
 
 
-                    <Route
-                        path="/kpis"
-                        element={
-                            <PrivateRoute>
-                                <MainLayout>
-                                    <div className="text-center py-12">
-                                        <h1 className="text-2xl font-bold text-gray-900">Page KPIs</h1>
-                                        <p className="text-gray-600 mt-2">À venir...</p>
-                                    </div>
-                                </MainLayout>
-                            </PrivateRoute>
-                        }
-                    />
 
                     <Route
                         path="/settings"
                         element={
-                            <PrivateRoute>
+                            <PermissionRoute resource="personnel" action="read">
                                 <MainLayout>
-                                    <div className="text-center py-12">
-                                        <h1 className="text-2xl font-bold text-gray-900">Page Paramètres</h1>
-                                        <p className="text-gray-600 mt-2">À venir...</p>
-                                    </div>
+                                    <SystemSettingsPage />
                                 </MainLayout>
-                            </PrivateRoute>
+                            </PermissionRoute>
                         }
                     />
 

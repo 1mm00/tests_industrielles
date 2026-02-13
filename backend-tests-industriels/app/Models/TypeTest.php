@@ -10,6 +10,17 @@ class TypeTest extends Model
 {
     use HasFactory, HasUuids;
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($typeTest) {
+            if ($typeTest->testsIndustriels()->exists()) {
+                throw new \Exception("Action bloquée : Ce type de contrôle est déjà utilisé dans des tests industriels et ne peut être supprimé.");
+            }
+        });
+    }
+
     protected $table = 'types_tests';
     protected $primaryKey = 'id_type_test';
     public $incrementing = false;
@@ -23,6 +34,7 @@ class TypeTest extends Model
         'sous_categorie',
         'description',
         'equipements_eligibles',
+        'instruments_eligibles',
         'niveau_criticite_defaut',
         'duree_estimee_jours',
         'frequence_recommandee',
@@ -34,6 +46,7 @@ class TypeTest extends Model
         'duree_estimee_jours' => 'decimal:2',
         'niveau_criticite_defaut' => 'integer',
         'equipements_eligibles' => 'array',
+        'instruments_eligibles' => 'array',
     ];
 
     /**

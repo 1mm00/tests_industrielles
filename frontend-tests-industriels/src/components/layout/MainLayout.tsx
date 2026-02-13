@@ -32,7 +32,6 @@ import NcCreationModal from '../modals/NcCreationModal';
 import ReportCreationModal from '../modals/ReportCreationModal';
 import UserCreationModal from '../modals/UserCreationModal';
 import TestExecutionModal from '../modals/TestExecutionModal';
-import NcEditModal from '../modals/NcEditModal';
 import EquipementEditModal from '../modals/EquipementEditModal';
 import EquipementCreationModal from '../modals/EquipementCreationModal';
 import EquipementDetailsModal from '../modals/EquipementDetailsModal';
@@ -45,6 +44,13 @@ import ProfileEditModal from '../modals/ProfileEditModal';
 import TestReportGmailModal from '../modals/TestReportGmailModal';
 import TestDetailsModal from '../modals/TestDetailsModal';
 import NcDetailsModal from '../modals/NcDetailsModal';
+import AnalyseNCModal from '../modals/AnalyseNCModal';
+import PlanActionModal from '../modals/PlanActionModal';
+import ClotureNcModal from '../modals/ClotureNcModal';
+import VerificationEfficaciteModal from '../modals/VerificationEfficaciteModal';
+import ReouvrirNcModal from '../modals/ReouvrirNcModal';
+import SecurityConfirmationModal from '../modals/SecurityConfirmationModal';
+
 
 import { hasModuleAccess, hasPermission } from '@/utils/permissions';
 import { authService } from '@/services/authService';
@@ -72,6 +78,7 @@ const navGroups: NavGroup[] = [
         title: 'Maîtrise Opérationnelle',
         items: [
             { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, resource: 'dashboards' },
+            { name: 'Mission Control', href: '/mission-control', icon: Zap, resource: 'dashboards' },
         ]
     },
     {
@@ -106,6 +113,7 @@ const navGroups: NavGroup[] = [
                 resource: 'equipements',
                 children: [
                     { name: 'Liste équipements', href: '/equipements', resource: 'equipements' },
+                    { name: 'Maintenance Préventive', href: '/equipements/maintenance', resource: 'equipements' },
                     { name: 'Instrumentation', href: '/instruments', resource: 'instruments' },
                     { name: 'Alertes Métrologie', href: '/calibration-alerts', resource: 'instruments' },
                 ]
@@ -129,6 +137,7 @@ const navGroups: NavGroup[] = [
                 resource: 'rapports',
                 children: [
                     { name: 'Tableau Bord Performance', href: '/reporting-dashboard', resource: 'rapports' },
+                    { name: 'KPIs Détaillés', href: '/kpis', resource: 'rapports' },
                     { name: 'Registre des Rapports', href: '/reports', resource: 'rapports' },
                 ]
             },
@@ -173,6 +182,8 @@ const navGroups: NavGroup[] = [
         items: [
             { name: 'Gestion des Utilisateurs', href: '/users', icon: Users, resource: 'personnel' },
             { name: 'Matrice des Permissions', href: '/roles-permissions', icon: ShieldCheck, resource: 'users' },
+            { name: 'Référentiels Système', href: '/settings', icon: Layers, resource: 'personnel' },
+            { name: 'Journal d\'Audit', href: '/audit-logs', icon: Activity, resource: 'personnel' },
         ]
     },
     {
@@ -436,7 +447,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <ReportCreationModal />
                 <UserCreationModal />
                 <TestExecutionModal />
-                <NcEditModal />
                 <EquipementEditModal />
                 <EquipementCreationModal />
                 <EquipementDetailsModal />
@@ -448,6 +458,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <TestReportGmailModal />
                 <TestDetailsModal />
                 <NcDetailsModal />
+                <AnalyseNCModal />
+                <PlanActionModal />
+                <ClotureNcModal />
+                <VerificationEfficaciteModal />
+                <ReouvrirNcModal />
+                <SecurityConfirmationModal />
             </div>
         </div >
     );

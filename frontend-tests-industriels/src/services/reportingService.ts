@@ -72,5 +72,35 @@ export const reportingService = {
     }): Promise<Rapport> {
         const response = await api.post<ApiResponse<Rapport>>('/reporting/reports', data);
         return response.data.data;
+    },
+
+    /**
+     * Exécuter une requête dynamique
+     */
+    async customQuery(params: {
+        metric: string;
+        dimension: string;
+        start_date?: string;
+        end_date?: string;
+    }): Promise<{ labels: string[]; values: number[]; metric: string; dimension: string }> {
+        const response = await api.post<ApiResponse<any>>('/reporting/custom-query', params);
+        return response.data.data;
+    },
+
+    /**
+     * Gérer les favoris
+     */
+    async getFavorites(): Promise<any[]> {
+        const response = await api.get<ApiResponse<any[]>>('/reporting/favorites');
+        return response.data.data;
+    },
+
+    async saveFavorite(data: { name: string; config: any }): Promise<any> {
+        const response = await api.post<ApiResponse<any>>('/reporting/favorites', data);
+        return response.data.data;
+    },
+
+    async deleteFavorite(id: string): Promise<void> {
+        await api.delete(`/reporting/favorites/${id}`);
     }
 };

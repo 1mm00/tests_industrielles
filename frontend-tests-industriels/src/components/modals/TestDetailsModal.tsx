@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
@@ -16,22 +17,46 @@ import {
     ExternalLink,
     Mail,
     ArrowLeftRight,
-    CornerDownRight
+    CornerDownRight,
+    Lock,
+    ShieldCheck,
+    Loader2
 } from 'lucide-react';
 import { useModalStore } from '@/store/modalStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { testsService } from '@/services/testsService';
 import { formatDate, cn } from '@/utils/helpers';
 import type { TestIndustriel } from '@/types';
 import { exportTestReportPDF } from '@/utils/pdfExport';
+import toast from 'react-hot-toast';
 
 export default function TestDetailsModal() {
     const { isTestDetailsModalOpen, closeTestDetailsModal, selectedTestId } = useModalStore();
 
+    const queryClient = useQueryClient();
     const { data: test, isLoading } = useQuery<TestIndustriel>({
         queryKey: ['test', selectedTestId],
         queryFn: () => testsService.getTest(selectedTestId!),
         enabled: !!selectedTestId && isTestDetailsModalOpen,
+        staleTime: 0,
+    });
+
+    useEffect(() => {
+        if (isTestDetailsModalOpen && selectedTestId) {
+            queryClient.invalidateQueries({ queryKey: ['test', selectedTestId] });
+        }
+    }, [isTestDetailsModalOpen, selectedTestId, queryClient]);
+
+    const certifyMutation = useMutation({
+        mutationFn: () => testsService.certifyTest(selectedTestId!),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['test', selectedTestId] });
+            queryClient.invalidateQueries({ queryKey: ['orchestration-tests'] });
+            toast.success('Test certifié et verrouillé officiellement');
+        },
+        onError: (err: any) => {
+            toast.error(err.response?.data?.message || 'Erreur lors de la certification');
+        }
     });
 
     if (!isTestDetailsModalOpen) return null;
@@ -90,6 +115,11 @@ export default function TestDetailsModal() {
                                             isNonConforme ? "text-rose-600" : "text-emerald-600"
                                         )}>
                                             {isNonConforme ? 'NOK - NON CONFORME' : 'OK - CONFORME'}
+                                            {test?.taux_conformite_pct !== undefined && (
+                                                <span className="ml-3 text-[18px] opacity-70">
+                                                    [{test.taux_conformite_pct}% Precision Score]
+                                                </span>
+                                            )}
                                         </h2>
                                         <div className="h-1 w-1 rounded-full bg-slate-300" />
                                         <span className="text-[10px] font-mono font-bold text-slate-500 bg-white/50 px-2 py-0.5 rounded-full border border-slate-200">
@@ -101,6 +131,14 @@ export default function TestDetailsModal() {
                             </div>
 
                             <div className="flex items-center gap-6">
+                                {/* Lock Status Indicator */}
+                                {test?.est_verrouille && (
+                                    <div className="flex flex-col items-center px-4 py-2 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200 border border-slate-700 animate-pulse">
+                                        <Lock size={16} className="mb-1 text-amber-500" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest">Archive Verrouillée</span>
+                                    </div>
+                                )}
+
                                 {/* Neon Risk Badge */}
                                 <div className="flex flex-col items-end">
                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1">Risk Level</p>
@@ -354,6 +392,21 @@ export default function TestDetailsModal() {
                                                 )}
                                             </div>
                                         </section>
+
+                                        {/* System Integrity Notification */}
+                                        {test?.est_verrouille && (
+                                            <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 flex items-start gap-4">
+                                                <div className="h-10 w-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                                                    <Lock size={20} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <h5 className="text-[11px] font-black text-amber-800 uppercase tracking-tight">Données Certifiées</h5>
+                                                    <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
+                                                        Ce test a été validé par la direction technique. Les mesures et conclusions sont désormais verrouillées pour garantir l'intégrité de l'audit.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -371,17 +424,50 @@ export default function TestDetailsModal() {
 
                             <div className="flex items-center gap-4">
                                 <button
-                                    onClick={() => exportTestReportPDF(test)}
-                                    className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center gap-3 active:scale-95 group"
-                                >
-                                    <Download size={14} className="group-hover:-translate-y-0.5 transition-transform" />
-                                    Confirmer et Générer le PDF
-                                </button>
-                                <button
                                     className="p-3.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
                                     title="Partager en externe"
                                 >
                                     <ExternalLink size={18} />
+                                </button>
+
+                                {test && !test.est_verrouille && test.statut_test === 'TERMINE' && (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm('Voulez-vous vraiment certifier et verrouiller ce test ? Cette action est irréversible.')) {
+                                                certifyMutation.mutate();
+                                            }
+                                        }}
+                                        disabled={certifyMutation.isPending}
+                                        className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[3px] hover:bg-emerald-600 transition-all shadow-xl shadow-slate-100 flex items-center gap-3 active:scale-95 group border border-slate-700"
+                                    >
+                                        {certifyMutation.isPending ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <ShieldCheck size={14} className="group-hover:scale-110 transition-transform text-emerald-400" />
+                                        )}
+                                        Certifier & Verrouiller
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={async () => {
+                                        if (!test?.est_verrouille) {
+                                            toast.error('Veuillez certifier le test avant de générer le rapport final immuable.');
+                                            return;
+                                        }
+                                        toast.loading('Génération du PDF en cours...', { id: 'pdf-gen' });
+                                        await exportTestReportPDF(test);
+                                        toast.success('PDF généré avec succès !', { id: 'pdf-gen' });
+                                    }}
+                                    className={cn(
+                                        "px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[3px] transition-all shadow-xl flex items-center gap-3 active:scale-95 group",
+                                        test?.est_verrouille
+                                            ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100"
+                                            : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    <Download size={14} className="group-hover:-translate-y-0.5 transition-transform" />
+                                    Générer le PDF Final
                                 </button>
                             </div>
                         </div>

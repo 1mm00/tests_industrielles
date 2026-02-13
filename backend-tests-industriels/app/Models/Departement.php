@@ -7,19 +7,41 @@ use Illuminate\Database\Eloquent\Model;
 
 class Departement extends Model
 {
-    use HasFactory;
+    use HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+    protected $table = 'departements';
+    protected $primaryKey = 'id_departement';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
+        'code_departement',
         'libelle',
-        'categorie',
-        'site',
         'description',
+        'responsable_id',
         'actif',
     ];
 
     protected $casts = [
         'actif' => 'boolean',
+        'responsable_id' => 'string',
     ];
+
+    /**
+     * Relation avec le responsable (Personnel)
+     */
+    public function responsable()
+    {
+        return $this->belongsTo(Personnel::class, 'responsable_id', 'id_personnel');
+    }
+
+    /**
+     * Relation avec le personnel du département
+     */
+    public function personnels()
+    {
+        return $this->hasMany(Personnel::class, 'departement_id', 'id_departement');
+    }
 
     /**
      * Scope pour les départements actifs

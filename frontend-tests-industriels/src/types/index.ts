@@ -96,6 +96,8 @@ export interface TestIndustriel {
     responsable?: User;
     instrument?: InstrumentMesure; // Added: relation vers l'instrument principal
     createur?: User; // Added: utilisateur qui a créé le test
+    mesures?: Mesure[]; // Added: relation vers les mesures du test
+    est_verrouille?: boolean; // Verrouillage système post-validation
 }
 
 export interface TypeTest {
@@ -109,6 +111,7 @@ export interface TypeTest {
     duree_estimee_jours?: number;
     frequence_recommandee?: string;
     equipements_eligibles?: string[];
+    instruments_eligibles?: string[];
     actif: boolean;
     created_at: string;
     checklists_controle?: ChecklistControle[];
@@ -134,6 +137,7 @@ export interface ItemChecklist {
     critere_acceptation?: string;
     valeur_reference?: string;
     tolerance?: string;
+    unite_mesure?: string;
     obligatoire: boolean;
     criticite?: number;
 }
@@ -162,8 +166,42 @@ export interface Equipement {
 }
 
 // ----------------------------------------------------------------------------
-// Non-Conformités
+// Non-Conformités & Corrective Actions
 // ----------------------------------------------------------------------------
+export interface CauseRacine {
+    id_cause: string;
+    categorie: string;
+    description: string;
+    type_cause: string;
+    probabilite_recurrence_pct: number;
+}
+
+export interface ActionCorrective {
+    id_action: string;
+    type_action: string;
+    description: string;
+    responsable_id?: string;
+    responsable?: PersonnelData;
+    date_prevue: string;
+    date_realisee?: string;
+    statut: 'A_FAIRE' | 'EN_COURS' | 'TERMINE' | 'TERMINEE' | 'REALISEE' | 'FAITE' | 'ANNULE' | 'A_REVOIR';
+    verification_efficacite?: any;
+}
+
+export interface PlanAction {
+    id_plan: string;
+    numero_plan: string;
+    responsable_plan_id?: string;
+    responsable_id?: string; // Add for consistency with forms
+    responsable?: PersonnelData;
+    date_creation: string;
+    date_echeance: string;
+    priorite?: 'BASSE' | 'NORMALE' | 'HAUTE' | 'URGENTE';
+    objectifs?: string;
+    statut_plan: 'VALIDE' | 'ACTIF' | 'TERMINE' | 'ANNULE';
+    actions?: ActionCorrective[];
+}
+
 export interface NonConformite {
     id_non_conformite: string;
     numero_nc: string;
@@ -173,9 +211,11 @@ export interface NonConformite {
     date_detection: string;
     detecteur_id?: string;
     criticite_id?: string;
+    type_nc?: string;
     description: string;
     impact_potentiel?: string;
     statut: 'OUVERTE' | 'EN_COURS' | 'CLOTUREE' | 'ANNULEE';
+    is_archived?: boolean;
     created_at?: string;
     updated_at?: string;
 
@@ -194,6 +234,11 @@ export interface NonConformite {
     cout_reel?: number;
     recurrence?: boolean;
     responsable?: User;
+
+    // Analyses & Actions
+    conclusions?: string;
+    causes_racines?: CauseRacine[];
+    plan_action?: PlanAction;
 }
 
 // ----------------------------------------------------------------------------

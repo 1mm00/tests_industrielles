@@ -50,6 +50,8 @@ class TypeTestController extends Controller
             'description' => 'nullable|string',
             'equipements_eligibles' => 'nullable|array',
             'equipements_eligibles.*' => 'uuid',
+            'instruments_eligibles' => 'nullable|array',
+            'instruments_eligibles.*' => 'uuid',
             'niveau_criticite_defaut' => 'required|integer|between:1,4',
             'duree_estimee_jours' => 'nullable|numeric',
             'frequence_recommandee' => 'nullable|string',
@@ -93,6 +95,8 @@ class TypeTestController extends Controller
             'description' => 'nullable|string',
             'equipements_eligibles' => 'nullable|array',
             'equipements_eligibles.*' => 'uuid',
+            'instruments_eligibles' => 'nullable|array',
+            'instruments_eligibles.*' => 'uuid',
             'niveau_criticite_defaut' => 'sometimes|required|integer|between:1,4',
             'duree_estimee_jours' => 'nullable|numeric',
             'frequence_recommandee' => 'nullable|string',
@@ -140,6 +144,7 @@ class TypeTestController extends Controller
             'success' => true,
             'data' => [
                 'equipements' => \App\Models\Equipement::select('id_equipement', 'designation', 'code_equipement')->get(),
+                'instruments' => \App\Models\InstrumentMesure::select('id_instrument', 'designation', 'numero_serie')->get(),
             ]
         ]);
     }

@@ -38,14 +38,16 @@ class Norme extends Model
     /**
      * Relations
      */
-    public function testsNormesApplicables()
+    public function testsIndustriels()
     {
-        return $this->hasMany(TestsNormesApplicable::class, 'norme_id', 'id_norme');
+        return $this->belongsToMany(TestIndustriel::class, 'tests_normes_applicables', 'norme_id', 'test_id', 'id_norme', 'id_test')
+            ->withPivot('application_obligatoire');
     }
 
-    public function equipementsNormes()
+    public function equipements()
     {
-        return $this->hasMany(EquipementNorme::class, 'norme_id', 'id_norme');
+        return $this->belongsToMany(Equipement::class, 'equipements_normes', 'norme_id', 'equipement_id', 'id_norme', 'id_equipement')
+            ->withPivot('conformite_validee', 'date_validation');
     }
 
     /**

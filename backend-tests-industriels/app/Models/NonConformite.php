@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\HasAuditLog;
+
 class NonConformite extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasAuditLog;
 
     protected $table = 'non_conformites';
     protected $primaryKey = 'id_non_conformite';
@@ -29,7 +31,9 @@ class NonConformite extends Model
         'date_detection',
         'detecteur_id',
         'co_detecteurs',
+        'context_environnemental',
         'statut',
+        'is_archived',
         'date_cloture',
         'valideur_cloture_id',
         'commentaires_cloture',
@@ -37,8 +41,10 @@ class NonConformite extends Model
 
     protected $casts = [
         'co_detecteurs' => 'array',
+        'context_environnemental' => 'array',
         'date_detection' => 'date',
         'date_cloture' => 'datetime',
+        'is_archived' => 'boolean',
     ];
 
 
@@ -63,5 +69,15 @@ class NonConformite extends Model
     public function detecteur()
     {
         return $this->belongsTo(Personnel::class, 'detecteur_id', 'id_personnel');
+    }
+
+    public function causesRacines()
+    {
+        return $this->hasMany(CauseRacine::class, 'non_conformite_id', 'id_non_conformite');
+    }
+
+    public function planAction()
+    {
+        return $this->hasOne(PlanAction::class, 'non_conformite_id', 'id_non_conformite');
     }
 }

@@ -107,7 +107,7 @@ class RapportTestController extends Controller
 
         $validated['numero_rapport'] = $this->genererNumeroRapport();
         $validated['date_edition'] = now();
-        $validated['redacteur_id'] = auth()->user()->personnel->id_personnel ?? null;
+        $validated['redacteur_id'] = auth()->user()->id_personnel ?? null;
         $validated['statut'] = 'BROUILLON';
 
         $rapport = RapportTest::create($validated);
@@ -203,15 +203,22 @@ class RapportTestController extends Controller
      */
     public function valider($id)
     {
-        $rapport = RapportTest::findOrFail($id);
+        return DB::transaction(function () use ($id) {
+            $rapport = RapportTest::with('test')->findOrFail($id);
 
-        $rapport->update([
-            'statut' => 'VALIDE',
-            'valideur_id' => auth()->user()->personnel->id_personnel ?? null,
-            'date_validation' => now(),
-        ]);
+            $rapport->update([
+                'statut' => 'VALIDE',
+                'valideur_id' => auth()->user()->id_personnel ?? null,
+                'date_validation' => now(),
+            ]);
 
-        return response()->json($rapport);
+            // Verrouiller le test associé pour empêcher toute modification ultérieure
+            if ($rapport->test) {
+                $rapport->test->verrouiller();
+            }
+
+            return response()->json($rapport);
+        });
     }
 
     /**

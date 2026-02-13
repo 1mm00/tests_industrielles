@@ -10,9 +10,33 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
+use App\Traits\HasAuditLog;
+
 class InstrumentMesure extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, HasAuditLog;
+
+    protected $appends = ['jours_avant_calibration'];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($instrument) {
+            if ($instrument->calibrations()->exists()) {
+                throw new \Exception("Action bloquée : Cet instrument possède un historique de calibrations métrologiques et ne peut être supprimé.");
+            }
+
+            // Vérifier s'il est utilisé en tant qu'instrument principal dans des tests
+            if (\App\Models\TestIndustriel::where('instrument_id', $instrument->id_instrument)->exists()) {
+                throw new \Exception("Action bloquée : Cet instrument est référencé comme instrument principal dans des tests industriels.");
+            }
+
+            if ($instrument->mesures()->exists()) {
+                throw new \Exception("Action bloquée : Des mesures directes sont enregistrées avec cet instrument.");
+            }
+        });
+    }
 
     protected $table = 'instruments_mesure';
     protected $primaryKey = 'id_instrument';

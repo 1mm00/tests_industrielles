@@ -1,0 +1,26 @@
+
+   INFO  Running migrations.  
+
+  2026_02_12_064836_update_foreign_keys_integrity_restrict  59ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "instrument_mesures" does not exist (Connection: pgsql, SQL: alter table "calibration_instruments" add constraint "calibration_instruments_instrument_id_foreign" foreign key ("instrument_id") references "instrument_mesures" ("id_instrument") on delete restrict)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:829
+    825▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    826▕                 );
+    827▕             }
+    828▕ 
+  ➜ 829▕             throw new QueryException(
+    830▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    831▕             );
+    832▕         }
+    833▕     }
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:587
+      PDOException::("SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "instrument_mesures" does not exist")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:587
+      PDOStatement::execute()
+

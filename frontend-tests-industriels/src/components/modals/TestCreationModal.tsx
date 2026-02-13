@@ -21,7 +21,8 @@ import {
     FileText,
     Plus,
     Link as LinkIcon,
-    Search
+    Search,
+    Lock
 } from 'lucide-react';
 import { testsService, CreateTestData } from '@/services/testsService';
 import { useAuthStore } from '@/store/authStore';
@@ -45,7 +46,8 @@ function PortalDropdown({
     onChange,
     placeholder,
     required = false,
-    error
+    error,
+    disabled = false
 }: {
     label: string,
     icon: any,
@@ -54,13 +56,15 @@ function PortalDropdown({
     onChange: (val: string) => void,
     placeholder: string,
     required?: boolean,
-    error?: string
+    error?: string,
+    disabled?: boolean
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
 
     const toggle = () => {
+        if (disabled) return;
         if (!isOpen && containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
             setCoords({
@@ -85,7 +89,8 @@ function PortalDropdown({
                 className={cn(
                     "w-full px-4.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[12.5px] font-bold text-slate-700 flex items-center justify-between cursor-pointer transition-all hover:bg-white hover:border-blue-200 shadow-sm",
                     isOpen && "border-blue-500 ring-4 ring-blue-500/5 bg-white shadow-md",
-                    error && "border-rose-300 bg-rose-50/30 ring-4 ring-rose-500/5"
+                    error && "border-rose-300 bg-rose-50/30 ring-4 ring-rose-500/5",
+                    disabled && "opacity-50 cursor-not-allowed bg-slate-100 border-slate-200"
                 )}
             >
                 <span className={cn("truncate max-w-[90%]", !selectedOption && "text-slate-400 font-medium")}>
@@ -137,12 +142,14 @@ function TeamAvatarPicker({
     selectedIds,
     allPersonnel,
     onToggle,
-    label
+    label,
+    disabled = false
 }: {
     selectedIds: string[],
     allPersonnel: any[],
     onToggle: (id: string) => void,
-    label: string
+    label: string,
+    disabled?: boolean
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -150,6 +157,7 @@ function TeamAvatarPicker({
     const [search, setSearch] = useState('');
 
     const toggle = () => {
+        if (disabled) return;
         if (!isOpen && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             setCoords({
@@ -171,7 +179,10 @@ function TeamAvatarPicker({
                 <span className="text-[8.5px] opacity-60 font-bold">{selectedIds.length} membres</span>
             </h4>
 
-            <div className="flex items-center gap-1.5 flex-wrap min-h-[34px] p-1.5 bg-slate-50 border border-slate-100 rounded-xl shadow-inner">
+            <div className={cn(
+                "flex items-center gap-1.5 flex-wrap min-h-[34px] p-1.5 bg-slate-50 border border-slate-100 rounded-xl shadow-inner",
+                disabled && "opacity-60 cursor-not-allowed"
+            )}>
                 {selectedIds.map(id => {
                     const p = allPersonnel.find(x => x.id_personnel === id);
                     if (!p) return null;
@@ -181,24 +192,28 @@ function TeamAvatarPicker({
                             className="relative group h-8 w-8 rounded-full border-2 border-white shadow-md ring-1 ring-slate-100 overflow-hidden bg-white flex items-center justify-center text-[10.5px] font-black text-slate-600 hover:scale-110 transition-transform"
                         >
                             {p.nom?.[0]}
-                            <button
-                                type="button"
-                                onClick={() => onToggle(id)}
-                                className="absolute inset-0 bg-rose-500/95 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
+                            {!disabled && (
+                                <button
+                                    type="button"
+                                    onClick={() => onToggle(id)}
+                                    className="absolute inset-0 bg-rose-500/95 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
                         </div>
                     );
                 })}
-                <button
-                    type="button"
-                    ref={buttonRef}
-                    onClick={toggle}
-                    className="h-8 w-8 rounded-full border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
-                >
-                    <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
-                </button>
+                {!disabled && (
+                    <button
+                        type="button"
+                        ref={buttonRef}
+                        onClick={toggle}
+                        className="h-8 w-8 rounded-full border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
+                    >
+                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
+                    </button>
+                )}
             </div>
 
             {isOpen && ReactDOM.createPortal(
@@ -306,14 +321,63 @@ export default function TestCreationModal() {
         enabled: isTestModalOpen && isEdit,
     });
 
+    // AUTO-RESET FORM when switching to CREATE MODE
+    useEffect(() => {
+        if (isTestModalOpen && !isEdit) {
+            setForm({
+                type_test_id: '',
+                equipement_id: '',
+                phase_id: '',
+                procedure_id: '',
+                date_test: format(new Date(), 'yyyy-MM-dd'),
+                heure_debut: format(new Date(), 'HH:mm'),
+                heure_fin: format(addMinutes(new Date(), 60), 'HH:mm'),
+                localisation: '',
+                niveau_criticite: 1,
+                responsable_test_id: '',
+                equipe_test: [],
+                observations_generales: '',
+                arret_production_requis: false,
+                instrument_id: '',
+                statut_final: null,
+                resultat_attendu: '',
+            });
+            setValidationErrors({});
+            setIsLocalisationLinked(false);
+        }
+    }, [isTestModalOpen, isEdit]);
+
     useEffect(() => {
         if (existingTest && isEdit) {
+            // Robust extraction of time part (HH:mm) from full timestamps or ISO strings
+            const getTime = (primary: string | undefined | null, fallback: string | undefined | null) => {
+                const str = primary || fallback;
+                if (!str) return null;
+                const timePart = str.includes('T') ? str.split('T')[1] : str.includes(' ') ? str.split(' ')[1] : str;
+                return timePart?.substring(0, 5) || null;
+            };
+
+            // Ensure equipe_test is an array of IDs even if backend returns full objects
+            const equipeIds = (existingTest.equipe_test || []).map((p: any) =>
+                typeof p === 'string' ? p : (p.id_personnel || p.id)
+            ).filter(Boolean);
+
             setForm({
-                ...existingTest,
+                type_test_id: existingTest.type_test_id || '',
+                equipement_id: existingTest.equipement_id || '',
+                phase_id: existingTest.phase_id || '',
+                procedure_id: existingTest.procedure_id || '',
+                localisation: existingTest.localisation || '',
+                niveau_criticite: existingTest.niveau_criticite || 1,
+                responsable_test_id: existingTest.responsable_test_id || '',
+                instrument_id: existingTest.instrument_id || '',
+                arret_production_requis: !!existingTest.arret_production_requis,
+                statut_final: existingTest.statut_final || null,
+                statut_test: existingTest.statut_test || 'PLANIFIE',
                 date_test: existingTest.date_test?.split('T')[0] || todayStr,
-                heure_debut: existingTest.heure_debut?.substring(0, 5) || '08:00',
-                heure_fin: existingTest.heure_fin?.substring(0, 5) || '09:00',
-                equipe_test: existingTest.equipe_test || [],
+                heure_debut: getTime(existingTest.heure_debut, existingTest.heure_debut_planifiee) || '08:00',
+                heure_fin: getTime(existingTest.heure_fin, existingTest.heure_fin_planifiee) || '09:00',
+                equipe_test: equipeIds,
                 observations_generales: existingTest.observations_generales || '',
                 resultat_attendu: existingTest.resultat_attendu || '',
             });
@@ -381,6 +445,19 @@ export default function TestCreationModal() {
         }
     }, [form.heure_debut, form.heure_fin, form.date_test, todayStr, systemNow, form.equipement_id, form.type_test_id, form.localisation]);
 
+    const filteredInstruments = useMemo(() => {
+        if (!creationData?.instruments || !form.type_test_id) return creationData?.instruments || [];
+        const selectedType = creationData.types_tests?.find((t: any) => t.id_type_test === form.type_test_id);
+
+        if (!selectedType?.instruments_eligibles || selectedType.instruments_eligibles.length === 0) {
+            return creationData.instruments;
+        }
+
+        return creationData.instruments.filter((ins: any) =>
+            selectedType.instruments_eligibles.includes(ins.id_instrument)
+        );
+    }, [creationData, form.type_test_id]);
+
     const mutation = useMutation({
         mutationFn: (data: CreateTestData) =>
             isEdit ? testsService.updateTest(selectedTestId!, data) : testsService.createTest(data),
@@ -404,8 +481,9 @@ export default function TestCreationModal() {
         if (timeAnalysis.isPast) errors.heure_debut = "L'heure ne peut pas être dans le passé";
         if (timeAnalysis.isEndBeforeStart) errors.heure_fin = "L'heure de fin doit être après le début";
 
-        const responsableId = creationData?.current_user?.id_personnel || creationData?.current_user?.id || user?.id_personnel || user?.id;
+        const responsableId = creationData?.current_user?.id_personnel || user?.id_personnel;
         if (!responsableId) errors.responsable = "Le responsable est requis";
+        if (!form.instrument_id) errors.instrument_id = "L'instrument de mesure est obligatoire pour la traçabilité";
 
         if (Object.keys(errors).length > 0) {
             setValidationErrors(errors);
@@ -462,6 +540,17 @@ export default function TestCreationModal() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto scrollbar-hide px-9 py-7">
+                    {existingTest?.est_verrouille && (
+                        <div className="mb-8 p-4 bg-slate-900 text-white rounded-2xl flex items-center gap-4 shadow-xl border-l-4 border-l-amber-500">
+                            <div className="h-10 w-10 bg-amber-500 rounded-xl flex items-center justify-center shrink-0">
+                                <Lock size={20} className="text-slate-900" />
+                            </div>
+                            <div>
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-amber-500">Paramètres Verrouillés</h4>
+                                <p className="text-[10px] font-bold text-slate-400">Ce test est certifié. Les paramètres de planification et l'instrumentation ne peuvent plus être modifiés.</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="grid grid-cols-12 gap-8">
 
                         {/* LEFT COLUMN: Configuration */}
@@ -477,6 +566,7 @@ export default function TestCreationModal() {
                                     onChange={handleEquipementChange}
                                     required
                                     error={validationErrors.equipement_id}
+                                    disabled={existingTest?.est_verrouille}
                                 />
                                 <PortalDropdown
                                     label="Type de Contrôle"
@@ -490,6 +580,7 @@ export default function TestCreationModal() {
                                     }}
                                     required
                                     error={validationErrors.type_test_id}
+                                    disabled={existingTest?.est_verrouille}
                                 />
                             </div>
 
@@ -515,6 +606,7 @@ export default function TestCreationModal() {
                                             min={todayStr}
                                             value={form.date_test}
                                             onChange={(e) => setForm(p => ({ ...p, date_test: e.target.value }))}
+                                            disabled={existingTest?.est_verrouille}
                                         />
                                     </div>
                                     <div className={cn("p-3 rounded-xl border transition-all shadow-sm", (timeAnalysis.isPast || validationErrors.heure_debut) ? "bg-rose-50 border-rose-200" : "bg-slate-50 border-slate-100 focus-within:bg-white focus-within:border-blue-200")}>
@@ -527,6 +619,7 @@ export default function TestCreationModal() {
                                                 setForm(p => ({ ...p, heure_debut: e.target.value }));
                                                 if (validationErrors.heure_debut) setValidationErrors(prev => ({ ...prev, heure_debut: '' }));
                                             }}
+                                            disabled={existingTest?.est_verrouille}
                                         />
                                         {validationErrors.heure_debut && <p className="text-[8px] font-bold text-rose-500 mt-1">{validationErrors.heure_debut}</p>}
                                     </div>
@@ -540,6 +633,7 @@ export default function TestCreationModal() {
                                                 setForm(p => ({ ...p, heure_fin: e.target.value }));
                                                 if (validationErrors.heure_fin) setValidationErrors(prev => ({ ...prev, heure_fin: '' }));
                                             }}
+                                            disabled={existingTest?.est_verrouille}
                                         />
                                         {validationErrors.heure_fin && <p className="text-[8px] font-bold text-rose-500 mt-1">{validationErrors.heure_fin}</p>}
                                     </div>
@@ -564,16 +658,22 @@ export default function TestCreationModal() {
                                             setIsLocalisationLinked(false);
                                             if (validationErrors.localisation) setValidationErrors(prev => ({ ...prev, localisation: '' }));
                                         }}
+                                        disabled={existingTest?.est_verrouille}
                                     />
                                     {validationErrors.localisation && <p className="text-[9px] font-bold text-rose-500 ml-1.5 mt-0.5">{validationErrors.localisation}</p>}
                                 </div>
                                 <PortalDropdown
                                     label="Instrumentation"
                                     icon={Wrench}
-                                    placeholder="Instrument..."
-                                    options={creationData?.instruments?.map((i: any) => ({ value: i.id_instrument, label: `[N° ${i.numero_serie}] ${i.designation}` })) || []}
+                                    placeholder={form.type_test_id ? "Instrument éligible..." : "Veuillez choisir un type de test..."}
+                                    options={filteredInstruments?.map((i: any) => ({ value: i.id_instrument, label: `[N° ${i.numero_serie}] ${i.designation}` })) || []}
                                     value={form.instrument_id || ''}
-                                    onChange={(v) => setForm(p => ({ ...p, instrument_id: v }))}
+                                    onChange={(v) => {
+                                        setForm(p => ({ ...p, instrument_id: v }));
+                                        if (validationErrors.instrument_id) setValidationErrors(prev => ({ ...prev, instrument_id: '' }));
+                                    }}
+                                    required
+                                    error={validationErrors.instrument_id}
                                 />
                             </div>
 
@@ -588,6 +688,7 @@ export default function TestCreationModal() {
                                         placeholder="Objectifs de conformité..."
                                         value={form.resultat_attendu || ''}
                                         onChange={(e) => setForm(p => ({ ...p, resultat_attendu: e.target.value }))}
+                                        disabled={existingTest?.est_verrouille}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -600,6 +701,7 @@ export default function TestCreationModal() {
                                         placeholder="Notes techniques..."
                                         value={form.observations_generales || ''}
                                         onChange={(e) => setForm(p => ({ ...p, observations_generales: e.target.value }))}
+                                        disabled={existingTest?.est_verrouille}
                                     />
                                 </div>
                             </div>
@@ -617,12 +719,13 @@ export default function TestCreationModal() {
                                         <button
                                             key={l.value}
                                             type="button"
-                                            onClick={() => setForm(prev => ({ ...prev, niveau_criticite: l.value }))}
+                                            onClick={() => !existingTest?.est_verrouille && setForm(prev => ({ ...prev, niveau_criticite: l.value }))}
                                             className={cn(
                                                 "w-full px-4.5 py-2.5 rounded-xl border-2 transition-all flex items-center justify-between",
                                                 form.niveau_criticite === l.value
                                                     ? "bg-slate-900 border-slate-800 text-white shadow-lg"
-                                                    : "bg-white border-white text-slate-400 hover:border-slate-100"
+                                                    : "bg-white border-white text-slate-400 hover:border-slate-100",
+                                                existingTest?.est_verrouille && "opacity-60 cursor-not-allowed"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
@@ -637,10 +740,11 @@ export default function TestCreationModal() {
                                 </div>
 
                                 <div
-                                    onClick={() => setForm(prev => ({ ...prev, arret_production_requis: !prev.arret_production_requis }))}
+                                    onClick={() => !existingTest?.est_verrouille && setForm(prev => ({ ...prev, arret_production_requis: !prev.arret_production_requis }))}
                                     className={cn(
                                         "p-4.5 rounded-[22px] border-2 transition-all flex items-center justify-between cursor-pointer group shadow-sm mt-5",
-                                        form.arret_production_requis ? "bg-rose-600 border-rose-500 text-white shadow-lg" : "bg-white border-white text-slate-700"
+                                        form.arret_production_requis ? "bg-rose-600 border-rose-500 text-white shadow-lg" : "bg-white border-white text-slate-700",
+                                        existingTest?.est_verrouille && "opacity-60 cursor-not-allowed"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
@@ -670,6 +774,7 @@ export default function TestCreationModal() {
                                         ? (p.equipe_test || []).filter(x => x !== id)
                                         : [...(p.equipe_test || []), id]
                                 }))}
+                                disabled={existingTest?.est_verrouille}
                             />
 
                             {/* Responsable Display - Fetched from Backend */}
@@ -718,10 +823,10 @@ export default function TestCreationModal() {
                         </AnimatePresence>
                         <button
                             onClick={handleSubmit}
-                            disabled={mutation.isPending}
+                            disabled={mutation.isPending || existingTest?.est_verrouille}
                             className={cn(
                                 "group h-13 px-13 rounded-xl text-[11.5px] font-black uppercase tracking-[3.5px] flex items-center gap-3 transition-all duration-500 relative shadow-2xl overflow-hidden active:scale-[0.98]",
-                                mutation.isPending
+                                (mutation.isPending || existingTest?.est_verrouille)
                                     ? "bg-slate-100 text-slate-300 pointer-events-none grayscale"
                                     : "bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700 ring-4 ring-blue-500/10"
                             )}

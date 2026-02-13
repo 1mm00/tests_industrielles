@@ -8,20 +8,18 @@ import {
     Plus,
     Eye,
     Play,
-    CheckCircle2,
     Calendar,
     MapPin,
     Pencil,
     Trash2,
     FileText,
     Activity,
-    ShieldCheck,
     Stethoscope,
     Users,
     ClipboardList,
-    TrendingUp,
     ShieldAlert,
-    Target
+    Target,
+    Lock
 } from 'lucide-react';
 import { testsService, TestFilters } from '@/services/testsService';
 import { formatDate, cn } from '@/utils/helpers';
@@ -201,7 +199,9 @@ export default function TestsPage() {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux Succès</p>
-                            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">94.2%</h3>
+                            <h3 className="text-2xl font-black text-emerald-600 mt-0.5">
+                                {data?.data.length ? (data.data.filter(t => t.resultat_global === 'CONFORME').length / data.data.filter(t => t.statut_test === 'TERMINE').length * 100 || 0).toFixed(1) : '0'}%
+                            </h3>
                         </div>
                     </div>
                 </div>
@@ -343,25 +343,36 @@ export default function TestsPage() {
                                             <div className="flex items-center justify-center">
                                                 <div className={cn(
                                                     "px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 border shadow-sm",
-                                                    test.statut_test === 'TERMINE'
-                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                                        : test.statut_test === 'EN_COURS'
-                                                            ? "bg-indigo-50 text-indigo-700 border-indigo-100"
-                                                            : "bg-amber-50 text-amber-700 border-amber-100"
+                                                    test.est_verrouille
+                                                        ? "bg-slate-900 text-white border-slate-800"
+                                                        : test.statut_test === 'TERMINE'
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                                            : test.statut_test === 'EN_COURS'
+                                                                ? "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                                                : "bg-amber-50 text-amber-700 border-amber-100"
                                                 )}>
                                                     <div className={cn(
                                                         "h-2 w-2 rounded-full",
-                                                        test.statut_test === 'TERMINE' ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" :
-                                                            test.statut_test === 'EN_COURS' ? "bg-indigo-500 shadow-[0_0_8px_#6366f1]" :
-                                                                "bg-amber-500 shadow-[0_0_8px_#f59e0b]"
+                                                        test.est_verrouille ? "bg-amber-500 shadow-[0_0_8px_#f59e0b]" :
+                                                            test.statut_test === 'TERMINE' ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" :
+                                                                test.statut_test === 'EN_COURS' ? "bg-indigo-500 shadow-[0_0_8px_#6366f1]" :
+                                                                    "bg-amber-500 shadow-[0_0_8px_#f59e0b]"
                                                     )} />
-                                                    {test.statut_test}
+                                                    {test.est_verrouille ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <Lock size={10} className="text-amber-500" />
+                                                            Certifié
+                                                        </span>
+                                                    ) : test.statut_test}
+                                                    {test.statut_test === 'TERMINE' && test.taux_conformite_pct !== undefined && (
+                                                        <span className="ml-1 opacity-60">({test.taux_conformite_pct}%)</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-7 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {(test.statut_test === 'PLANIFIE' || test.statut_test === 'EN_COURS') && (
+                                                {!test.est_verrouille && (test.statut_test === 'PLANIFIE' || test.statut_test === 'EN_COURS') && (
                                                     <>
                                                         {hasPermission(user, 'tests', 'update') && (
                                                             <button
@@ -392,7 +403,7 @@ export default function TestsPage() {
                                                     <Eye size={18} />
                                                 </button>
 
-                                                {(test.statut_test === 'TERMINE') && (
+                                                {(test.statut_test === 'TERMINE' || test.est_verrouille) && (
                                                     <button
                                                         onClick={() => handleExportSinglePDF(test)}
                                                         className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
@@ -402,7 +413,7 @@ export default function TestsPage() {
                                                     </button>
                                                 )}
 
-                                                {hasPermission(user, 'tests', 'delete') && (
+                                                {!test.est_verrouille && hasPermission(user, 'tests', 'delete') && (
                                                     <button
                                                         onClick={() => handleDeleteClick(test.id_test, test.numero_test)}
                                                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
@@ -410,6 +421,12 @@ export default function TestsPage() {
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
+                                                )}
+
+                                                {test.est_verrouille && (
+                                                    <div className="p-2 text-amber-500 opacity-50 cursor-not-allowed" title="Ce test est archivé et certifié. Aucune modification possible.">
+                                                        <Lock size={18} />
+                                                    </div>
                                                 )}
                                             </div>
                                         </td>

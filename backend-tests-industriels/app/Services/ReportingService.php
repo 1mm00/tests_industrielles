@@ -171,4 +171,111 @@ class ReportingService
             'resume_executif' => $data['resume_executif'] ?? 'Résumé non fourni.',
         ]);
     }
+
+    /**
+     * Exécuter une requête dynamique pour le reporting personnalisé
+     */
+    public function customQuery(array $params): array
+    {
+        $metric = $params['metric'] ?? 'tests_count';
+        $dimension = $params['dimension'] ?? 'date_test';
+        $startDate = isset($params['start_date']) ? Carbon::parse($params['start_date']) : now()->subMonths(6);
+        $endDate = isset($params['end_date']) ? Carbon::parse($params['end_date']) : now();
+
+        $query = null;
+        $select = [];
+        $groupBy = [];
+
+        // Configuration de la dimension
+        switch ($dimension) {
+            case 'date_test':
+                $dimensionSelect = DB::raw("TO_CHAR(date_test, 'YYYY-MM') as x");
+                $groupBy = ['x'];
+                break;
+            case 'type_test':
+                $dimensionSelect = 'types_tests.libelle as x';
+                $groupBy = ['types_tests.libelle'];
+                break;
+            case 'equipement':
+                $dimensionSelect = 'equipements.designation as x';
+                $groupBy = ['equipements.designation'];
+                break;
+            case 'criticite':
+                $dimensionSelect = 'niveaux_criticite.libelle as x';
+                $groupBy = ['niveaux_criticite.libelle'];
+                break;
+            default:
+                $dimensionSelect = DB::raw("TO_CHAR(date_test, 'YYYY-MM') as x");
+                $groupBy = ['x'];
+        }
+
+        // Base Query & Metric calculation
+        if ($metric === 'nc_count') {
+            $query = DB::table('non_conformites');
+            if ($dimension === 'criticite') {
+                $query->join('niveaux_criticite', 'non_conformites.criticite_id', '=', 'niveaux_criticite.id_niveau_criticite');
+            } elseif ($dimension === 'equipement') {
+                $query->join('equipements', 'non_conformites.id_equipement', '=', 'equipements.id_equipement');
+            }
+            $query->whereBetween('date_detection', [$startDate, $endDate]);
+            $select = [$dimensionSelect, DB::raw('count(*) as y')];
+        } else {
+            $query = DB::table('tests_industriels');
+            if ($dimension === 'type_test') {
+                $query->join('types_tests', 'tests_industriels.id_type_test', '=', 'types_tests.id_type_test');
+            } elseif ($dimension === 'equipement') {
+                $query->join('equipements', 'tests_industriels.id_equipement', '=', 'equipements.id_equipement');
+            }
+            $query->whereBetween('date_test', [$startDate, $endDate]);
+
+            if ($metric === 'conformity_rate') {
+                $select = [
+                    $dimensionSelect,
+                    DB::raw("ROUND(SUM(CASE WHEN resultat_global = 'CONFORME' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as y")
+                ];
+            } else { // tests_count
+                $select = [$dimensionSelect, DB::raw('count(*) as y')];
+            }
+        }
+
+        $results = $query->select($select)
+            ->groupBy($groupBy)
+            ->orderBy('x')
+            ->get();
+
+        return [
+            'labels' => $results->pluck('x'),
+            'values' => $results->pluck('y'),
+            'metric' => $metric,
+            'dimension' => $dimension
+        ];
+    }
+
+    /**
+     * Sauvegarder une vue en favori
+     */
+    public function saveFavorite(array $data): \App\Models\ReportingFavorite
+    {
+        return \App\Models\ReportingFavorite::create($data);
+    }
+
+    /**
+     * Récupérer les favoris d'un utilisateur
+     */
+    public function getUserFavorites(string $userId)
+    {
+        return \App\Models\ReportingFavorite::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Supprimer un favori
+     */
+    public function deleteFavorite(string $id, string $userId): bool
+    {
+        return \App\Models\ReportingFavorite::where('id', $id)
+            ->where('user_id', $userId)
+            ->delete();
+    }
 }

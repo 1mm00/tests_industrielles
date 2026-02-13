@@ -25,6 +25,7 @@ class ItemChecklist extends Model
         'critere_acceptation',
         'valeur_reference',
         'tolerance',
+        'unite_mesure',
         'obligatoire',
         'criticite',
     ];

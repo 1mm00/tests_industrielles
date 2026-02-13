@@ -111,10 +111,10 @@ export const authService = {
     },
 
     /**
-     * Changer le mot de passe
+     * Vérifier le mot de passe actuel (Double Authentification)
      */
-    async updatePassword(data: any): Promise<{ message: string }> {
-        const response = await api.put<ApiResponse<{ message: string }>>('/auth/password', data);
-        return response.data.data;
+    async verifyPassword(password: string): Promise<boolean> {
+        const response = await api.post<ApiResponse<any>>('/auth/verify-password', { password });
+        return response.data.success;
     },
 };

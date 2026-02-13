@@ -28,8 +28,8 @@ export default function UserCreationModal() {
         prenom: '',
         email: '',
         telephone: '',
-        poste: '',
-        departement: '',
+        poste_id: '',
+        departement_id: '',
         role_id: '',
         date_embauche: new Date().toISOString().split('T')[0],
         actif: true,
@@ -43,8 +43,8 @@ export default function UserCreationModal() {
                 prenom: selectedUser.prenom || '',
                 email: selectedUser.email || '',
                 telephone: selectedUser.telephone || '',
-                poste: selectedUser.poste || '',
-                departement: selectedUser.departement || '',
+                poste_id: selectedUser.poste_id || '',
+                departement_id: selectedUser.departement_id || '',
                 role_id: selectedUser.role_id || '',
                 date_embauche: selectedUser.date_embauche ? new Date(selectedUser.date_embauche).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                 actif: selectedUser.actif !== undefined ? selectedUser.actif : true,
@@ -56,8 +56,8 @@ export default function UserCreationModal() {
                 prenom: '',
                 email: '',
                 telephone: '',
-                poste: '',
-                departement: '',
+                poste_id: '',
+                departement_id: '',
                 role_id: '',
                 date_embauche: new Date().toISOString().split('T')[0],
                 actif: true,
@@ -81,8 +81,8 @@ export default function UserCreationModal() {
 
     // Fetch départements for selection (filtered by role and poste)
     const { data: departementsData } = useQuery({
-        queryKey: ['departements-list', form.role_id, form.poste],
-        queryFn: () => usersService.getDepartements(form.role_id || undefined, form.poste || undefined),
+        queryKey: ['departements-list', form.role_id, form.poste_id],
+        queryFn: () => usersService.getDepartements(form.role_id || undefined, form.poste_id || undefined),
         enabled: isUserModalOpen,
     });
 
@@ -120,9 +120,9 @@ export default function UserCreationModal() {
         else if (name === 'role_id') {
             const cin = form.cin;
             const newEmail = cin ? cin.toLowerCase() + '@testindustrielle.com' : '';
-            setForm(prev => ({ ...prev, [name]: val, poste: '', departement: '', email: newEmail }));
-        } else if (name === 'poste') {
-            setForm(prev => ({ ...prev, [name]: val, departement: '' }));
+            setForm(prev => ({ ...prev, [name]: val, poste_id: '', departement_id: '', email: newEmail }));
+        } else if (name === 'poste_id') {
+            setForm(prev => ({ ...prev, [name]: val, departement_id: '' }));
         } else {
             setForm(prev => ({ ...prev, [name]: val }));
         }
@@ -132,7 +132,7 @@ export default function UserCreationModal() {
         e.preventDefault();
 
         // Validation basique
-        if (!form.cin || !form.nom || !form.prenom || !form.poste) {
+        if (!form.cin || !form.nom || !form.prenom || !form.poste_id) {
             toast.error('Veuillez remplir tous les champs obligatoires (CIN, Nom, Prénom, Poste)');
             return;
         }
@@ -280,15 +280,15 @@ export default function UserCreationModal() {
                                 Poste *
                             </label>
                             <select
-                                name="poste"
+                                name="poste_id"
                                 required
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                value={form.poste}
+                                value={form.poste_id}
                                 onChange={handleInputChange}
                             >
                                 <option value="">Sélectionner un poste</option>
                                 {postesData?.map((poste: any) => (
-                                    <option key={poste.id} value={poste.libelle}>
+                                    <option key={poste.id_poste} value={poste.id_poste}>
                                         {poste.libelle}
                                     </option>
                                 ))}
@@ -302,14 +302,14 @@ export default function UserCreationModal() {
                                 Département
                             </label>
                             <select
-                                name="departement"
+                                name="departement_id"
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-                                value={form.departement}
+                                value={form.departement_id}
                                 onChange={handleInputChange}
                             >
                                 <option value="">Sélectionner un département</option>
                                 {departementsData?.map((dept: any) => (
-                                    <option key={dept.id} value={dept.libelle}>
+                                    <option key={dept.id_departement} value={dept.id_departement}>
                                         {dept.libelle} {dept.site && `(${dept.site})`}
                                     </option>
                                 ))}

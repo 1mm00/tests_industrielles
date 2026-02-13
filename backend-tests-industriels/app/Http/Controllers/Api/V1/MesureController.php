@@ -35,6 +35,8 @@ class MesureController extends Controller
     public function store(Request $request, string $testId): JsonResponse
     {
         $validated = $request->validate([
+            'item_id' => 'nullable|uuid',
+            'criticite' => 'nullable|integer',
             'instrument_id' => 'nullable|uuid',
             'type_mesure' => 'required|string',
             'parametre_mesure' => 'required|string',
@@ -44,6 +46,9 @@ class MesureController extends Controller
             'tolerance_min' => 'nullable|numeric',
             'tolerance_max' => 'nullable|numeric',
             'conditions_mesure' => 'nullable|string',
+            'incertitude_mesure' => 'nullable|string',
+            'timestamp_mesure' => 'nullable|date',
+            'conforme' => 'nullable|boolean',
             'operateur_id' => 'nullable|uuid',
         ]);
 

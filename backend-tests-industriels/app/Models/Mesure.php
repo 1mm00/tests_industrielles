@@ -19,6 +19,8 @@ class Mesure extends Model
     protected $fillable = [
         'session_id',
         'test_id',
+        'item_id',
+        'criticite',
         'instrument_id',
         'type_mesure',
         'parametre_mesure',
@@ -44,7 +46,9 @@ class Mesure extends Model
         'ecart_absolu' => 'decimal:4',
         'ecart_pct' => 'decimal:2',
         'conforme' => 'boolean',
+        'criticite' => 'integer',
         'timestamp_mesure' => 'datetime',
+        'conditions_mesure' => 'array',
     ];
 
     /**

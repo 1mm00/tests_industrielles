@@ -1,22 +1,23 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     LayoutDashboard,
     TrendingUp,
     AlertOctagon,
     Timer,
-    FileBarChart,
     Download,
-    Filter,
     Target,
     FlaskConical,
     Activity,
-    FileText,
     Zap,
-    Cpu,
     Calendar,
     ChevronRight,
     ArrowUpRight,
-    BarChart3
+    BarChart3,
+    Radar,
+    Bookmark,
+    Star,
+    Trash2
 } from 'lucide-react';
 import { reportingService } from '@/services/reportingService';
 import IndustrialChart from '@/components/dashboard/IndustrialChart';
@@ -25,6 +26,7 @@ import { exportToPDF } from '@/utils/pdfExport';
 import { formatDate, cn } from '@/utils/helpers';
 import { motion } from 'framer-motion';
 import ReactApexChart from "react-apexcharts";
+import toast from 'react-hot-toast';
 
 interface StatCardProps {
     title: string;
@@ -34,6 +36,228 @@ interface StatCardProps {
     color: string;
     trend: number[];
 }
+
+const DynamicAnalysisSection = () => {
+    const queryClient = useQueryClient();
+    const [config, setConfig] = useState({
+        metric: 'tests_count',
+        dimension: 'date_test',
+        chartType: 'bar' as 'bar' | 'line' | 'radar'
+    });
+    const [favName, setFavName] = useState('');
+    const [showFavInput, setShowFavInput] = useState(false);
+
+    const { data: favorites } = useQuery({
+        queryKey: ['reporting-favorites'],
+        queryFn: () => reportingService.getFavorites()
+    });
+
+    const saveMutation = useMutation({
+        mutationFn: (name: string) => reportingService.saveFavorite({ name, config }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reporting-favorites'] });
+            setShowFavInput(false);
+            setFavName('');
+            toast.success('Vue sauvegardée !');
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => reportingService.deleteFavorite(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reporting-favorites'] });
+            toast.success('Favori supprimé');
+        }
+    });
+
+    const { data, isLoading } = useQuery({
+        queryKey: ['custom-query', config],
+        queryFn: () => reportingService.customQuery(config)
+    });
+
+    const chartOptions: any = {
+        chart: {
+            toolbar: { show: false },
+            zoom: { enabled: false },
+            fontFamily: 'Inter, sans-serif'
+        },
+        colors: [config.metric === 'conformity_rate' ? '#10b981' : config.metric === 'nc_count' ? '#f43f5e' : '#6366f1'],
+        plotOptions: {
+            bar: { borderRadius: 8, columnWidth: '45%' },
+        },
+        xaxis: {
+            categories: data?.labels || [],
+            labels: { style: { fontWeight: 700, colors: '#64748b', fontSize: '10px' } }
+        },
+        yaxis: {
+            labels: { style: { fontWeight: 600, colors: '#94a3b8' } }
+        },
+        stroke: { curve: 'smooth', width: 3 },
+        dataLabels: { enabled: false },
+        tooltip: { theme: 'light' },
+        grid: { borderColor: '#f1f5f9' }
+    };
+
+    const metrics = [
+        { id: 'tests_count', label: 'Volume de Tests', icon: Activity },
+        { id: 'nc_count', label: 'Flux de NC', icon: AlertOctagon },
+        { id: 'conformity_rate', label: 'Yield Conformité', icon: Target },
+    ];
+
+    const dimensions = [
+        { id: 'date_test', label: 'Par Mois' },
+        { id: 'type_test', label: 'Par Type' },
+        { id: 'equipement', label: 'Par Équipement' },
+        { id: 'criticite', label: 'Par Criticité' },
+    ];
+
+    return (
+        <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50">
+            <div className="flex flex-col lg:flex-row gap-8">
+                {/* Control Panel */}
+                <div className="lg:w-1/4 space-y-6 border-r border-slate-50 pr-8">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-2">Intelligence Workspace</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-4 leading-relaxed">Conception dynamique des indicateurs core</p>
+                        </div>
+                        <button
+                            onClick={() => setShowFavInput(!showFavInput)}
+                            className={cn(
+                                "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
+                                showFavInput ? "bg-amber-500 text-white shadow-lg" : "bg-slate-50 text-slate-400 border border-slate-100 hover:bg-white"
+                            )}
+                        >
+                            <Bookmark className="h-4.5 w-4.5" />
+                        </button>
+                    </div>
+
+                    {showFavInput && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="p-4 bg-amber-50 rounded-2xl border border-amber-100 space-y-3"
+                        >
+                            <input
+                                placeholder="Nom du favori..."
+                                className="w-full px-3 py-2 bg-white rounded-lg text-[11px] font-bold outline-none border border-amber-100 focus:border-amber-300"
+                                value={favName}
+                                onChange={(e) => setFavName(e.target.value)}
+                            />
+                            <button
+                                onClick={() => saveMutation.mutate(favName)}
+                                disabled={!favName || saveMutation.isPending}
+                                className="w-full py-2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm active:scale-95"
+                            >
+                                Sauvegarder Vue
+                            </button>
+                        </motion.div>
+                    )}
+
+                    {favorites && favorites.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                <Star className="h-3 w-3 text-amber-500" /> Vues Sauvegardées
+                            </label>
+                            <div className="space-y-1.5 max-h-[120px] overflow-y-auto no-scrollbar">
+                                {favorites.map((fav: any) => (
+                                    <div key={fav.id} className="flex items-center gap-1 group">
+                                        <button
+                                            onClick={() => setConfig(fav.config)}
+                                            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-left text-[10px] font-bold text-slate-600 hover:bg-white hover:border-indigo-200 hover:text-indigo-600 transition-all truncate"
+                                        >
+                                            {fav.name}
+                                        </button>
+                                        <button
+                                            onClick={() => deleteMutation.mutate(fav.id)}
+                                            className="h-8 w-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-rose-50 text-rose-400 transition-all"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-4 pt-2 border-t border-slate-50">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Métrique d'Analyse</label>
+                        <div className="flex flex-wrap gap-2">
+                            {metrics.map(m => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => setConfig({ ...config, metric: m.id })}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border",
+                                        config.metric === m.id ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-100" : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-white"
+                                    )}
+                                >
+                                    <m.icon className="h-3.5 w-3.5" />
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Segmentation (Dimension)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {dimensions.map(d => (
+                                <button
+                                    key={d.id}
+                                    onClick={() => setConfig({ ...config, dimension: d.id })}
+                                    className={cn(
+                                        "px-3 py-2 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all border text-center",
+                                        config.dimension === d.id ? "bg-slate-900 text-white border-slate-800 shadow-md" : "bg-slate-50 text-slate-500 border-slate-100 hover:bg-white"
+                                    )}
+                                >
+                                    {d.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Visualisation</label>
+                        <div className="flex gap-2">
+                            {(['bar', 'line', 'radar'] as const).map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => setConfig({ ...config, chartType: type })}
+                                    className={cn(
+                                        "p-2.5 rounded-xl border transition-all",
+                                        config.chartType === type ? "bg-white border-indigo-200 text-indigo-600 shadow-sm" : "bg-slate-50 border-slate-100 text-slate-300"
+                                    )}
+                                >
+                                    {type === 'bar' ? <BarChart3 className="h-4 w-4" /> : type === 'line' ? <Activity className="h-4 w-4" /> : <Radar className="h-4 w-4" />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Chart Display area */}
+                <div className="lg:w-3/4 min-h-[400px] flex flex-col items-center justify-center relative">
+                    {isLoading ? (
+                        <div className="animate-pulse flex flex-col items-center gap-4">
+                            <div className="h-32 w-32 rounded-full border-4 border-slate-100 border-t-indigo-500 animate-spin" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calcul des vecteurs...</span>
+                        </div>
+                    ) : (
+                        <div className="w-full h-full animate-in zoom-in-95 duration-500">
+                            <ReactApexChart
+                                options={chartOptions}
+                                series={[{ name: metrics.find(m => m.id === config.metric)?.label || '', data: data?.values || [] }]}
+                                type={config.chartType === 'radar' ? 'radar' : config.chartType === 'line' ? 'line' : 'bar'}
+                                height={380}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }: StatCardProps) => {
     const sparklineOptions: any = {
@@ -220,6 +444,9 @@ export default function ReportingDashboardPage() {
                     />
                 ))}
             </div>
+
+            {/* NEW: Dynamic Intelligence Workspace (PowerBI-like) */}
+            <DynamicAnalysisSection />
 
             {/* 3. Main Analytics Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

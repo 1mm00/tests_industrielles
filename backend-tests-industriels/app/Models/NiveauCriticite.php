@@ -35,6 +35,6 @@ class NiveauCriticite extends Model
      */
     public function nonConformites()
     {
-        return $this->hasMany(NonConformite::class, 'criticite_id', 'id_niveau');
+        return $this->hasMany(NonConformite::class, 'criticite_id', 'id_niveau_criticite');
     }
 }

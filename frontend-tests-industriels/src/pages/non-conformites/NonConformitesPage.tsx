@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -8,7 +9,6 @@ import {
     Plus,
     Eye,
     CheckCircle2,
-    Clock,
     ShieldAlert,
     MapPin,
     Calendar,
@@ -16,27 +16,132 @@ import {
     Activity,
     Target,
     Zap,
-    History,
-    ChevronRight,
-    TrendingUp,
-    ShieldCheck
+    ShieldCheck,
+    MoreVertical,
+    FileDown,
+    Archive,
+    Inbox,
+    Edit3,
+    PlayCircle,
+    RotateCcw,
+    History
 } from 'lucide-react';
 import { ncService, NcFilters } from '@/services/ncService';
 import { formatDate, cn } from '@/utils/helpers';
 import { useModalStore } from '@/store/modalStore';
 
 import { useAuthStore } from '@/store/authStore';
-import { hasPermission, isLecteur } from '@/utils/permissions';
+import { hasPermission } from '@/utils/permissions';
+import { exportNonConformitePDF } from '@/utils/pdfExportNC';
+
+// ActionsMenu component - Clean dropdown with Portal
+const ActionsMenu = ({ nc }: { nc: any }) => {
+    const { user } = useAuthStore();
+    const { openReouvrirNcModal } = useModalStore();
+    const [isOpen, setIsOpen] = useState(false);
+    const buttonRef = React.useRef<HTMLButtonElement>(null);
+    const [position, setPosition] = useState({ top: 0, right: 0 });
+
+    const handleToggle = () => {
+        if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                onClick={handleToggle}
+                className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
+                title="Plus d'actions"
+            >
+                <MoreVertical className="h-4 w-4" />
+            </button>
+
+            {isOpen && ReactDOM.createPortal(
+                <>
+                    <div
+                        className="fixed inset-0 z-[100]"
+                        onClick={() => setIsOpen(false)}
+                    />
+                    <div
+                        className="fixed w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-[101] overflow-hidden"
+                        style={{ top: `${position.top}px`, right: `${position.right}px` }}
+                    >
+                        {hasPermission(user, 'non_conformites', 'update') && (
+                            <>
+                                {/* On ne montre dans le menu que ce qui n'est pas déjà en bouton principal dans la ligne */}
+                                {nc.statut === 'CLOTUREE' && !nc.is_archived && (
+                                    <button
+                                        onClick={() => {
+                                            openReouvrirNcModal(nc.id_non_conformite);
+                                            setIsOpen(false);
+                                        }}
+                                        className="w-full px-4 py-3.5 text-left hover:bg-amber-50 transition-all flex items-center gap-3 group"
+                                    >
+                                        <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                                            <RotateCcw className="h-5 w-5 text-amber-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-slate-900">Réouvrir la NC</p>
+                                            <p className="text-xs text-slate-500">Repasser en traitement</p>
+                                        </div>
+                                    </button>
+                                )}
+
+                                {/* Ici on peut ajouter d'autres actions secondaires si besoin (Historique, Transfert, etc.) */}
+                                <div className="px-4 py-2 border-t border-slate-50 mt-2">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Options supplémentaires</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        toast.success('Historique en cours de chargement...');
+                                        setIsOpen(false);
+                                    }}
+                                    className="w-full px-4 py-3.5 text-left hover:bg-slate-50 transition-all flex items-center gap-3 group"
+                                >
+                                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                                        <History className="h-5 w-5 text-slate-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-900">Journal d'Audit</p>
+                                        <p className="text-xs text-slate-500">Traçabilité complète</p>
+                                    </div>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </>,
+                document.body
+            )}
+        </>
+    );
+};
 
 export default function NonConformitesPage() {
     const { user } = useAuthStore();
-    const { openNcModal, openNcEditModal, openNcDetailsModal } = useModalStore();
+    const {
+        openNcModal,
+        openNcDetailsModal,
+        openNcEditModal,
+        openAnalyseNcModal,
+        openPlanActionModal,
+        openClotureNcModal,
+        openSecurityModal
+    } = useModalStore();
     const queryClient = useQueryClient();
     const [filters, setFilters] = useState<NcFilters>({
         page: 1,
         per_page: 10,
         search: '',
         statut: '',
+        is_archived: false,
     });
 
     // Main data queries
@@ -60,70 +165,23 @@ export default function NonConformitesPage() {
 
 
 
-    const handleDeleteClick = (id: string, numero: string) => {
-        toast((t) => (
-            <div className="flex flex-col gap-4 p-1 min-w-[300px]">
-                <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
-                        <Trash2 className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-black text-slate-900 uppercase">Supprimer la NC ?</p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{numero}</p>
-                    </div>
-                </div>
-
-                <p className="text-xs text-slate-500 leading-relaxed font-bold bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    Cette action est irréversible. Toutes les données associées (attachements, historique de traitement) seront définitivement supprimées.
-                </p>
-
-                <div className="flex gap-2 justify-end pt-2">
-                    <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:text-slate-900 transition-colors"
-                    >
-                        Annuler
-                    </button>
-                    <button
-                        onClick={async () => {
-                            toast.dismiss(t.id);
-                            await executeDelete(id, numero);
-                        }}
-                        className="px-6 py-2.5 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95"
-                    >
-                        Confirmer Suppression
-                    </button>
-                </div>
-            </div>
-        ), {
-            duration: 6000,
-            position: 'top-center',
-            style: {
-                borderRadius: '32px',
-                background: '#fff',
-                padding: '24px',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                border: '1px solid #fee2e2'
-            },
-        });
+    const handleDeleteClick = (id: string, _numero: string) => {
+        openSecurityModal(id);
     };
 
-    const executeDelete = async (id: string, numero: string) => {
-        const loadingToast = toast.loading(`Suppression de ${numero} en cours...`);
+    const executeArchive = async (id: string, numero: string, isCurrentlyArchived: boolean) => {
+        const loadingToast = toast.loading(isCurrentlyArchived ? `Désarchivage de ${numero}...` : `Archivage de ${numero}...`);
         try {
-            await ncService.deleteNc(id);
+            await ncService.archiveNc(id);
             queryClient.invalidateQueries({ queryKey: ['non-conformites'] });
-            toast.success(`La NC ${numero} a été supprimée.`, {
+            toast.success(isCurrentlyArchived ? `La NC ${numero} a été désarchivée.` : `La NC ${numero} a été déplacée aux archives.`, {
                 id: loadingToast,
-                icon: '✅',
+                icon: '📦',
                 className: 'font-bold text-xs'
             });
         } catch (error: any) {
             console.error(error);
-            toast.error(
-                error.response?.data?.message || "Erreur lors de la suppression.",
-                { id: loadingToast, duration: 5000 }
-            );
+            toast.error("Erreur lors de l'archivage.", { id: loadingToast });
         }
     };
 
@@ -217,18 +275,38 @@ export default function NonConformitesPage() {
                         onChange={handleSearch}
                     />
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Filter className="h-4 w-4 text-slate-400" />
-                    <select
-                        className="flex-1 md:w-52 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest outline-none focus:bg-white transition-all appearance-none"
-                        value={filters.statut}
-                        onChange={handleStatusFilter}
-                    >
-                        <option value="">Tous les Statuts</option>
-                        <option value="OUVERTE">Ouverte (Action Requise)</option>
-                        <option value="TRAITEMENT">En Traitement Analytique</option>
-                        <option value="CLOTUREE">Clôturée & Validée</option>
-                    </select>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Voir Archives</span>
+                        <button
+                            onClick={() => setFilters(prev => ({ ...prev, is_archived: !prev.is_archived, page: 1 }))}
+                            className={cn(
+                                "w-11 h-6 rounded-full transition-all relative",
+                                filters.is_archived ? "bg-rose-600" : "bg-slate-300"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                                filters.is_archived ? "left-6" : "left-1"
+                            )} />
+                        </button>
+                    </div>
+
+                    <div className="h-10 w-px bg-slate-100 hidden md:block mx-1" />
+
+                    <div className="flex items-center gap-2 flex-1 md:w-auto">
+                        <Filter className="h-4 w-4 text-slate-400" />
+                        <select
+                            className="flex-1 md:w-52 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest outline-none focus:bg-white transition-all appearance-none"
+                            value={filters.statut}
+                            onChange={handleStatusFilter}
+                        >
+                            <option value="">Tous les Statuts ({filters.is_archived ? 'Archivés' : 'Actifs'})</option>
+                            <option value="OUVERTE">Ouverte (Action Requise)</option>
+                            <option value="TRAITEMENT">En Traitement Analytique</option>
+                            <option value="CLOTUREE">Clôturée & Validée</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -324,32 +402,166 @@ export default function NonConformitesPage() {
                                         </td>
                                         <td className="px-7 py-6 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {(hasPermission(user, 'non_conformites', 'read') || isLecteur(user)) && (
-                                                    <button
-                                                        onClick={() => openNcDetailsModal(nc.id_non_conformite)}
-                                                        className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
-                                                        title="Consulter"
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </button>
+                                                {/* Primary Actions - Always visible */}
+                                                {/* Étape 1 : Juste après Déclaration (Pas de 5M) */}
+                                                {!nc.is_archived && (!nc.causes_racines || nc.causes_racines.length === 0) && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openNcDetailsModal(nc.id_non_conformite)}
+                                                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Détails"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        {hasPermission(user, 'non_conformites', 'update') && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openNcEditModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                                                    title="Modifier NC"
+                                                                >
+                                                                    <Edit3 className="h-4 w-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openAnalyseNcModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                                                    title="Lancer Analyse 5M"
+                                                                >
+                                                                    <Zap className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {nc.statut !== 'CLOTUREE' && (hasPermission(user, 'non_conformites', 'update') || hasPermission(user, 'non_conformites', 'close')) && (
-                                                    <button
-                                                        onClick={() => openNcEditModal(nc.id_non_conformite)}
-                                                        className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                                                        title="Traiter / Clôturer"
-                                                    >
-                                                        <CheckCircle2 className="h-4 w-4" />
-                                                    </button>
+
+                                                {/* Étape 2 : Après enregistrement de l'Analyse 5M (Pas de Plan) */}
+                                                {!nc.is_archived && nc.causes_racines && nc.causes_racines.length > 0 && !nc.plan_action && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openNcDetailsModal(nc.id_non_conformite)}
+                                                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Détails"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        {hasPermission(user, 'non_conformites', 'update') && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openAnalyseNcModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                                                    title="Modifier Analyse 5M"
+                                                                >
+                                                                    <Zap className="h-4 w-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openPlanActionModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all"
+                                                                    title="Ajouter Plan d'Action"
+                                                                >
+                                                                    <Target className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {hasPermission(user, 'non_conformites', 'delete') && (
-                                                    <button
-                                                        onClick={() => handleDeleteClick(nc.id_non_conformite, nc.numero_nc)}
-                                                        className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                                        title="Supprimer"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
+
+                                                {/* Étape 3 : Après enregistrement du Plan d'Action (Pas encore clôturée) */}
+                                                {!nc.is_archived && nc.plan_action && nc.statut !== 'CLOTUREE' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openNcDetailsModal(nc.id_non_conformite)}
+                                                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Détails"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        {hasPermission(user, 'non_conformites', 'update') && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openPlanActionModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all"
+                                                                    title="Modifier Plan d'Action"
+                                                                >
+                                                                    <Target className="h-4 w-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openClotureNcModal(nc.id_non_conformite)}
+                                                                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                                                    title="Exécuter & Vérifier"
+                                                                >
+                                                                    <PlayCircle className="h-4 w-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {/* Étape 4 : Après Clôture de la NC */}
+                                                {!nc.is_archived && nc.statut === 'CLOTUREE' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openNcDetailsModal(nc.id_non_conformite)}
+                                                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Détails (L'œil)"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => executeArchive(nc.id_non_conformite, nc.numero_nc, false)}
+                                                            className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                                            title="Archiver"
+                                                        >
+                                                            <Archive className="h-4 w-4" />
+                                                        </button>
+                                                        {hasPermission(user, 'non_conformites', 'export') && (
+                                                            <button
+                                                                onClick={() => exportNonConformitePDF(nc.id_non_conformite)}
+                                                                className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                                title="Exporter en PDF"
+                                                            >
+                                                                <FileDown className="h-4 w-4" />
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {/* ARCHIVÉE - Sortir des archives */}
+                                                {nc.is_archived && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => openNcDetailsModal(nc.id_non_conformite)}
+                                                            className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                                            title="Consulter"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => executeArchive(nc.id_non_conformite, nc.numero_nc, true)}
+                                                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                            title="Sortir des archives"
+                                                        >
+                                                            <Inbox className="h-4 w-4" />
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {/* Delete - Always reserved for Admin with signature */}
+                                                {(
+                                                    user?.personnel?.role?.nom_role?.toLowerCase().includes('admin') ||
+                                                    user?.personnel?.role?.nom_role === 'Administrateur'
+                                                ) && (
+                                                        <button
+                                                            onClick={() => handleDeleteClick(nc.id_non_conformite, nc.numero_nc)}
+                                                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                                            title="Supprimer (Requiert Signature)"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+
+                                                {/* Secondary Actions Menu - Only for non-closed active NCs */}
+                                                {!nc.is_archived && nc.statut !== 'CLOTUREE' && (
+                                                    <ActionsMenu nc={nc} />
                                                 )}
                                             </div>
                                         </td>

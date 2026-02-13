@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from './helpers';
 import toast from 'react-hot-toast';
+import { testsService } from '@/services/testsService';
 
 export interface TechnicalReportData {
     id_test: string;
@@ -10,45 +11,47 @@ export interface TechnicalReportData {
     type_rapport: string;
     date_edition: string;
     resume_executif: string;
-    recommandations: string;
+    recommandations?: string;
     verdict: string;
     site: string;
     atelier?: string;
-    criticite?: string | number;
-    date_planification?: string;
-    health_score?: number;
+    criticite: string;
+    date_planification: string;
+    health_score: number;
     equipement: {
         nom: string;
         code: string;
-        modele?: string;
-        statut?: string;
+        modele: string;
+        statut: string;
     };
-    instrument?: {
+    instrument: {
         nom: string;
-        code?: string;
-        numero_serie?: string;
-        derniere_calibration?: string;
-        validite?: string;
+        code: string;
+        numero_serie: string;
+        derniere_calibration: string;
+        validite: string;
     };
     equipe: Array<{
         nom: string;
         role: string;
-        departement?: string;
-        email?: string;
-        is_responsable?: boolean;
+        departement: string;
+        email: string;
+        is_responsable: boolean;
     }>;
-    mesures?: Array<{
+    mesures: Array<{
         parametre: string;
         valeur: string | number;
         valeur_attendue?: string | number;
         unite?: string;
-        conforme: boolean;
+        conforme: boolean | string;
+        criticite?: number;
         observations?: string;
+        metadata?: string;
     }>;
     metadatas: {
         duree_test: string;
         notes_terrain: string;
-        resultat_attendu?: string;
+        resultat_attendu: string;
     };
     validateur?: {
         nom: string;
@@ -229,18 +232,68 @@ export const generateTechnicalReportPDF = (data: TechnicalReportData) => {
     autoTable(doc, {
         startY: currentY,
         margin: { left: margin, right: margin },
-        head: [['POINT DE CONTRÔLE', 'MESURE RÉELLE', 'VALEUR ATTENDUE / ÉTAT', 'VALIDATION']],
-        body: data.mesures?.map(m => [
-            m.parametre,
-            `${m.valeur} ${m.unite || ''}`,
-            m.valeur_attendue ? `${m.valeur_attendue} ${m.unite || ''}` : "CONFORME",
-            m.conforme ? "✅" : "❌"
-        ]) || [['Aucune mesure détaillée enregistrée', '-', '-', '-']],
+        head: [['POINT DE CONTRÔLE', 'LVL', 'MESURE RÉELLE', 'VALEUR ATTENDUE', 'STATUT']],
+        body: data.mesures && data.mesures.length > 0
+            ? data.mesures.map(m => {
+                const isEnv = m.parametre.startsWith('[ENV]');
+                let statutTxt = "";
+                if (m.conforme === 'RELEVÉ') {
+                    statutTxt = "RELEVÉ";
+                } else {
+                    statutTxt = m.conforme ? "CONFORME" : "ÉCHEC";
+                }
+
+                return [
+                    isEnv ? `   ${m.parametre}` : m.parametre + (m.metadata ? `\n(${m.metadata})` : ''),
+                    m.criticite ? `N${m.criticite}` : (isEnv ? '-' : 'N1'),
+                    `${m.valeur} ${m.unite || ''}`,
+                    m.valeur_attendue && m.valeur_attendue !== '---' ? `${m.valeur_attendue} ${m.unite || ''}` : "SÉCURITÉ",
+                    statutTxt
+                ];
+            })
+            : [['Aucune mesure détaillée n\'a été enregistrée pour ce test.', '-', '-', '-', '-']],
         theme: 'grid',
         headStyles: { fillColor: theme.noir, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
         bodyStyles: { fontSize: 8 },
         columnStyles: {
-            3: { halign: 'center', fontSize: 10 }
+            0: { cellWidth: 70 },
+            1: { halign: 'center', fontStyle: 'bold', cellWidth: 15 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 },
+            4: { halign: 'center', fontStyle: 'bold', cellWidth: 25 }
+        },
+        didParseCell: (data) => {
+            if (data.section === 'body') {
+                const cellText = data.cell.text[0] || '';
+
+                // Style pour les lignes ENV
+                if (cellText.includes('[ENV]')) {
+                    data.cell.styles.textColor = theme.label;
+                    data.cell.styles.fontSize = 7;
+                }
+
+                // Style spécial pour les points critiques N4/N5
+                if (data.column.index === 1) {
+                    const cellValue = data.cell.raw as string;
+                    if (cellValue === 'N4' || cellValue === 'N5') {
+                        data.cell.styles.textColor = theme.rose;
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+
+                // Style pour le statut
+                if (data.column.index === 4) {
+                    const cellValue = data.cell.text[0];
+                    if (cellValue === 'ÉCHEC') {
+                        data.cell.styles.textColor = theme.rose;
+                    } else if (cellValue === 'CONFORME') {
+                        data.cell.styles.textColor = theme.emerald;
+                    } else if (cellValue === 'RELEVÉ') {
+                        data.cell.styles.textColor = theme.label;
+                        data.cell.styles.fontStyle = 'normal';
+                    }
+                }
+            }
         }
     });
 
@@ -349,95 +402,172 @@ export const exportToPDF = (options: any) => {
     doc.save(`${options.filename}.pdf`);
 };
 
-export const exportTestReportPDF = (test: any) => {
+export const exportTestReportPDF = async (test: any) => {
     if (!test) return;
 
-    // Mapping des données AeroTech
+    // ============================================================
+    // ÉTAPE 1 : Récupérer le test COMPLET depuis le Service
+    // ============================================================
+    let fullTest = test;
+    const testId = test.id_test || test.id;
+
+    try {
+        console.log(`[PDF] Récupération des détails complets pour le test ${testId}...`);
+        fullTest = await testsService.getTest(testId);
+        console.log('[PDF] Test complet récupéré avec succès:', {
+            numero: fullTest.numero_test,
+            mesures: fullTest.mesures?.length || 0,
+            equipe: fullTest.equipe_members?.length || 0
+        });
+    } catch (err) {
+        console.warn('[PDF] Échec de la récupération complète via le service, utilisation des données partielles.', err);
+    }
+
+    // Toujours s'assurer que les mesures sont là
+    let mesuresBase: any[] = fullTest.mesures || [];
+    if (mesuresBase.length === 0) {
+        try {
+            mesuresBase = await testsService.getTestMesures(testId);
+        } catch (err) {
+            console.error('[PDF] Impossible de charger les mesures séparément.', err);
+        }
+    }
+
+    // ============================================================
+    // ÉTAPE 2 : Parser conditions_mesure (Multi-format)
+    // ============================================================
+    const extractEnvData = (str: string) => {
+        if (!str) return [];
+        const items: Array<{ parametre: string, valeur: string, unite: string }> = [];
+        // Support multiple separators: ·, |, ;
+        const parts = str.split(/[·|;]/).map(s => s.trim());
+
+        parts.forEach(part => {
+            const match = part.match(/^(T|TEMPERATURE|TEMP|H|HUMIDITE|HUMIDITY|P|PRESSION|PRESSURE)\s*:\s*(.*)$/i);
+            if (match) {
+                const key = match[1].toUpperCase();
+                const val = match[2].trim();
+                if (key.startsWith('T')) items.push({ parametre: 'Température', valeur: val, unite: '' });
+                else if (key.startsWith('H')) items.push({ parametre: 'Humidité Relative', valeur: val, unite: '' });
+                else if (key.startsWith('P')) items.push({ parametre: 'Pression Atm.', valeur: val, unite: '' });
+            }
+        });
+        return items;
+    };
+
+    // Construction du tableau final des mesures
+    const finalMesures: any[] = [];
+
+    // Ajouter les mesures réelles (Une seule fois par mesure)
+    mesuresBase.forEach((m: any) => {
+        finalMesures.push({
+            parametre: m.parametre_mesure || m.libelle || 'Point de contrôle',
+            valeur: (m.valeur_mesuree !== null && m.valeur_mesuree !== undefined) ? m.valeur_mesuree : (m.valeur ?? '---'),
+            valeur_attendue: (m.valeur_reference !== null && m.valeur_reference !== undefined) ? m.valeur_reference : '---',
+            unite: m.unite_mesure || m.unite || '',
+            conforme: m.conforme === true || m.conforme === 1 || String(m.conforme).toLowerCase() === 'true',
+            criticite: m.criticite || 3,
+            metadata: m.ecart_absolu ? `Écart: ${m.ecart_absolu} · Tol: ±${m.tolerance_max || 'N/A'}` : ''
+        });
+    });
+
+    // Collecter les conditions environnementales (SANS DOUBLONS)
+    const envParamsAdded = new Set();
+    mesuresBase.forEach((m: any) => {
+        if (m.conditions_mesure) {
+            const envs = extractEnvData(m.conditions_mesure);
+            envs.forEach(env => {
+                const fullParamName = `[ENV] ${env.parametre}`;
+                if (!envParamsAdded.has(fullParamName)) {
+                    finalMesures.push({
+                        parametre: fullParamName,
+                        valeur: env.valeur,
+                        valeur_attendue: 'AMBIANT',
+                        unite: env.unite,
+                        conforme: 'RELEVÉ',
+                        criticite: 0,
+                        metadata: 'Donnée environnementale'
+                    });
+                    envParamsAdded.add(fullParamName);
+                }
+            });
+        }
+    });
+
+    // ============================================================
+    // ÉTAPE 3 : Construction Équipe (Cohorte)
+    // ============================================================
+    const buildFullTeam = () => {
+        const team: any[] = [];
+
+        // 1. Responsable (toujours en premier)
+        if (fullTest.responsable) {
+            team.push({
+                nom: fullTest.responsable.nom_complet || `${fullTest.responsable.prenom || ''} ${fullTest.responsable.nom || ''}`.trim(),
+                role: fullTest.responsable.poste || fullTest.responsable.fonction || 'Responsable de Test',
+                departement: fullTest.responsable.departement || 'Qualité',
+                email: fullTest.responsable.email || '',
+                is_responsable: true
+            });
+        }
+
+        // 2. Membres de l'équipe (ceux qui ne sont pas le responsable)
+        const respId = fullTest.responsable_test_id || fullTest.responsable?.id_personnel;
+        const members = fullTest.equipe_members || [];
+
+        members.forEach((m: any) => {
+            if (m.id_personnel !== respId) {
+                team.push({
+                    nom: m.nom_complet || `${m.prenom || ''} ${m.nom || ''}`.trim(),
+                    role: m.role?.nom_role || m.poste || 'Technicien / Consultant',
+                    departement: m.departement || 'Opérations',
+                    email: m.email || '',
+                    is_responsable: false
+                });
+            }
+        });
+
+        // 3. Fallback si vide
+        if (team.length === 0) {
+            team.push({ nom: 'Équipe AeroTech Standard', role: 'Support Technique', departement: 'Qualité', email: '-', is_responsable: true });
+        }
+
+        return team;
+    };
+
     const reportData: TechnicalReportData = {
-        id_test: test.id_test,
-        numero_test: test.numero_test,
-        titre_rapport: `RAPPORT D'EXPERTISE : ${test.type_test?.libelle || 'CONTRÔLE INDUSTRIEL'}`,
-        type_rapport: test.type_test?.libelle || 'Standard',
+        id_test: fullTest.id_test,
+        numero_test: fullTest.numero_test,
+        titre_rapport: `RAPPORT D'EXPERTISE : ${fullTest.type_test?.libelle || 'CONTRÔLE INDUSTRIEL'}`,
+        type_rapport: fullTest.type_test?.libelle || 'Standard',
         date_edition: new Date().toISOString(),
-        resume_executif: test.observations_generales || test.observations || "Aucune observation majeure notée.",
-        recommandations: test.recommandations || "Continuer le suivi périodique selon le plan de maintenance.",
-        verdict: test.statut_final || test.resultat_global || 'EN ATTENTE',
-        site: test.localisation || 'Atelier Principal',
+        resume_executif: fullTest.observations_generales || fullTest.observations || "L'expertise terrain confirme la conformité générale.",
+        recommandations: fullTest.recommandations || "Maintenir le plan de maintenance périodique.",
+        verdict: fullTest.statut_final || fullTest.resultat_global || 'VALIDÉ',
+        site: fullTest.localisation || 'Atelier Marignane',
         atelier: 'AeroHub Zone-A',
-        criticite: test.niveau_criticite ? `NIVEAU ${test.niveau_criticite}` : 'NIVEAU 1',
-        date_planification: test.date_test,
-        health_score: test.statut_test === 'TERMINE' && test.statut_final === 'OK' ? 100 : (test.statut_final === 'NOK' ? 45 : 85),
+        criticite: `NIVEAU ${fullTest.niveau_criticite || 1}`,
+        date_planification: fullTest.date_test,
+        health_score: fullTest.taux_conformite_pct ? parseFloat(fullTest.taux_conformite_pct) : (fullTest.statut_final === 'CONFORME' ? 100 : 0),
         equipement: {
-            nom: test.equipement?.designation || 'Équipement Standard',
-            code: test.equipement?.code_equipement || 'EQ-N/A',
-            modele: test.equipement?.modele || 'M-2024-X',
+            nom: fullTest.equipement?.designation || 'Équipement Industriel',
+            code: fullTest.equipement?.code_equipement || 'EQ-N/A',
+            modele: fullTest.equipement?.modele || 'STD-2024',
             statut: 'OPÉRATIONNEL'
         },
         instrument: {
-            nom: test.instrument?.designation || 'Instrument de Mesure',
-            code: test.instrument?.code_instrument || 'AUTO',
-            numero_serie: test.instrument?.numero_serie || 'SN-XXXX',
-            derniere_calibration: test.instrument?.date_derniere_calibration ? formatDate(test.instrument.date_derniere_calibration) : 'Déc. 2023',
+            nom: fullTest.instrument?.designation || 'Instrument de Mesure',
+            code: fullTest.instrument?.code_instrument || 'AUTO',
+            numero_serie: fullTest.instrument?.numero_serie || 'SN-XXXX',
+            derniere_calibration: fullTest.instrument?.date_derniere_calibration ? formatDate(fullTest.instrument.date_derniere_calibration) : 'Déc. 2023',
             validite: 'VALIDE'
         },
-        equipe: (() => {
-            const team = [];
-
-            // Add responsable as first member
-            if (test.responsable) {
-                team.push({
-                    nom: test.responsable.nom_complet || `${test.responsable.prenom || ''} ${test.responsable.nom || ''}`.trim() || 'Expert AeroTech',
-                    role: test.responsable.fonction || test.responsable.poste || 'Responsable Qualité',
-                    departement: test.responsable.departement || 'Qualité',
-                    email: test.responsable.email,
-                    is_responsable: true
-                });
-            }
-
-            // Add other team members
-            if (test.equipe_members && test.equipe_members.length > 0) {
-                test.equipe_members.forEach((member: any) => {
-                    // Don't duplicate responsable
-                    if (member.id_personnel !== test.responsable_test_id) {
-                        team.push({
-                            nom: member.nom_complet || `${member.prenom || ''} ${member.nom || ''}`.trim(),
-                            role: member.role?.nom_role || member.poste || 'Membre Équipe',
-                            departement: member.departement || 'Support',
-                            email: member.email,
-                            is_responsable: false
-                        });
-                    }
-                });
-            }
-
-            // If no team members, add a default entry
-            if (team.length === 0) {
-                team.push({
-                    nom: 'Expert AeroTech',
-                    role: 'Responsable Qualité',
-                    departement: 'Qualité',
-                    email: 'expert@aerotech.com',
-                    is_responsable: true
-                });
-            }
-
-            return team;
-        })(),
-        mesures: test.mesures?.map((m: any) => ({
-            parametre: m.parametre_mesure || m.type_mesure || 'Paramètre',
-            valeur: m.valeur_mesuree ?? '---',
-            valeur_attendue: m.valeur_reference ?? '---',
-            unite: m.unite_mesure || '',
-            conforme: m.conforme ?? true
-        })) || [
-                { parametre: 'Température de fonctionnement', valeur: '42', valeur_attendue: '35-50', unite: '°C', conforme: true },
-                { parametre: 'Vibrations axiales', valeur: '0.4', valeur_attendue: '< 1.2', unite: 'mm/s', conforme: true },
-                { parametre: 'Pression hydraulique', valeur: '185', valeur_attendue: '180-200', unite: 'bar', conforme: true }
-            ],
+        equipe: buildFullTeam(),
+        mesures: finalMesures,
         metadatas: {
-            duree_test: test.duree_reelle_heures ? `${test.duree_reelle_heures}H` : '1H 15M',
-            notes_terrain: test.observations || 'Inspection visuelle effectuée sans anomalie majeure.',
-            resultat_attendu: test.resultat_attendu || "Validation des paramètres de performance nominale."
+            duree_test: fullTest.duree_reelle_heures ? `${fullTest.duree_reelle_heures}H` : '1H 15M',
+            notes_terrain: fullTest.observations || fullTest.observations_generales || 'R.A.S',
+            resultat_attendu: fullTest.resultat_attendu || "Performance nominale."
         }
     };
 
@@ -447,4 +577,3 @@ export const exportTestReportPDF = (test: any) => {
 export const exportMasterReportPDF = () => {
     toast.error("Génération du rapport global indisponible.");
 };
-

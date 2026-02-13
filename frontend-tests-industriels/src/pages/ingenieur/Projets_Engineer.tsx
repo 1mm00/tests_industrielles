@@ -5,8 +5,6 @@ import {
     Clock,
     CheckCircle2,
     AlertCircle,
-    Search,
-    Filter,
     Plus,
     Calendar,
     Settings,
@@ -179,7 +177,7 @@ export default function Projets_Engineer() {
                     Array(3).fill(0).map((_, i) => (
                         <div key={i} className="h-40 bg-white rounded-[2rem] border border-slate-100 animate-pulse" />
                     ))
-                ) : tests?.data?.length === 0 ? (
+                ) : !tests?.data || tests.data.length === 0 ? (
                     <div className="bg-white p-20 rounded-[2.5rem] border border-slate-100 text-center">
                         <div className="flex flex-col items-center gap-4 opacity-30">
                             <Layers className="h-16 w-16 text-slate-300" />
@@ -187,7 +185,7 @@ export default function Projets_Engineer() {
                         </div>
                     </div>
                 ) : (
-                    tests.data.map((test: any) => {
+                    tests?.data?.map((test: any) => {
                         const config = (statusConfig as any)[test.statut_test] || statusConfig['PLANIFIE'];
                         const Icon = config.icon;
 

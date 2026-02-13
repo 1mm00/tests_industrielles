@@ -242,4 +242,26 @@ class AuthController extends Controller
             'message' => 'Mot de passe modifié avec succès'
         ]);
     }
+
+    /**
+     * API Verify Password (Double Authentication)
+     */
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required',
+        ]);
+
+        if (!Hash::check($request->password, $request->user()->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mot de passe incorrect'
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mot de passe vérifié'
+        ]);
+    }
 }
